@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Jira board
+    url: https://seprojectmay2026.atlassian.net/jira/software/projects/SCRUM/list
+    about: Use Jira for sprint planning, task ownership, and project tracking.
+  - name: Course / TA clarification
+    url: https://mail.google.com/mail/u/0/?ogbl#chat/space/AAQAHmYHork 
+    about: Use official course channels for TA/client clarification.
