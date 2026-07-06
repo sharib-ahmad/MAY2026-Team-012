@@ -198,6 +198,52 @@ Do not put real passwords, tokens, API keys, or personal credentials in GitHub.
 
 ---
 
+## Frontend Quality Checks
+
+Before opening a frontend Pull Request, run these checks from the repository root:
+
+```bash
+cd frontend
+npm install
+npm run format:check
+npm run lint
+npm run build
+```
+
+If formatting fails, run:
+
+```bash
+npm run format
+```
+
+Then check again:
+
+```bash
+npm run format:check
+npm run lint
+npm run build
+```
+
+Before committing, `pre-commit` should also be installed locally:
+
+```bash
+cd ..
+pip install pre-commit
+pre-commit install
+```
+
+Run all pre-commit checks manually when needed:
+
+```bash
+pre-commit run --all-files
+```
+
+Backend linting and backend tests will be added later during the backend/API implementation sprint.
+
+Important: backend Ruff, backend pytest, backend CI, database migration checks, and API tests are not part of this Milestone 2 frontend quality setup PR.
+
+---
+
 ## Before Opening a Pull Request
 
 Always run:
