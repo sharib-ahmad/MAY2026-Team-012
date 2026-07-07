@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: frontend-format-check
+        name: frontend format check
+        entry: bash -c 'cd frontend && npm run format:check'
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx|css|json|md)$
+        pass_filenames: false
+
+      - id: frontend-lint
+        name: frontend lint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
+        pass_filenames: false
