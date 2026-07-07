@@ -1,12 +1,7 @@
 import { Routes as AppRoutes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Track from "./pages/Track";
-import Flows from "./pages/Flows";
 import Landing from "./pages/Landing";
-import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
 export default function App() {
@@ -21,16 +16,16 @@ export default function App() {
 
   return (
     <AppRoutes>
-      <Route path="/track" element={<Track />} />
-      <Route path="/flows" element={<Flows />} />
-      <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <Register />} />
+      <Route path="/track" element={<ComingSoon roleLabel="Track" />} />
+      <Route path="/flows" element={<ComingSoon roleLabel="Flows" />} />
+      <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Login" />} />
+      <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Register" />} />
 
       <Route
         path="/resident/dashboard"
         element={
           <ProtectedRoute role="RESIDENT">
-            <CitizenDashboard />
+            <ComingSoon roleLabel="Resident" />
           </ProtectedRoute>
         }
       />
