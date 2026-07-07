@@ -1,7 +1,74 @@
+import { Routes as AppRoutes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Track from "./pages/Track";
+import Flows from "./pages/Flows";
+import Landing from "./pages/Landing";
+import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
+import ComingSoon from "./pages/dashboards/ComingSoon";
+
 export default function App() {
+  const { user, homePath, loading } = useAuth();
+
+  // Wait for AuthProvider to finish checking localStorage for a session
+  // before deciding where to route — otherwise a logged-in user briefly
+  // flashes the login page on refresh.
+  if (loading) {
+    return <div className="min-h-screen bg-[#FBF7EE]" />;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <h1 className="text-2xl font-bold text-slate-800">Frontend Scaffold Ready</h1>
-    </div>
+    <AppRoutes>
+      <Route path="/track" element={<Track />} />
+      <Route path="/flows" element={<Flows />} />
+      <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <Register />} />
+
+      <Route
+        path="/resident/dashboard"
+        element={
+          <ProtectedRoute role="RESIDENT">
+            <CitizenDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/collector/dashboard"
+        element={
+          <ProtectedRoute role="COLLECTOR">
+            <ComingSoon roleLabel="Collector" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recycler/dashboard"
+        element={
+          <ProtectedRoute role="RECYCLER">
+            <ComingSoon roleLabel="Recycler" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/dashboard"
+        element={
+          <ProtectedRoute role="MANAGER">
+            <ComingSoon roleLabel="Manager" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute role="ADMIN">
+            <ComingSoon roleLabel="Admin" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="/" element={user ? <Navigate to={homePath} replace /> : <Landing />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </AppRoutes>
   );
 }
