@@ -18,8 +18,14 @@ export default function App() {
     <AppRoutes>
       <Route path="/track" element={<ComingSoon roleLabel="Track" />} />
       <Route path="/flows" element={<ComingSoon roleLabel="Flows" />} />
-      <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Login" />} />
-      <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Register" />} />
+      <Route
+        path="/login"
+        element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Login" />}
+      />
+      <Route
+        path="/register"
+        element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Register" />}
+      />
 
       <Route
         path="/resident/dashboard"
