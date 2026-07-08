@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
 export default function App() {
@@ -27,7 +28,7 @@ export default function App() {
         path="/resident/dashboard"
         element={
           <ProtectedRoute role="RESIDENT">
-            <ComingSoon roleLabel="Resident" />
+            <CitizenDashboard />
           </ProtectedRoute>
         }
       />
