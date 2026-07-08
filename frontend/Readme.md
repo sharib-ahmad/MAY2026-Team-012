@@ -39,20 +39,20 @@ Copy `.env.example` to `.env` if you need to override defaults:
 cp .env.example .env
 ```
 
-| Variable | Default | Description |
-|---|---|---|
-| `VITE_API_BASE_URL` | `/api` | Base URL for API requests. Only needed if not using the Vite dev proxy. |
+| Variable            | Default | Description                                                             |
+| ------------------- | ------- | ----------------------------------------------------------------------- |
+| `VITE_API_BASE_URL` | `/api`  | Base URL for API requests. Only needed if not using the Vite dev proxy. |
 
 ## Available Scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start the Vite dev server with hot reload |
-| `npm run build` | Type-check and build for production into `dist/` |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format the codebase with Prettier |
-| `npm run format:check` | Check formatting without writing changes |
+| Command                | Description                                      |
+| ---------------------- | ------------------------------------------------ |
+| `npm run dev`          | Start the Vite dev server with hot reload        |
+| `npm run build`        | Type-check and build for production into `dist/` |
+| `npm run preview`      | Preview the production build locally             |
+| `npm run lint`         | Run ESLint                                       |
+| `npm run format`       | Format the codebase with Prettier                |
+| `npm run format:check` | Check formatting without writing changes         |
 
 ## Project Structure
 
@@ -88,19 +88,20 @@ src/
 
 The app supports five roles, each with its own dashboard route:
 
-| Role | Route |
-|---|---|
-| Resident | `/resident/dashboard` |
+| Role      | Route                  |
+| --------- | ---------------------- |
+| Resident  | `/resident/dashboard`  |
 | Collector | `/collector/dashboard` |
-| Recycler | `/recycler/dashboard` |
-| Manager | `/manager/dashboard` |
-| Admin | `/admin/dashboard` |
+| Recycler  | `/recycler/dashboard`  |
+| Manager   | `/manager/dashboard`   |
+| Admin     | `/admin/dashboard`     |
 
 Dashboard routes are guarded by `ProtectedRoute`, which checks the authenticated user's role before rendering. Currently only the Resident dashboard (`CitizenDashboard.jsx`) is fully built; the other roles render a `ComingSoon` placeholder.
 
 **Note:** There is no live `/api/auth/*` backend yet. `src/lib/mockAuth.js` simulates registration, login, hashed password storage, and JWT-shaped session tokens entirely in `localStorage` via the Web Crypto API. `AuthContext.jsx` is the single integration point — swap its calls for real `axios` requests to `/api/auth/*` once a backend exists, and the rest of the app should not need to change.
 
 Once a real backend is available, `src/lib/api.js` already handles:
+
 - Attaching the JWT `Authorization` header to every request
 - Automatically refreshing expired tokens on `401` responses and retrying the original request
 
@@ -108,14 +109,14 @@ Once a real backend is available, `src/lib/api.js` already handles:
 
 Tailwind is extended with role-specific accent colors and design tokens (see `tailwind.config.js`):
 
-| Token | Value | Usage |
-|---|---|---|
-| `primary` | `#1B5E20` | Resident |
-| `accent` | `#0277BD` | Collector |
-| `manager` | `#B8860B` | Manager |
-| `recycler` | `#6A1B9A` | Recycler |
-| `admin` | `#37474F` | Admin |
-| `success` / `warn` / `danger` | — | Status colors |
+| Token                         | Value     | Usage         |
+| ----------------------------- | --------- | ------------- |
+| `primary`                     | `#1B5E20` | Resident      |
+| `accent`                      | `#0277BD` | Collector     |
+| `manager`                     | `#B8860B` | Manager       |
+| `recycler`                    | `#6A1B9A` | Recycler      |
+| `admin`                       | `#37474F` | Admin         |
+| `success` / `warn` / `danger` | —         | Status colors |
 
 Fonts: `Inter` (sans) and `JetBrains Mono` (mono).
 
