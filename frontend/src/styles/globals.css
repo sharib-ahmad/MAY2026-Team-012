@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply font-sans text-sm;
+}
+
+/* Status pill base */
+.pill {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+}
+.pill-success {
+  @apply bg-green-100 text-green-800;
+}
+.pill-warn {
+  @apply bg-amber-100 text-amber-800;
+}
+.pill-danger {
+  @apply bg-red-100 text-red-800;
+}
+.pill-info {
+  @apply bg-blue-100 text-blue-800;
+}
+.pill-purple {
+  @apply bg-purple-100 text-purple-800;
+}
+.pill-slate {
+  @apply bg-gray-100 text-gray-800;
+}
+
+/* Leaflet maps stay below nav, modals, and dropdowns */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1 !important;
+}
+.leaflet-control {
+  z-index: 2 !important;
+}
+.map-shell {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+/* Role-themed navbars */
+.nav-resident {
+  @apply bg-primary text-white;
+}
+.nav-collector {
+  @apply bg-accent text-white;
+}
+.nav-manager {
+  @apply bg-manager text-white;
+}
+.nav-recycler {
+  @apply bg-recycler text-white;
+}
+.nav-admin {
+  @apply bg-admin text-white;
+}
+
+/* Smooth fade-in */
+.fade-in {
+  animation: fadeIn 0.25s ease-in;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
