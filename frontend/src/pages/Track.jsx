@@ -11,6 +11,17 @@ export default function Track() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // A response only counts as "real" if it has the minimum fields every
+  // entity type needs. Anything else (missing backend, wrong shape, an
+  // HTML fallback page, etc.) is treated the same as "not found" instead
+  // of rendering a mostly-empty card that could look like broken data.
+  const isValidTrackResult = (data) =>
+    !!data &&
+    typeof data === "object" &&
+    typeof data.code === "string" &&
+    typeof data.entity_type === "string" &&
+    typeof data.status === "string";
+
   const search = async (e) => {
     e.preventDefault();
     if (!code.trim()) return;
@@ -19,9 +30,13 @@ export default function Track() {
     setLoading(true);
     try {
       const { data } = await API.get(`/track/${encodeURIComponent(code.trim())}`);
-      setResult(data);
+      if (isValidTrackResult(data)) {
+        setResult(data);
+      } else {
+        setErr("Id not found");
+      }
     } catch ({ response }) {
-      setErr(response?.data?.detail || "Code not found");
+      setErr(response?.data?.detail || "Id not found");
     }
     setLoading(false);
   };
@@ -182,15 +197,13 @@ export default function Track() {
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {result.timeline.map((evt, i) => (
+                  {(result.timeline ?? []).map((evt, i, arr) => (
                     <div key={evt.id} className="flex gap-3">
                       <div className="flex flex-col items-center">
                         <div
-                          className={`w-3 h-3 rounded-full ${i === result.timeline.length - 1 ? "bg-primary" : "bg-gray-300"}`}
+                          className={`w-3 h-3 rounded-full ${i === arr.length - 1 ? "bg-primary" : "bg-gray-300"}`}
                         />
-                        {i < result.timeline.length - 1 && (
-                          <div className="w-0.5 flex-1 bg-gray-200" />
-                        )}
+                        {i < arr.length - 1 && <div className="w-0.5 flex-1 bg-gray-200" />}
                       </div>
                       <div className="pb-3 flex-1">
                         <div className="flex items-center justify-between">
@@ -208,7 +221,7 @@ export default function Track() {
                       </div>
                     </div>
                   ))}
-                  {result.timeline.length === 0 && (
+                  {(result.timeline ?? []).length === 0 && (
                     <p className="text-gray-400 text-sm">No events recorded yet</p>
                   )}
                 </div>
