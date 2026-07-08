@@ -2,6 +2,8 @@ import { Routes as AppRoutes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
+import Track from "./pages/Track";
+import Flows from "./pages/Flows";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
@@ -19,8 +21,8 @@ export default function App() {
 
   return (
     <AppRoutes>
-      <Route path="/track" element={<ComingSoon roleLabel="Track" />} />
-      <Route path="/flows" element={<ComingSoon roleLabel="Flows" />} />
+      <Route path="/track" element={<Track />} />
+      <Route path="/flows" element={<Flows />} />
       <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <Register />} />
 
