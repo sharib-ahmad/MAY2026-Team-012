@@ -28,6 +28,13 @@ const isValidEmail = (email) => {
   return at > 0 && dot > at + 1 && dot < value.length - 1;
 };
 
+// className helper: swaps border color to red when a field has an error
+function inputClass(hasError) {
+  return `w-full border rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+    hasError ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-primary/40"
+  }`;
+}
+
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -43,6 +50,7 @@ export default function Register() {
     address: "",
   });
   const [err, setErr] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -63,29 +71,56 @@ export default function Register() {
   const needsZone = form.role === "RESIDENT" || form.role === "COLLECTOR";
   const showAddress = form.role === "RESIDENT";
 
+  // Clears just one field's error as the user edits it, so the message
+  // doesn't stay stuck on screen after they've started fixing it.
+  const updateField = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
+  const validate = () => {
+    const errors = {};
+
+    if (!form.name.trim() || form.name.trim().length < 2) {
+      errors.name = "Please enter your full name (at least 2 characters).";
+    }
+    if (!isValidEmail(form.email)) {
+      errors.email = "Please enter a valid email address.";
+    }
+    if (form.password.length < 8) {
+      errors.password = "Password must be at least 8 characters.";
+    }
+    if (!form.confirm) {
+      errors.confirm = "Please confirm your password.";
+    } else if (form.password !== form.confirm) {
+      errors.confirm = "Passwords do not match.";
+    }
+    if (needsZone && !form.zone_id) {
+      errors.zone_id = "Please select your zone.";
+    }
+    if (showAddress && !form.address.trim()) {
+      errors.address = "Please enter your home address.";
+    }
+
+    return errors;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    if (!isValidEmail(form.email)) {
-      setErr("Please enter a valid email address.");
+
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
-    if (form.password.length < 8) {
-      setErr("Password must be at least 8 characters.");
-      return;
-    }
-    if (form.password !== form.confirm) {
-      setErr("Passwords do not match.");
-      return;
-    }
-    if (needsZone && !form.zone_id) {
-      setErr("Please select your zone.");
-      return;
-    }
-    if (showAddress && !form.address.trim()) {
-      setErr("Please enter your home address.");
-      return;
-    }
+
     setLoading(true);
     try {
       const data = await register({
@@ -187,9 +222,9 @@ export default function Register() {
                     <label className="block text-xs font-medium text-gray-600 mb-1">Role *</label>
                     <select
                       required
-                      className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                      className={inputClass(false)}
                       value={form.role}
-                      onChange={(e) => setForm({ ...form, role: e.target.value })}
+                      onChange={(e) => updateField("role", e.target.value)}
                     >
                       {ROLES.map((r) => (
                         <option key={r.value} value={r.value}>
@@ -208,10 +243,14 @@ export default function Register() {
                       required
                       minLength={2}
                       autoComplete="name"
-                      className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                      aria-invalid={Boolean(fieldErrors.name)}
+                      className={inputClass(fieldErrors.name)}
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) => updateField("name", e.target.value)}
                     />
+                    {fieldErrors.name && (
+                      <p className="text-red-600 text-xs mt-1">{fieldErrors.name}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Email *</label>
@@ -220,10 +259,14 @@ export default function Register() {
                       required
                       autoComplete="email"
                       inputMode="email"
-                      className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                      className={inputClass(fieldErrors.email)}
                       value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      onChange={(e) => updateField("email", e.target.value)}
                     />
+                    {fieldErrors.email && (
+                      <p className="text-red-600 text-xs mt-1">{fieldErrors.email}</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -237,9 +280,10 @@ export default function Register() {
                           minLength={8}
                           autoComplete="new-password"
                           placeholder="••••••••"
-                          className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 pr-9 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                          aria-invalid={Boolean(fieldErrors.password)}
+                          className={`${inputClass(fieldErrors.password)} pr-9`}
                           value={form.password}
-                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          onChange={(e) => updateField("password", e.target.value)}
                         />
                         <button
                           type="button"
@@ -250,6 +294,9 @@ export default function Register() {
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                      {fieldErrors.password && (
+                        <p className="text-red-600 text-xs mt-1">{fieldErrors.password}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -262,9 +309,10 @@ export default function Register() {
                           minLength={8}
                           autoComplete="new-password"
                           placeholder="••••••••"
-                          className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 pr-9 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                          aria-invalid={Boolean(fieldErrors.confirm)}
+                          className={`${inputClass(fieldErrors.confirm)} pr-9`}
                           value={form.confirm}
-                          onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+                          onChange={(e) => updateField("confirm", e.target.value)}
                         />
                         <button
                           type="button"
@@ -275,6 +323,9 @@ export default function Register() {
                           {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                      {fieldErrors.confirm && (
+                        <p className="text-red-600 text-xs mt-1">{fieldErrors.confirm}</p>
+                      )}
                     </div>
                   </div>
                   {needsZone && (
@@ -282,9 +333,10 @@ export default function Register() {
                       <label className="block text-xs font-medium text-gray-600 mb-1">Zone *</label>
                       <select
                         required
-                        className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                        aria-invalid={Boolean(fieldErrors.zone_id)}
+                        className={inputClass(fieldErrors.zone_id)}
                         value={form.zone_id}
-                        onChange={(e) => setForm({ ...form, zone_id: e.target.value })}
+                        onChange={(e) => updateField("zone_id", e.target.value)}
                       >
                         <option value="">Select zone *</option>
                         {zones.map((z) => (
@@ -293,6 +345,9 @@ export default function Register() {
                           </option>
                         ))}
                       </select>
+                      {fieldErrors.zone_id && (
+                        <p className="text-red-600 text-xs mt-1">{fieldErrors.zone_id}</p>
+                      )}
                     </div>
                   )}
                   <div>
@@ -302,9 +357,9 @@ export default function Register() {
                       autoComplete="tel"
                       inputMode="tel"
                       placeholder="Optional"
-                      className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                      className={inputClass(false)}
                       value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      onChange={(e) => updateField("phone", e.target.value)}
                     />
                   </div>
                   {showAddress && (
@@ -317,10 +372,14 @@ export default function Register() {
                         required
                         autoComplete="street-address"
                         placeholder="House no., street, locality, city"
-                        className="w-full border border-gray-200 rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                        aria-invalid={Boolean(fieldErrors.address)}
+                        className={inputClass(fieldErrors.address)}
                         value={form.address}
-                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        onChange={(e) => updateField("address", e.target.value)}
                       />
+                      {fieldErrors.address && (
+                        <p className="text-red-600 text-xs mt-1">{fieldErrors.address}</p>
+                      )}
                     </div>
                   )}
                   <button
