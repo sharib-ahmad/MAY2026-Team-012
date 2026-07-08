@@ -2,6 +2,7 @@ import { Routes as AppRoutes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
+import Login from "./pages/Login";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
 export default function App() {
@@ -18,10 +19,7 @@ export default function App() {
     <AppRoutes>
       <Route path="/track" element={<ComingSoon roleLabel="Track" />} />
       <Route path="/flows" element={<ComingSoon roleLabel="Flows" />} />
-      <Route
-        path="/login"
-        element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Login" />}
-      />
+      <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <Login />} />
       <Route
         path="/register"
         element={user ? <Navigate to={homePath} replace /> : <ComingSoon roleLabel="Register" />}
