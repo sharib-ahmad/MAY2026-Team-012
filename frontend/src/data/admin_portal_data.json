@@ -1,0 +1,88 @@
+{
+  "stats": {
+    "total_users": 42,
+    "active_users": 35,
+    "suspended_users": 4,
+    "pending_users": 3,
+    "total_zones": 5,
+    "open_complaints": 11,
+    "errors_last_24h": 6,
+    "system_uptime_pct": 99.4
+  },
+
+  "roles": [
+    {
+      "key": "RESIDENT",
+      "label": "Citizen",
+      "description": "Households, shopkeepers, and school administrators generating waste.",
+      "permissions": ["view_schedule", "file_complaint", "request_bulk_pickup", "view_recycling_summary"]
+    },
+    {
+      "key": "COLLECTOR",
+      "label": "Collection Worker",
+      "description": "Field drivers and helpers covering assigned routes.",
+      "permissions": ["view_assigned_routes", "update_route_status", "log_delay_reason", "flag_mixed_waste"]
+    },
+    {
+      "key": "MANAGER",
+      "label": "Municipal Officer",
+      "description": "Operations supervisors monitoring complaints, routes, and crews.",
+      "permissions": ["view_all_complaints", "resolve_complaints", "reassign_workers", "view_route_tracking"]
+    },
+    {
+      "key": "RECYCLER",
+      "label": "Recycler",
+      "description": "External material vendors sourcing sorted recyclables.",
+      "permissions": ["view_material_ledger", "claim_batch", "update_pickup_status"]
+    },
+    {
+      "key": "ADMIN",
+      "label": "System Admin",
+      "description": "Engineering role responsible for platform health and access control.",
+      "permissions": ["manage_users", "manage_roles", "manage_zones", "view_error_logs", "edit_static_content"]
+    }
+  ],
+
+  "zones": [
+    { "id": "zone-1", "code": "WARD-01", "name": "Zone 1 - Gomti Nagar", "officer_id": "usr-006", "active_workers": 4, "status": "ACTIVE" },
+    { "id": "zone-2", "code": "WARD-02", "name": "Zone 2 - Hazratganj", "officer_id": "usr-007", "active_workers": 3, "status": "ACTIVE" },
+    { "id": "zone-3", "code": "WARD-03", "name": "Zone 3 - Alambagh", "officer_id": "usr-006", "active_workers": 3, "status": "ACTIVE" },
+    { "id": "zone-4", "code": "WARD-04", "name": "Zone 4 - Indira Nagar", "officer_id": "usr-008", "active_workers": 2, "status": "ACTIVE" },
+    { "id": "zone-5", "code": "WARD-05", "name": "Zone 5 - Chowk", "officer_id": "usr-008", "active_workers": 2, "status": "PENDING" }
+  ],
+
+  "users": [
+    { "id": "usr-001", "name": "Demo Admin", "email": "admin@verdeza.test", "role": "ADMIN", "zone_id": null, "phone": "+91 90000 00001", "status": "ACTIVE", "created_at": "2026-05-02T09:00:00Z", "last_login_at": "2026-07-09T07:45:00Z" },
+    { "id": "usr-002", "name": "Demo Manager", "email": "manager@verdeza.test", "role": "MANAGER", "zone_id": "zone-1", "phone": "+91 90000 00002", "status": "ACTIVE", "created_at": "2026-05-02T09:05:00Z", "last_login_at": "2026-07-09T06:30:00Z" },
+    { "id": "usr-003", "name": "Ritu Sharma", "email": "ritu.sharma@verdeza.test", "role": "RESIDENT", "zone_id": "zone-1", "phone": "+91 98765 43201", "status": "ACTIVE", "created_at": "2026-05-10T11:20:00Z", "last_login_at": "2026-07-08T18:12:00Z" },
+    { "id": "usr-004", "name": "Anil Verma", "email": "anil.verma@verdeza.test", "role": "RESIDENT", "zone_id": "zone-2", "phone": "+91 98765 43202", "status": "ACTIVE", "created_at": "2026-05-11T08:15:00Z", "last_login_at": "2026-07-07T21:05:00Z" },
+    { "id": "usr-005", "name": "Meera Nair", "email": "meera.nair@verdeza.test", "role": "RESIDENT", "zone_id": "zone-3", "phone": "+91 98765 43203", "status": "SUSPENDED", "created_at": "2026-05-12T14:40:00Z", "last_login_at": "2026-06-20T10:00:00Z" },
+    { "id": "usr-006", "name": "Officer Rakesh Tiwari", "email": "rakesh.tiwari@verdeza.test", "role": "MANAGER", "zone_id": "zone-1", "phone": "+91 98765 43204", "status": "ACTIVE", "created_at": "2026-05-03T09:30:00Z", "last_login_at": "2026-07-09T07:00:00Z" },
+    { "id": "usr-007", "name": "Officer Sunita Yadav", "email": "sunita.yadav@verdeza.test", "role": "MANAGER", "zone_id": "zone-2", "phone": "+91 98765 43205", "status": "ACTIVE", "created_at": "2026-05-03T09:35:00Z", "last_login_at": "2026-07-08T16:45:00Z" },
+    { "id": "usr-008", "name": "Officer Vikram Singh", "email": "vikram.singh@verdeza.test", "role": "MANAGER", "zone_id": "zone-4", "phone": "+91 98765 43206", "status": "PENDING", "created_at": "2026-07-01T10:00:00Z", "last_login_at": null },
+    { "id": "usr-009", "name": "Deepak Kumar", "email": "deepak.kumar@verdeza.test", "role": "COLLECTOR", "zone_id": "zone-1", "phone": "+91 98765 43207", "status": "ACTIVE", "created_at": "2026-05-15T07:00:00Z", "last_login_at": "2026-07-09T05:50:00Z" },
+    { "id": "usr-010", "name": "Suresh Pal", "email": "suresh.pal@verdeza.test", "role": "COLLECTOR", "zone_id": "zone-1", "phone": "+91 98765 43208", "status": "ACTIVE", "created_at": "2026-05-15T07:05:00Z", "last_login_at": "2026-07-09T05:52:00Z" },
+    { "id": "usr-011", "name": "Ramesh Chauhan", "email": "ramesh.chauhan@verdeza.test", "role": "COLLECTOR", "zone_id": "zone-2", "phone": "+91 98765 43209", "status": "ACTIVE", "created_at": "2026-05-16T07:00:00Z", "last_login_at": "2026-07-09T05:40:00Z" },
+    { "id": "usr-012", "name": "Om Prakash", "email": "om.prakash@verdeza.test", "role": "COLLECTOR", "zone_id": "zone-3", "phone": "+91 98765 43210", "status": "SUSPENDED", "created_at": "2026-05-16T07:10:00Z", "last_login_at": "2026-06-28T08:00:00Z" },
+    { "id": "usr-013", "name": "GreenCycle Traders", "email": "contact@greencycletraders.test", "role": "RECYCLER", "zone_id": "zone-1", "phone": "+91 91234 56701", "status": "ACTIVE", "created_at": "2026-05-20T12:00:00Z", "last_login_at": "2026-07-08T13:20:00Z" },
+    { "id": "usr-014", "name": "Lucknow Scrap Co.", "email": "ops@lucknowscrap.test", "role": "RECYCLER", "zone_id": "zone-2", "phone": "+91 91234 56702", "status": "ACTIVE", "created_at": "2026-05-21T12:00:00Z", "last_login_at": "2026-07-06T09:10:00Z" },
+    { "id": "usr-015", "name": "EcoReclaim Industries", "email": "hello@ecoreclaim.test", "role": "RECYCLER", "zone_id": "zone-3", "phone": "+91 91234 56703", "status": "PENDING", "created_at": "2026-07-05T15:30:00Z", "last_login_at": null }
+  ],
+
+  "error_logs": [
+    { "id": "err-101", "timestamp": "2026-07-09T06:12:03Z", "level": "ERROR", "source": "auth-service", "message": "Password hash mismatch retry limit exceeded", "status": "OPEN" },
+    { "id": "err-102", "timestamp": "2026-07-09T04:47:21Z", "level": "WARN", "source": "complaints-api", "message": "Complaint submitted without zone_id, defaulted to unassigned queue", "status": "RESOLVED" },
+    { "id": "err-103", "timestamp": "2026-07-08T22:03:55Z", "level": "ERROR", "source": "recycler-ledger", "message": "Batch claim race condition detected on batch #4821", "status": "OPEN" },
+    { "id": "err-104", "timestamp": "2026-07-08T18:30:10Z", "level": "INFO", "source": "scheduler", "message": "Nightly zone schedule sync completed", "status": "RESOLVED" },
+    { "id": "err-105", "timestamp": "2026-07-08T09:15:44Z", "level": "WARN", "source": "notifications", "message": "Delay notification delivery delayed for Zone 4", "status": "RESOLVED" },
+    { "id": "err-106", "timestamp": "2026-07-07T14:02:37Z", "level": "ERROR", "source": "session-store", "message": "Expired token accepted due to clock skew on client", "status": "ESCALATED" }
+  ],
+
+  "audit_log": [
+    { "id": "aud-201", "actor": "Demo Admin", "action": "USER_SUSPENDED", "target": "Om Prakash (usr-012)", "note": "Repeated missed route confirmations", "timestamp": "2026-06-28T08:30:00Z" },
+    { "id": "aud-202", "actor": "Demo Admin", "action": "ZONE_CREATED", "target": "Zone 5 - Chowk", "note": "Pilot expansion ward added", "timestamp": "2026-06-15T10:00:00Z" },
+    { "id": "aud-203", "actor": "Demo Admin", "action": "USER_ROLE_ASSIGNED", "target": "Officer Vikram Singh (usr-008)", "note": "Provisioned as MANAGER for Zone 4", "timestamp": "2026-07-01T10:05:00Z" },
+    { "id": "aud-204", "actor": "Demo Admin", "action": "USER_SUSPENDED", "target": "Meera Nair (usr-005)", "note": "Flagged for spam complaint submissions", "timestamp": "2026-06-20T10:30:00Z" },
+    { "id": "aud-205", "actor": "Demo Admin", "action": "STATIC_CONTENT_EDITED", "target": "Waste Segregation Guide", "note": "Updated e-waste handling instructions", "timestamp": "2026-06-10T16:00:00Z" }
+  ]
+}

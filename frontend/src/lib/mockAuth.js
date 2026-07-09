@@ -134,6 +134,12 @@ export function getSessionUser(accessToken) {
   return user ? toPublicUser(user) : null;
 }
 
+// Lets the admin panel list every registered account without exposing
+// password material.
+export function listUsers() {
+  return readUsers().map(toPublicUser);
+}
+
 // Registration only offers Resident / Collector / Recycler (see Register.jsx),
 // so Manager and Admin accounts can't be created through the UI. Seed a
 // couple of demo logins once, on first run, so those dashboards are still
