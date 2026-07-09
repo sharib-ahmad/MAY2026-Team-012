@@ -7,6 +7,7 @@ import Flows from "./pages/Flows";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
+import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
 export default function App() {
@@ -62,7 +63,7 @@ export default function App() {
         path="/admin/dashboard"
         element={
           <ProtectedRoute role="ADMIN">
-            <ComingSoon roleLabel="Admin" />
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />
