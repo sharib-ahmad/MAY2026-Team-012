@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { UserPlus, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { register } from "../../../lib/mockAuth";
-import DATA from "../../../data/admin_portal_data.json";
+import { listZones } from "../../../lib/mockZones";
 import { Section } from "./shared";
 
 const EMPTY_FORM = {
@@ -153,7 +153,7 @@ export default function CreateAccount() {
             disabled={form.role === "ADMIN"}
           >
             <option value="">Select a zone…</option>
-            {DATA.zones.map((z) => (
+            {listZones().map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}
               </option>

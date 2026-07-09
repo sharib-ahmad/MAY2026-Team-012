@@ -1,17 +1,30 @@
 import { useMemo, useState } from "react";
 import { StatusPill } from "../../../components/UI";
 import { listUsers } from "../../../lib/mockAuth";
+import { listZones } from "../../../lib/mockZones";
 import DATA from "../../../data/admin_portal_data.json";
-import { Section, PaginatedTable } from "./shared";
+import { Section, PaginatedTable, SearchInput, FilterSelect } from "./shared";
 import { formatDate } from "./format";
 
-const ROLE_FILTERS = ["ALL", ...DATA.roles.map((r) => r.key)];
+const ROLE_OPTIONS = [
+  { value: "ALL", label: "All roles" },
+  ...DATA.roles.map((r) => ({ value: r.key, label: r.label })),
+];
+
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "All statuses" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "PENDING", label: "Pending" },
+];
 
 const roleLabel = (key) => DATA.roles.find((r) => r.key === key)?.label || key;
-const zoneName = (id) => DATA.zones.find((z) => z.id === id)?.name || "—";
+const zoneName = (id) => listZones().find((z) => z.id === id)?.name || "—";
 
 export default function Accounts() {
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [query, setQuery] = useState("");
 
   // Demo users from the JSON fixture plus every account actually
   // registered in localStorage (citizens via /register, officers and
@@ -31,24 +44,27 @@ export default function Accounts() {
     return [...registered, ...DATA.users];
   }, []);
 
-  const filtered = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
+  const q = query.trim().toLowerCase();
+  const filtered = users.filter(
+    (u) =>
+      (roleFilter === "ALL" || u.role === roleFilter) &&
+      (statusFilter === "ALL" || u.status === statusFilter) &&
+      (!q ||
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        zoneName(u.zone_id).toLowerCase().includes(q))
+  );
 
   return (
     <Section
       eyebrow="Identity provisioning"
       title="User accounts"
       actions={
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="border border-gray-200 rounded-input bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0B4F4A]/30"
-        >
-          {ROLE_FILTERS.map((r) => (
-            <option key={r} value={r}>
-              {r === "ALL" ? "All roles" : roleLabel(r)}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search name, email, zone…" />
+          <FilterSelect value={roleFilter} onChange={setRoleFilter} options={ROLE_OPTIONS} />
+          <FilterSelect value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
+        </div>
       }
     >
       <PaginatedTable

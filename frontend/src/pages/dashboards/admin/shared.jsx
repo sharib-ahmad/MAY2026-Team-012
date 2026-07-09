@@ -1,8 +1,38 @@
 /* Shared pieces for the admin panel tabs: themed Section wrapper and a
    Table with built-in 10-row pagination. */
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Table } from "../../../components/UI";
+
+export function SearchInput({ value, onChange, placeholder = "Search…" }) {
+  return (
+    <div className="relative">
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full sm:w-52 border border-gray-200 rounded-input bg-white pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0B4F4A]/30"
+      />
+    </div>
+  );
+}
+
+export function FilterSelect({ value, onChange, options }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="border border-gray-200 rounded-input bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0B4F4A]/30"
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /** Themed section card matching the Landing / Flows civic style. */
 export function Section({ eyebrow, title, actions, children }) {
