@@ -88,9 +88,8 @@ export default function CreateAccount() {
         <div className="mb-5 flex items-start gap-2 rounded-input border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           <span>
-            Account created successfully.{" "}
-            <span className="font-semibold">{created.name}</span> can now sign in as a{" "}
-            {created.role === "ADMIN" ? "System Admin" : "Municipal Officer"} using{" "}
+            Account created successfully. <span className="font-semibold">{created.name}</span> can
+            now sign in as a {created.role === "ADMIN" ? "System Admin" : "Municipal Officer"} using{" "}
             <span className="font-mono-civic">{created.email}</span>.
           </span>
         </div>

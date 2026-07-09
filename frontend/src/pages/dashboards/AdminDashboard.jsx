@@ -81,8 +81,18 @@ export default function AdminDashboard() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/15">
           {[
             [Users, stats.total_users, "registered users", `${stats.active_users} active`],
-            [MapPin, stats.total_zones, "wards configured", `${stats.pending_users} pending accounts`],
-            [AlertTriangle, stats.errors_last_24h, "errors in 24h", `${stats.open_complaints} open complaints`],
+            [
+              MapPin,
+              stats.total_zones,
+              "wards configured",
+              `${stats.pending_users} pending accounts`,
+            ],
+            [
+              AlertTriangle,
+              stats.errors_last_24h,
+              "errors in 24h",
+              `${stats.open_complaints} open complaints`,
+            ],
             [Activity, `${stats.system_uptime_pct}%`, "system uptime", "last 30 days"],
           ].map(([Icon, value, label, sub]) => (
             <div key={label} className="px-4 sm:px-6 py-2">
