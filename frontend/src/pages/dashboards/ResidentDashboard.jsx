@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ensureResidentSeed, listNotifications } from "../../lib/mockResidentData";
-import heroBg from "../../assets/eco-banner-bg.jpg";
+import heroBg from "../../assets/eco-banner-bg.webp";
 import Footer from "../../components/Footer";
 
 import Home from "./resident/Home";
@@ -70,6 +70,10 @@ export default function ResidentDashboard() {
   useEffect(() => {
     ensureResidentSeed(user);
   }, [user]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
 
   const ActiveTab = useMemo(
     () => TABS.find((t) => t.key === activeTab)?.component || Home,

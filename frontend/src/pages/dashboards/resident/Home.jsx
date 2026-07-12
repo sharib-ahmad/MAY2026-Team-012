@@ -11,10 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  Bell,
-  Truck,
-  BadgeCheck,
-  Megaphone,
   Lock,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
@@ -22,49 +18,18 @@ import { Card, StatusPill, Empty, CountUp } from "../../../components/UI";
 import {
   listMyPickups,
   getMyImpact,
-  listNotifications,
   getTodayQueue,
   getZoneFlow,
 } from "../../../lib/mockResidentData";
-import heroBg from "../../../assets/eco-banner-bg.jpg";
+import heroBg from "../../../assets/eco-banner-bg.webp";
 // NOTE: add these two files to the assets folder (any doorstep-pickup /
 // sorting-facility / community-drive photo works). Until then they'll just
 // 404 like any other missing asset import — swap the paths for whatever
 // images you have on hand.
-import heroBg2 from "../../../assets/eco-banner-sorting.jpg";
-import heroBg3 from "../../../assets/eco-banner-community.jpg";
+import heroBg2 from "../../../assets/eco-banner-sorting.webp";
+import heroBg3 from "../../../assets/eco-banner-community.webp";
 
 const HERO_SLIDES = [heroBg, heroBg2, heroBg3];
-
-// Pick an icon + accent color for a notification based on its content/type.
-function getNotificationVisual(n) {
-  const text = `${n.title || ""} ${n.body || ""}`.toLowerCase();
-  const type = (n.type || "").toLowerCase();
-
-  if (type.includes("pickup") || text.includes("pickup") || text.includes("collect")) {
-    return { Icon: Truck, color: "text-primary", bg: "bg-primary/10" };
-  }
-  if (
-    type.includes("reward") ||
-    text.includes("credit") ||
-    text.includes("badge") ||
-    text.includes("reward")
-  ) {
-    return { Icon: BadgeCheck, color: "text-manager", bg: "bg-manager/10" };
-  }
-  if (
-    type.includes("alert") ||
-    text.includes("delay") ||
-    text.includes("missed") ||
-    text.includes("issue")
-  ) {
-    return { Icon: AlertCircle, color: "text-accent", bg: "bg-accent/10" };
-  }
-  if (type.includes("announcement") || text.includes("update") || text.includes("new")) {
-    return { Icon: Megaphone, color: "text-recycler", bg: "bg-recycler/10" };
-  }
-  return { Icon: Bell, color: "text-gray-500", bg: "bg-gray-100" };
-}
 
 // Hex badge helper copied from Impact page
 function hexPoints(cx, cy, r) {
@@ -186,28 +151,13 @@ function HexBadge({ icon, name, earned, featured }) {
   );
 }
 
-function timeAgo(dateStr) {
-  const then = new Date(dateStr).getTime();
-  const now = Date.now();
-  const diffMs = Math.max(0, now - then);
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
-
 export default function Home({ onNavigate }) {
   const { user } = useAuth();
 
-  const { pickups, impact, notifications, queue, flow } = useMemo(() => {
+  const { pickups, impact, queue, flow } = useMemo(() => {
     return {
       pickups: listMyPickups(user.id),
       impact: getMyImpact(user.id),
-      notifications: listNotifications(user.id),
       queue: getTodayQueue(user.id),
       flow: getZoneFlow(user.id),
     };
@@ -276,30 +226,6 @@ export default function Home({ onNavigate }) {
           )}
         </div>
       </HeroCarousel>
-
-      {/* Badges (Impact-style hex badges) */}
-      <div>
-        <Card
-          title="Badges"
-          actions={
-            <span className="text-xs font-medium text-gray-400">
-              {earnedBadges.length}/{impact.badges.length} earned
-            </span>
-          }
-        >
-          <div className="flex gap-5 flex-wrap pt-2 pb-1">
-            {impact.badges.map((b) => (
-              <HexBadge
-                key={b.code}
-                icon={b.icon}
-                name={b.name}
-                earned={b.earned}
-                featured={b.earned && b.code === featuredCode}
-              />
-            ))}
-          </div>
-        </Card>
-      </div>
 
       {/* Stat cards with animated counters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -447,48 +373,29 @@ export default function Home({ onNavigate }) {
         />
       </div>
 
-      {/* Notifications */}
-      {notifications.length > 0 && (
+      {/* Badges (Impact-style hex badges) — placed last on the dashboard */}
+      <div>
         <Card
-          title="Notifications"
+          title="Badges"
           actions={
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent bg-accent/8 px-2.5 py-1 rounded-full">
-              <Bell size={12} />
-              {notifications.length} new
+            <span className="text-xs font-medium text-gray-400">
+              {earnedBadges.length}/{impact.badges.length} earned
             </span>
           }
-          className="hover-lift"
         >
-          <div className="space-y-1">
-            {notifications.map((n, idx) => {
-              const { Icon, color, bg } = getNotificationVisual(n);
-              return (
-                <div
-                  key={n.id}
-                  className={`group flex items-start gap-3 py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-gray-50 ${
-                    idx !== notifications.length - 1 ? "border-b border-gray-50" : ""
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-full ${bg} ${color} flex items-center justify-center shrink-0 mt-0.5`}
-                  >
-                    <Icon size={16} strokeWidth={2} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-sm text-gray-800 leading-snug">{n.title}</p>
-                      <span className="text-[10px] text-gray-400 whitespace-nowrap shrink-0 mt-0.5">
-                        {timeAgo(n.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex gap-5 flex-wrap pt-2 pb-1">
+            {impact.badges.map((b) => (
+              <HexBadge
+                key={b.code}
+                icon={b.icon}
+                name={b.name}
+                earned={b.earned}
+                featured={b.earned && b.code === featuredCode}
+              />
+            ))}
           </div>
         </Card>
-      )}
+      </div>
     </div>
   );
 }

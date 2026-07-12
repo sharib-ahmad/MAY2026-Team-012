@@ -24,11 +24,13 @@ export default function EcoBotChat() {
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const bottom = useRef(null);
+  const scrollRef = useRef(null);
   const [proTip] = useState(() => PRO_TIPS[Math.floor(Math.random() * PRO_TIPS.length)]);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, typing]);
 
   const send = (text) => {
@@ -56,7 +58,7 @@ export default function EcoBotChat() {
       <div className="grid lg:grid-cols-[2fr_1fr] gap-4 items-start">
         {/* Chat panel */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-soft flex flex-col h-[65vh] min-h-[420px] overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4">
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -101,7 +103,6 @@ export default function EcoBotChat() {
                 </div>
               </div>
             )}
-            <div ref={bottom} />
           </div>
 
           <div className="border-t border-gray-100 p-4 flex gap-2">

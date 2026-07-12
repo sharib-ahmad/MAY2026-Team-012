@@ -138,3 +138,10 @@ body {
 .rise-in {
   animation: riseIn 0.5s ease both;
 }
+
+/* Prevent Recharts from clipping pie/bar labels and values that sit
+   right at the edge of the plot area (e.g. top pie-slice labels). */
+.recharts-wrapper,
+.recharts-surface {
+  overflow: visible;
+}

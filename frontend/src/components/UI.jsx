@@ -151,7 +151,7 @@ export function BarChartCard({ data, dataKey, nameKey, title }) {
   return (
     <Card title={title}>
       <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
@@ -167,7 +167,7 @@ export function ClusteredBarChartCard({ data, bars, nameKey, title }) {
   return (
     <Card title={title}>
       <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
@@ -191,15 +191,15 @@ export function ClusteredBarChartCard({ data, bars, nameKey, title }) {
 export function PieChartCard({ data, title }) {
   return (
     <Card title={title}>
-      <ResponsiveContainer width="100%" height={250}>
-        <PieChart>
+      <ResponsiveContainer width="100%" height={280}>
+        <PieChart margin={{ top: 24, right: 24, bottom: 8, left: 24 }}>
           <Pie
             data={data}
             dataKey="weight_kg"
             nameKey="category"
             cx="50%"
             cy="50%"
-            outerRadius={90}
+            outerRadius={80}
             label
           >
             {data.map((_, i) => (
