@@ -16,8 +16,38 @@ import {
   Legend,
 } from "recharts";
 import { useState, useRef, useEffect } from "react";
-import API from "../lib/api";
 import { Send, Bot } from "lucide-react";
+import { ecoBotReply } from "../lib/ecobot";
+
+// ── CountUp ─────────────────────────────────────────────────────────
+/** Animates a number from 0 up to `value` on mount/whenever value changes.
+ *  Pure CSS/requestAnimationFrame, no dependency needed. */
+export function CountUp({ value, decimals = 0, suffix = "", duration = 800 }) {
+  const [display, setDisplay] = useState(0);
+  const raf = useRef(null);
+
+  useEffect(() => {
+    const start = performance.now();
+    const from = 0;
+    const to = Number(value) || 0;
+    const tick = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(from + (to - from) * eased);
+      if (progress < 1) raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => raf.current && cancelAnimationFrame(raf.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <>
+      {display.toFixed(decimals)}
+      {suffix}
+    </>
+  );
+}
 
 // ── StatCard ─────────────────────────────────────────────────────────
 export function StatCard({ label, value, sub, icon: Icon, color = "text-primary" }) {
@@ -73,6 +103,10 @@ const STATUS_MAP = {
   DELIVERED: "pill-success",
   CONFIRMED: "pill-success",
   REVERSED: "pill-danger",
+  PENDING_APPROVAL: "pill-warn",
+  WITHDRAWN: "pill-slate",
+  CLAIM_REQUESTED: "pill-warn",
+  COMPLETED: "pill-success",
 };
 
 export function StatusPill({ status }) {
@@ -222,22 +256,19 @@ export function ChatWidget() {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const send = async () => {
+  const send = () => {
     const msg = input.trim();
     if (!msg) return;
     setMessages((p) => [...p, { role: "user", text: msg }]);
     setInput("");
     setTyping(true);
-    try {
-      const { data } = await API.post("/ai/chat", { message: msg });
-      setMessages((p) => [...p, { role: "bot", text: data.reply }]);
-    } catch {
-      setMessages((p) => [
-        ...p,
-        { role: "bot", text: "Sorry, I couldn't reach the AI service. Try again later." },
-      ]);
-    }
-    setTyping(false);
+    // No AI backend is connected yet — EcoBot answers from a small local
+    // knowledge base of segregation tips so the widget stays useful and
+    // interactive offline.
+    setTimeout(() => {
+      setMessages((p) => [...p, { role: "bot", text: ecoBotReply(msg) }]);
+      setTyping(false);
+    }, 500);
   };
 
   return (
