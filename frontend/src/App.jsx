@@ -6,7 +6,7 @@ import Track from "./pages/Track";
 import Flows from "./pages/Flows";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
+import ResidentDashboard from "./pages/dashboards/ResidentDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
@@ -31,7 +31,7 @@ export default function App() {
         path="/resident/dashboard"
         element={
           <ProtectedRoute role="RESIDENT">
-            <CitizenDashboard />
+            <ResidentDashboard />
           </ProtectedRoute>
         }
       />
