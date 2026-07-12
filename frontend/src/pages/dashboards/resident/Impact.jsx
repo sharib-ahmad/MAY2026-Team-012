@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, StatCard, BarChartCard, PieChartCard, LineChartCard } from '../../../components/UI';
-import { Leaf, Award, TrendingUp, Download, Lock } from 'lucide-react';
-import { getMyImpact } from '../../../lib/mockResidentData';
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, StatCard, BarChartCard, PieChartCard, LineChartCard } from "../../../components/UI";
+import { Leaf, Award, TrendingUp, Download, Lock } from "lucide-react";
+import { getMyImpact } from "../../../lib/mockResidentData";
 
 function buildReportHtml(user, data) {
   return `<!doctype html>
@@ -12,7 +12,7 @@ h1{color:#0B4F4A}.stat{display:inline-block;margin:8px 24px 8px 0}
 .stat b{font-size:24px;display:block}table{border-collapse:collapse;margin-top:16px}
 td,th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}</style>
 </head><body>
-<h1>Sustainability Impact — ${user?.name || 'Resident'}</h1>
+<h1>Sustainability Impact — ${user?.name || "Resident"}</h1>
 <p>Generated ${new Date().toLocaleString()}</p>
 <div class="stat"><b>${data.total_kg_diverted.toFixed(1)} kg</b>Diverted</div>
 <div class="stat"><b>${data.co2_saved_kg.toFixed(1)} kg</b>CO2 saved</div>
@@ -21,9 +21,10 @@ td,th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}</st
 <table><tr><th>Category</th><th>Weight (kg)</th><th>Credits</th><th>CO2 (kg)</th></tr>
 ${data.by_category
   .map(
-    (c) => `<tr><td>${c.category}</td><td>${c.weight_kg.toFixed(1)}</td><td>${c.credits.toFixed(1)}</td><td>${c.co2_kg.toFixed(1)}</td></tr>`
+    (c) =>
+      `<tr><td>${c.category}</td><td>${c.weight_kg.toFixed(1)}</td><td>${c.credits.toFixed(1)}</td><td>${c.co2_kg.toFixed(1)}</td></tr>`
   )
-  .join('')}
+  .join("")}
 </table>
 </body></html>`;
 }
@@ -37,33 +38,33 @@ function hexPoints(cx, cy, r) {
   return Array.from({ length: 6 }, (_, i) => {
     const angle = (Math.PI / 180) * (-90 + i * 60);
     return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-  }).join(' ');
+  }).join(" ");
 }
 
 function HexBadge({ icon, name, earned, featured }) {
-  const uid = useMemo(() => name.replace(/\s+/g, '-').toLowerCase(), [name]);
+  const uid = useMemo(() => name.replace(/\s+/g, "-").toLowerCase(), [name]);
   const cx = 70;
   const cy = 92;
   const r = 58;
 
   return (
     <div className="flex flex-col items-center w-[132px] shrink-0">
-      <div className={`relative ${earned ? '' : 'opacity-45 grayscale'}`}>
+      <div className={`relative ${earned ? "" : "opacity-45 grayscale"}`}>
         <svg width="140" height="170" viewBox="0 0 140 170">
           <defs>
             <linearGradient id={`hexfill-${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={earned ? '#1E3A8A' : '#9CA3AF'} />
-              <stop offset="55%" stopColor={earned ? '#1D4ED8' : '#9CA3AF'} />
-              <stop offset="100%" stopColor={earned ? '#1E3A8A' : '#6B7280'} />
+              <stop offset="0%" stopColor={earned ? "#1E3A8A" : "#9CA3AF"} />
+              <stop offset="55%" stopColor={earned ? "#1D4ED8" : "#9CA3AF"} />
+              <stop offset="100%" stopColor={earned ? "#1E3A8A" : "#6B7280"} />
             </linearGradient>
             <linearGradient id={`hexrim-${uid}`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={earned ? '#F5D57A' : '#D1D5DB'} />
-              <stop offset="50%" stopColor={earned ? '#C9962C' : '#9CA3AF'} />
-              <stop offset="100%" stopColor={earned ? '#F5D57A' : '#D1D5DB'} />
+              <stop offset="0%" stopColor={earned ? "#F5D57A" : "#D1D5DB"} />
+              <stop offset="50%" stopColor={earned ? "#C9962C" : "#9CA3AF"} />
+              <stop offset="100%" stopColor={earned ? "#F5D57A" : "#D1D5DB"} />
             </linearGradient>
             <radialGradient id={`medallion-${uid}`} cx="35%" cy="30%" r="75%">
-              <stop offset="0%" stopColor={earned ? '#FDE9B0' : '#E5E7EB'} />
-              <stop offset="100%" stopColor={earned ? '#C9962C' : '#9CA3AF'} />
+              <stop offset="0%" stopColor={earned ? "#FDE9B0" : "#E5E7EB"} />
+              <stop offset="100%" stopColor={earned ? "#C9962C" : "#9CA3AF"} />
             </radialGradient>
           </defs>
 
@@ -78,7 +79,7 @@ function HexBadge({ icon, name, earned, featured }) {
           <polygon
             points={hexPoints(cx, cy, r - 8)}
             fill="none"
-            stroke={earned ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'}
+            stroke={earned ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)"}
             strokeWidth="1.5"
           />
 
@@ -87,7 +88,7 @@ function HexBadge({ icon, name, earned, featured }) {
             <div className="w-full h-full flex items-center justify-center text-center px-1">
               <span
                 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
-                  earned ? 'text-white' : 'text-gray-100'
+                  earned ? "text-white" : "text-gray-100"
                 }`}
               >
                 {name}
@@ -96,8 +97,24 @@ function HexBadge({ icon, name, earned, featured }) {
           </foreignObject>
 
           {/* top medallion emblem */}
-          <circle cx={cx} cy={30} r="26" fill={`url(#medallion-${uid})`} stroke={earned ? '#8A6116' : '#9CA3AF'} strokeWidth="2" />
-          <circle cx={cx} cy={30} r="20" fill="none" stroke={earned ? '#FFF6DF' : '#F3F4F6'} strokeWidth="1" strokeDasharray="2 2" opacity="0.7" />
+          <circle
+            cx={cx}
+            cy={30}
+            r="26"
+            fill={`url(#medallion-${uid})`}
+            stroke={earned ? "#8A6116" : "#9CA3AF"}
+            strokeWidth="2"
+          />
+          <circle
+            cx={cx}
+            cy={30}
+            r="20"
+            fill="none"
+            stroke={earned ? "#FFF6DF" : "#F3F4F6"}
+            strokeWidth="1"
+            strokeDasharray="2 2"
+            opacity="0.7"
+          />
           <foreignObject x={cx - 16} y={14} width="32" height="32">
             <div className="w-full h-full flex items-center justify-center text-xl">
               {earned ? icon : <Lock size={16} className="text-gray-500" strokeWidth={2.5} />}
@@ -112,17 +129,17 @@ function HexBadge({ icon, name, earned, featured }) {
               <div
                 className="absolute left-[-14px] top-0 w-0 h-0"
                 style={{
-                  borderTop: '11px solid transparent',
-                  borderBottom: '11px solid transparent',
-                  borderRight: '14px solid #8A6116',
+                  borderTop: "11px solid transparent",
+                  borderBottom: "11px solid transparent",
+                  borderRight: "14px solid #8A6116",
                 }}
               />
               <div
                 className="absolute right-[-14px] top-0 w-0 h-0"
                 style={{
-                  borderTop: '11px solid transparent',
-                  borderBottom: '11px solid transparent',
-                  borderLeft: '14px solid #8A6116',
+                  borderTop: "11px solid transparent",
+                  borderBottom: "11px solid transparent",
+                  borderLeft: "14px solid #8A6116",
                 }}
               />
               <div className="bg-gradient-to-b from-amber-300 to-amber-600 text-center py-1.5 shadow-sm">
@@ -139,22 +156,22 @@ function HexBadge({ icon, name, earned, featured }) {
 export default function Impact() {
   const { user } = useAuth();
   const data = useMemo(() => getMyImpact(user.id), [user.id]);
-  const [exportStatus, setExportStatus] = useState('');
+  const [exportStatus, setExportStatus] = useState("");
 
   const earnedBadges = data.badges.filter((b) => b.earned);
   const featuredCode = earnedBadges.length ? earnedBadges[earnedBadges.length - 1].code : null;
 
   const exportHtml = () => {
-    setExportStatus('Generating report…');
+    setExportStatus("Generating report…");
     const html = buildReportHtml(user, data);
-    const blob = new Blob([html], { type: 'text/html' });
+    const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `verdeza-impact-${user.id.slice(0, 8)}.html`;
     a.click();
     URL.revokeObjectURL(url);
-    setExportStatus('Report downloaded!');
+    setExportStatus("Report downloaded!");
   };
 
   return (
@@ -172,9 +189,24 @@ export default function Impact() {
       {exportStatus && <p className="text-sm text-gray-500">{exportStatus}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Kg Diverted" value={data.total_kg_diverted.toFixed(1)} icon={Leaf} color="text-green-600" />
-        <StatCard label="CO₂ Saved (kg)" value={data.co2_saved_kg.toFixed(1)} icon={Award} color="text-accent" />
-        <StatCard label="Credits Balance" value={data.credits_balance.toFixed(1)} icon={TrendingUp} color="text-manager" />
+        <StatCard
+          label="Kg Diverted"
+          value={data.total_kg_diverted.toFixed(1)}
+          icon={Leaf}
+          color="text-green-600"
+        />
+        <StatCard
+          label="CO₂ Saved (kg)"
+          value={data.co2_saved_kg.toFixed(1)}
+          icon={Award}
+          color="text-accent"
+        />
+        <StatCard
+          label="Credits Balance"
+          value={data.credits_balance.toFixed(1)}
+          icon={TrendingUp}
+          color="text-manager"
+        />
         <StatCard label="Total Pickups" value={data.total_pickups} color="text-primary" />
       </div>
 
@@ -205,13 +237,23 @@ export default function Impact() {
             <PieChartCard data={data.by_category} title="By Category" />
             <LineChartCard
               data={data.monthly_trend}
-              lines={[{ key: 'weight_kg', name: 'Weight (kg)' }]}
+              lines={[{ key: "weight_kg", name: "Weight (kg)" }]}
               title="Monthly Trend"
             />
           </div>
           <div className="grid lg:grid-cols-2 gap-4">
-            <BarChartCard data={data.by_category} dataKey="credits" nameKey="category" title="Credits by Category" />
-            <BarChartCard data={data.by_category} dataKey="co2_kg" nameKey="category" title="CO₂ by Category" />
+            <BarChartCard
+              data={data.by_category}
+              dataKey="credits"
+              nameKey="category"
+              title="Credits by Category"
+            />
+            <BarChartCard
+              data={data.by_category}
+              dataKey="co2_kg"
+              nameKey="category"
+              title="CO₂ by Category"
+            />
           </div>
         </>
       ) : (

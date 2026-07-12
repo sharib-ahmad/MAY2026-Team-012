@@ -1,19 +1,29 @@
-import { useMemo, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, Empty } from '../../../components/UI';
-import DonationImages from '../../../components/DonationImages';
-import ImageLightbox from '../../../components/ImageLightBox';
-import { Gift } from 'lucide-react';
-import { listMarketplace, claimDonation } from '../../../lib/mockResidentData';
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, Empty } from "../../../components/UI";
+import DonationImages from "../../../components/DonationImages";
+import ImageLightbox from "../../../components/ImageLightBox";
+import { Gift } from "lucide-react";
+import { listMarketplace, claimDonation } from "../../../lib/mockResidentData";
 
-const CATEGORIES = ['BOOKS', 'FURNITURE', 'ELECTRONICS', 'CLOTHES', 'TOYS', 'KITCHEN', 'BICYCLE', 'BAGS', 'OTHER'];
+const CATEGORIES = [
+  "BOOKS",
+  "FURNITURE",
+  "ELECTRONICS",
+  "CLOTHES",
+  "TOYS",
+  "KITCHEN",
+  "BICYCLE",
+  "BAGS",
+  "OTHER",
+];
 
 export default function Marketplace({ onNavigate }) {
   const { user } = useAuth();
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
   const [version, setVersion] = useState(0);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState("");
   const [viewing, setViewing] = useState(null); // donation whose photos are open in the lightbox
 
   const items = useMemo(
@@ -22,9 +32,9 @@ export default function Marketplace({ onNavigate }) {
   );
 
   const claim = (id) => {
-    if (!window.confirm('Request to claim this item?')) return;
+    if (!window.confirm("Request to claim this item?")) return;
     claimDonation(id, user);
-    setMsg('Claim requested — check My Claims for updates.');
+    setMsg("Claim requested — check My Claims for updates.");
     setVersion((v) => v + 1);
   };
 
@@ -35,14 +45,14 @@ export default function Marketplace({ onNavigate }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => onNavigate('claims')}
+            onClick={() => onNavigate("claims")}
             className="border border-gray-200 px-4 py-2 rounded-input text-sm"
           >
             My Claims
           </button>
           <button
             type="button"
-            onClick={() => onNavigate('donate')}
+            onClick={() => onNavigate("donate")}
             className="bg-primary text-white px-4 py-2 rounded-input text-sm"
           >
             Donate Item
@@ -85,10 +95,10 @@ export default function Marketplace({ onNavigate }) {
               <div className="p-4 space-y-2">
                 <h3 className="font-medium">{d.title}</h3>
                 <p className="text-xs text-gray-500">
-                  {d.category} · {d.condition?.replace(/_/g, ' ')}
+                  {d.category} · {d.condition?.replace(/_/g, " ")}
                 </p>
                 <p className="text-sm text-gray-600 line-clamp-2">{d.description}</p>
-                <p className="text-xs text-gray-400">{d.address || 'Location on file'}</p>
+                <p className="text-xs text-gray-400">{d.address || "Location on file"}</p>
                 <button
                   type="button"
                   onClick={() => claim(d.id)}

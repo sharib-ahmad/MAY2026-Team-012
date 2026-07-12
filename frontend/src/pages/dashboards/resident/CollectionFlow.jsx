@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, StatusPill } from '../../../components/UI';
-import { MapPin, CheckCircle2, Clock, User, Truck } from 'lucide-react';
-import { getZoneFlow, getMyTodayStop } from '../../../lib/mockResidentData';
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, StatusPill } from "../../../components/UI";
+import { MapPin, CheckCircle2, Clock, User, Truck } from "lucide-react";
+import { getZoneFlow, getMyTodayStop } from "../../../lib/mockResidentData";
 
 // Smooth a series of points into a single SVG path using Catmull-Rom -> Bezier.
 function smoothPath(points) {
-  if (points.length === 0) return '';
+  if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x},${points[0].y}`;
   let d = `M ${points[0].x},${points[0].y}`;
   for (let i = 0; i < points.length - 1; i++) {
@@ -46,17 +46,18 @@ export default function CollectionFlow() {
     );
   }
 
-  const completedCount = flow.stops.filter((s) => s.status === 'COLLECTED').length;
-  const pendingCount = flow.stops.filter((s) => s.status === 'PENDING').length;
+  const completedCount = flow.stops.filter((s) => s.status === "COLLECTED").length;
+  const pendingCount = flow.stops.filter((s) => s.status === "PENDING").length;
   const completionPercentage = Math.round((completedCount / flow.total_stops) * 100);
 
   const myStopIndex = myStop ? flow.stops.findIndex((s) => s.id === myStop.id) : -1;
   const pickupsBeforeMe = myStopIndex >= 0 ? myStopIndex : 0;
 
-  const lastCompletedIndex = flow.stops
-    .map((s, i) => ({ ...s, index: i }))
-    .filter((s) => s.status === 'COLLECTED')
-    .sort((a, b) => b.pickup_order - a.pickup_order)[0]?.index ?? -1;
+  const lastCompletedIndex =
+    flow.stops
+      .map((s, i) => ({ ...s, index: i }))
+      .filter((s) => s.status === "COLLECTED")
+      .sort((a, b) => b.pickup_order - a.pickup_order)[0]?.index ?? -1;
 
   // --- Layout: position every stop along a gentle winding "road" ---
   const points = flow.stops.map((stop, i) => ({
@@ -69,7 +70,7 @@ export default function CollectionFlow() {
 
   const roadPath = smoothPath(points);
   const progressPoints = points.slice(0, Math.max(lastCompletedIndex + 1, 0));
-  const progressPath = progressPoints.length >= 2 ? smoothPath(progressPoints) : '';
+  const progressPath = progressPoints.length >= 2 ? smoothPath(progressPoints) : "";
 
   // Truck sits between the last completed stop and the next pending one.
   let truck;
@@ -83,8 +84,9 @@ export default function CollectionFlow() {
     truck = { x: points[0].x - 45, y: points[0].y };
   }
 
-  const selectedStop = points.find((p) => p.stop.id === selectedId)?.stop
-    ?? (myStop ? flow.stops.find((s) => s.id === myStop.id) : null);
+  const selectedStop =
+    points.find((p) => p.stop.id === selectedId)?.stop ??
+    (myStop ? flow.stops.find((s) => s.id === myStop.id) : null);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 fade-in">
@@ -121,7 +123,7 @@ export default function CollectionFlow() {
               <Clock size={12} /> {pickupsBeforeMe} stops before you
             </span>
           )}
-          {myStop && lastCompletedIndex >= myStopIndex && myStop.status === 'PENDING' && (
+          {myStop && lastCompletedIndex >= myStopIndex && myStop.status === "PENDING" && (
             <span className="text-xs text-green-700 flex items-center gap-1">
               <CheckCircle2 size={12} /> Collector is almost at your stop
             </span>
@@ -169,7 +171,12 @@ export default function CollectionFlow() {
             <g transform={`translate(${truck.x}, ${truck.y})`}>
               <circle r={17} fill="#0B2F2C" opacity={0.08}>
                 <animate attributeName="r" values="15;20;15" dur="2s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.12;0.02;0.12" dur="2s" repeatCount="indefinite" />
+                <animate
+                  attributeName="opacity"
+                  values="0.12;0.02;0.12"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
               </circle>
               <circle r={14} fill="#0B2F2C" />
               <foreignObject x={-8} y={-8} width={16} height={16}>
@@ -179,7 +186,7 @@ export default function CollectionFlow() {
 
             {/* stops */}
             {points.map(({ x, y, stop }) => {
-              const isCompleted = stop.status === 'COLLECTED';
+              const isCompleted = stop.status === "COLLECTED";
               const isMine = myStop && stop.id === myStop.id;
               const isSelected = selectedStop && stop.id === selectedStop.id;
               const labelBelow = y < WAVE_CENTER;
@@ -192,14 +199,24 @@ export default function CollectionFlow() {
                 >
                   {isMine && (
                     <circle r={17} fill="none" stroke="#2563EB" strokeWidth={2}>
-                      <animate attributeName="r" values="15;20;15" dur="1.8s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="0.9;0.1;0.9" dur="1.8s" repeatCount="indefinite" />
+                      <animate
+                        attributeName="r"
+                        values="15;20;15"
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0.9;0.1;0.9"
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
                     </circle>
                   )}
                   <circle
                     r={13}
-                    fill={isCompleted ? '#16A34A' : isMine ? '#2563EB' : '#FFFFFF'}
-                    stroke={isCompleted ? '#16A34A' : isMine ? '#2563EB' : '#D1D5DB'}
+                    fill={isCompleted ? "#16A34A" : isMine ? "#2563EB" : "#FFFFFF"}
+                    stroke={isCompleted ? "#16A34A" : isMine ? "#2563EB" : "#D1D5DB"}
                     strokeWidth={isSelected ? 3 : 2}
                   />
                   {isCompleted ? (
@@ -212,7 +229,7 @@ export default function CollectionFlow() {
                       dy="4"
                       fontSize="11"
                       fontWeight="700"
-                      fill={isMine ? '#FFFFFF' : '#6B7280'}
+                      fill={isMine ? "#FFFFFF" : "#6B7280"}
                     >
                       {stop.pickup_order}
                     </text>
@@ -221,10 +238,10 @@ export default function CollectionFlow() {
                     textAnchor="middle"
                     y={labelBelow ? 32 : -22}
                     fontSize="11"
-                    fontWeight={isSelected ? '700' : '500'}
-                    fill={isSelected ? '#0B2F2C' : '#9CA3AF'}
+                    fontWeight={isSelected ? "700" : "500"}
+                    fill={isSelected ? "#0B2F2C" : "#9CA3AF"}
                   >
-                    {isMine ? 'You' : stop.resident_name.split(' ')[0]}
+                    {isMine ? "You" : stop.resident_name.split(" ")[0]}
                   </text>
                 </g>
               );
@@ -252,20 +269,20 @@ export default function CollectionFlow() {
       {selectedStop && (
         <Card
           className={`!p-4 transition-colors ${
-            myStop && selectedStop.id === myStop.id ? 'bg-blue-50 border-blue-200' : ''
+            myStop && selectedStop.id === myStop.id ? "bg-blue-50 border-blue-200" : ""
           }`}
         >
           <div className="flex items-start gap-3">
             <div
               className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                selectedStop.status === 'COLLECTED'
-                  ? 'bg-success text-white'
+                selectedStop.status === "COLLECTED"
+                  ? "bg-success text-white"
                   : myStop && selectedStop.id === myStop.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-600'
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-600"
               }`}
             >
-              {selectedStop.status === 'COLLECTED' ? (
+              {selectedStop.status === "COLLECTED" ? (
                 <CheckCircle2 size={18} />
               ) : myStop && selectedStop.id === myStop.id ? (
                 <User size={18} />
@@ -291,11 +308,12 @@ export default function CollectionFlow() {
                   {lastCompletedIndex >= 0 && lastCompletedIndex < myStopIndex && (
                     <p className="text-blue-700 flex items-center gap-1">
                       <Clock size={14} />
-                      Collector has completed pickup #{flow.stops[lastCompletedIndex].pickup_order}.{' '}
-                      {pickupsBeforeMe} pickups remain before yours.
+                      Collector has completed pickup #{
+                        flow.stops[lastCompletedIndex].pickup_order
+                      }. {pickupsBeforeMe} pickups remain before yours.
                     </p>
                   )}
-                  {lastCompletedIndex >= myStopIndex && myStop.status === 'PENDING' && (
+                  {lastCompletedIndex >= myStopIndex && myStop.status === "PENDING" && (
                     <p className="text-green-700 flex items-center gap-1">
                       <CheckCircle2 size={14} />
                       Collector is approaching your area. Your pickup is coming up soon!

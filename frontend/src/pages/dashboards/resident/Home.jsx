@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   PackagePlus,
   Leaf,
@@ -16,44 +16,54 @@ import {
   BadgeCheck,
   Megaphone,
   Lock,
-} from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, StatusPill, Empty, CountUp } from '../../../components/UI';
+} from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, StatusPill, Empty, CountUp } from "../../../components/UI";
 import {
   listMyPickups,
   getMyImpact,
   listNotifications,
   getTodayQueue,
   getZoneFlow,
-} from '../../../lib/mockResidentData';
-import heroBg from '../../../assets/eco-banner-bg.jpg';
+} from "../../../lib/mockResidentData";
+import heroBg from "../../../assets/eco-banner-bg.jpg";
 // NOTE: add these two files to the assets folder (any doorstep-pickup /
 // sorting-facility / community-drive photo works). Until then they'll just
 // 404 like any other missing asset import — swap the paths for whatever
 // images you have on hand.
-import heroBg2 from '../../../assets/eco-banner-sorting.jpg';
-import heroBg3 from '../../../assets/eco-banner-community.jpg';
+import heroBg2 from "../../../assets/eco-banner-sorting.jpg";
+import heroBg3 from "../../../assets/eco-banner-community.jpg";
 
 const HERO_SLIDES = [heroBg, heroBg2, heroBg3];
 
 // Pick an icon + accent color for a notification based on its content/type.
 function getNotificationVisual(n) {
-  const text = `${n.title || ''} ${n.body || ''}`.toLowerCase();
-  const type = (n.type || '').toLowerCase();
+  const text = `${n.title || ""} ${n.body || ""}`.toLowerCase();
+  const type = (n.type || "").toLowerCase();
 
-  if (type.includes('pickup') || text.includes('pickup') || text.includes('collect')) {
-    return { Icon: Truck, color: 'text-primary', bg: 'bg-primary/10' };
+  if (type.includes("pickup") || text.includes("pickup") || text.includes("collect")) {
+    return { Icon: Truck, color: "text-primary", bg: "bg-primary/10" };
   }
-  if (type.includes('reward') || text.includes('credit') || text.includes('badge') || text.includes('reward')) {
-    return { Icon: BadgeCheck, color: 'text-manager', bg: 'bg-manager/10' };
+  if (
+    type.includes("reward") ||
+    text.includes("credit") ||
+    text.includes("badge") ||
+    text.includes("reward")
+  ) {
+    return { Icon: BadgeCheck, color: "text-manager", bg: "bg-manager/10" };
   }
-  if (type.includes('alert') || text.includes('delay') || text.includes('missed') || text.includes('issue')) {
-    return { Icon: AlertCircle, color: 'text-accent', bg: 'bg-accent/10' };
+  if (
+    type.includes("alert") ||
+    text.includes("delay") ||
+    text.includes("missed") ||
+    text.includes("issue")
+  ) {
+    return { Icon: AlertCircle, color: "text-accent", bg: "bg-accent/10" };
   }
-  if (type.includes('announcement') || text.includes('update') || text.includes('new')) {
-    return { Icon: Megaphone, color: 'text-recycler', bg: 'bg-recycler/10' };
+  if (type.includes("announcement") || text.includes("update") || text.includes("new")) {
+    return { Icon: Megaphone, color: "text-recycler", bg: "bg-recycler/10" };
   }
-  return { Icon: Bell, color: 'text-gray-500', bg: 'bg-gray-100' };
+  return { Icon: Bell, color: "text-gray-500", bg: "bg-gray-100" };
 }
 
 // Hex badge helper copied from Impact page
@@ -61,33 +71,33 @@ function hexPoints(cx, cy, r) {
   return Array.from({ length: 6 }, (_, i) => {
     const angle = (Math.PI / 180) * (-90 + i * 60);
     return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-  }).join(' ');
+  }).join(" ");
 }
 
 function HexBadge({ icon, name, earned, featured }) {
-  const uid = useMemo(() => name.replace(/\s+/g, '-').toLowerCase(), [name]);
+  const uid = useMemo(() => name.replace(/\s+/g, "-").toLowerCase(), [name]);
   const cx = 70;
   const cy = 92;
   const r = 58;
 
   return (
     <div className="flex flex-col items-center w-[132px] shrink-0">
-      <div className={`relative ${earned ? '' : 'opacity-45 grayscale'}`}>
+      <div className={`relative ${earned ? "" : "opacity-45 grayscale"}`}>
         <svg width="140" height="170" viewBox="0 0 140 170">
           <defs>
             <linearGradient id={`hexfill-${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={earned ? '#1E3A8A' : '#9CA3AF'} />
-              <stop offset="55%" stopColor={earned ? '#1D4ED8' : '#9CA3AF'} />
-              <stop offset="100%" stopColor={earned ? '#1E3A8A' : '#6B7280'} />
+              <stop offset="0%" stopColor={earned ? "#1E3A8A" : "#9CA3AF"} />
+              <stop offset="55%" stopColor={earned ? "#1D4ED8" : "#9CA3AF"} />
+              <stop offset="100%" stopColor={earned ? "#1E3A8A" : "#6B7280"} />
             </linearGradient>
             <linearGradient id={`hexrim-${uid}`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={earned ? '#F5D57A' : '#D1D5DB'} />
-              <stop offset="50%" stopColor={earned ? '#C9962C' : '#9CA3AF'} />
-              <stop offset="100%" stopColor={earned ? '#F5D57A' : '#D1D5DB'} />
+              <stop offset="0%" stopColor={earned ? "#F5D57A" : "#D1D5DB"} />
+              <stop offset="50%" stopColor={earned ? "#C9962C" : "#9CA3AF"} />
+              <stop offset="100%" stopColor={earned ? "#F5D57A" : "#D1D5DB"} />
             </linearGradient>
             <radialGradient id={`medallion-${uid}`} cx="35%" cy="30%" r="75%">
-              <stop offset="0%" stopColor={earned ? '#FDE9B0' : '#E5E7EB'} />
-              <stop offset="100%" stopColor={earned ? '#C9962C' : '#9CA3AF'} />
+              <stop offset="0%" stopColor={earned ? "#FDE9B0" : "#E5E7EB"} />
+              <stop offset="100%" stopColor={earned ? "#C9962C" : "#9CA3AF"} />
             </radialGradient>
           </defs>
 
@@ -102,7 +112,7 @@ function HexBadge({ icon, name, earned, featured }) {
           <polygon
             points={hexPoints(cx, cy, r - 8)}
             fill="none"
-            stroke={earned ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'}
+            stroke={earned ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)"}
             strokeWidth="1.5"
           />
 
@@ -111,7 +121,7 @@ function HexBadge({ icon, name, earned, featured }) {
             <div className="w-full h-full flex items-center justify-center text-center px-1">
               <span
                 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
-                  earned ? 'text-white' : 'text-gray-100'
+                  earned ? "text-white" : "text-gray-100"
                 }`}
               >
                 {name}
@@ -120,8 +130,24 @@ function HexBadge({ icon, name, earned, featured }) {
           </foreignObject>
 
           {/* top medallion emblem */}
-          <circle cx={cx} cy={30} r="26" fill={`url(#medallion-${uid})`} stroke={earned ? '#8A6116' : '#9CA3AF'} strokeWidth="2" />
-          <circle cx={cx} cy={30} r="20" fill="none" stroke={earned ? '#FFF6DF' : '#F3F4F6'} strokeWidth="1" strokeDasharray="2 2" opacity="0.7" />
+          <circle
+            cx={cx}
+            cy={30}
+            r="26"
+            fill={`url(#medallion-${uid})`}
+            stroke={earned ? "#8A6116" : "#9CA3AF"}
+            strokeWidth="2"
+          />
+          <circle
+            cx={cx}
+            cy={30}
+            r="20"
+            fill="none"
+            stroke={earned ? "#FFF6DF" : "#F3F4F6"}
+            strokeWidth="1"
+            strokeDasharray="2 2"
+            opacity="0.7"
+          />
           <foreignObject x={cx - 16} y={14} width="32" height="32">
             <div className="w-full h-full flex items-center justify-center text-xl">
               {earned ? icon : <Lock size={16} className="text-gray-500" strokeWidth={2.5} />}
@@ -136,17 +162,17 @@ function HexBadge({ icon, name, earned, featured }) {
               <div
                 className="absolute left-[-14px] top-0 w-0 h-0"
                 style={{
-                  borderTop: '11px solid transparent',
-                  borderBottom: '11px solid transparent',
-                  borderRight: '14px solid #8A6116',
+                  borderTop: "11px solid transparent",
+                  borderBottom: "11px solid transparent",
+                  borderRight: "14px solid #8A6116",
                 }}
               />
               <div
                 className="absolute right-[-14px] top-0 w-0 h-0"
                 style={{
-                  borderTop: '11px solid transparent',
-                  borderBottom: '11px solid transparent',
-                  borderLeft: '14px solid #8A6116',
+                  borderTop: "11px solid transparent",
+                  borderBottom: "11px solid transparent",
+                  borderLeft: "14px solid #8A6116",
                 }}
               />
               <div className="bg-gradient-to-b from-amber-300 to-amber-600 text-center py-1.5 shadow-sm">
@@ -165,7 +191,7 @@ function timeAgo(dateStr) {
   const now = Date.now();
   const diffMs = Math.max(0, now - then);
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
@@ -188,9 +214,9 @@ export default function Home({ onNavigate }) {
   }, [user.id]);
 
   const recent = pickups.slice(0, 5);
-  const nextPickup = pickups.find((p) => p.status === 'REQUESTED' || p.status === 'ASSIGNED');
+  const nextPickup = pickups.find((p) => p.status === "REQUESTED" || p.status === "ASSIGNED");
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const earnedBadges = impact.badges.filter((b) => b.earned);
   const featuredCode = earnedBadges.length ? earnedBadges[earnedBadges.length - 1].code : null;
 
@@ -200,10 +226,10 @@ export default function Home({ onNavigate }) {
       <HeroCarousel>
         <div>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white leading-tight">
-            {greeting}, {user?.name?.split(' ')[0] || 'there'}! 
+            {greeting}, {user?.name?.split(" ")[0] || "there"}!
           </h1>
           <p className="text-white/70 mt-2 max-w-md">
-            Every pickup you schedule keeps waste out of landfill and{' '}
+            Every pickup you schedule keeps waste out of landfill and{" "}
             <span className="text-amber-300 font-medium">closer to being reused.</span>
           </p>
 
@@ -224,7 +250,7 @@ export default function Home({ onNavigate }) {
               </div>
               <button
                 type="button"
-                onClick={() => onNavigate('pickups')}
+                onClick={() => onNavigate("pickups")}
                 className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-3 rounded-2xl font-medium transition"
               >
                 Track collection <ArrowRight size={16} />
@@ -234,14 +260,14 @@ export default function Home({ onNavigate }) {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => onNavigate('schedule')}
+                onClick={() => onNavigate("schedule")}
                 className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-3 rounded-2xl font-medium transition"
               >
                 <PackagePlus size={16} /> Schedule a pickup
               </button>
               {nextPickup && (
                 <div className="text-white/60 text-sm">
-                  Next up: <span className="text-white">{nextPickup.category}</span> ·{' '}
+                  Next up: <span className="text-white">{nextPickup.category}</span> ·{" "}
                   {nextPickup.scheduled_date &&
                     new Date(nextPickup.scheduled_date).toLocaleDateString()}
                 </div>
@@ -277,7 +303,12 @@ export default function Home({ onNavigate }) {
 
       {/* Stat cards with animated counters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <AnimatedStat label="Total pickups" value={impact.total_pickups} icon={PackagePlus} color="text-primary" />
+        <AnimatedStat
+          label="Total pickups"
+          value={impact.total_pickups}
+          icon={PackagePlus}
+          color="text-primary"
+        />
         <AnimatedStat
           label="Kg recycled"
           value={impact.total_kg_diverted}
@@ -309,7 +340,7 @@ export default function Home({ onNavigate }) {
           actions={
             <button
               type="button"
-              onClick={() => onNavigate('flow')}
+              onClick={() => onNavigate("flow")}
               className="text-primary text-xs font-medium"
             >
               View full →
@@ -322,19 +353,19 @@ export default function Home({ onNavigate }) {
               <div key={stop.id} className="flex items-center gap-3">
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                    stop.status === 'COLLECTED'
-                      ? 'bg-success text-white'
-                      : stop.resident_name === 'You'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-200 text-gray-500'
+                    stop.status === "COLLECTED"
+                      ? "bg-success text-white"
+                      : stop.resident_name === "You"
+                        ? "bg-primary text-white"
+                        : "bg-gray-200 text-gray-500"
                   }`}
                 >
-                  {stop.status === 'COLLECTED' ? <CheckCircle2 size={13} /> : stop.pickup_order}
+                  {stop.status === "COLLECTED" ? <CheckCircle2 size={13} /> : stop.pickup_order}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">
                     {stop.resident_name}
-                    {stop.resident_name === 'You' && (
+                    {stop.resident_name === "You" && (
                       <span className="text-primary text-xs ml-1">(you)</span>
                     )}
                   </p>
@@ -351,7 +382,7 @@ export default function Home({ onNavigate }) {
           actions={
             <button
               type="button"
-              onClick={() => onNavigate('pickups')}
+              onClick={() => onNavigate("pickups")}
               className="text-primary text-xs font-medium"
             >
               View all →
@@ -360,11 +391,18 @@ export default function Home({ onNavigate }) {
           className="hover-lift"
         >
           {recent.length === 0 ? (
-            <Empty icon={PackagePlus} title="No pickups yet" description="Schedule your first pickup to get started" />
+            <Empty
+              icon={PackagePlus}
+              title="No pickups yet"
+              description="Schedule your first pickup to get started"
+            />
           ) : (
             <div className="space-y-2">
               {recent.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+                >
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">
                       {p.ref_code} — {p.category}
@@ -380,15 +418,33 @@ export default function Home({ onNavigate }) {
             </div>
           )}
         </Card>
-
-        
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <QuickAction icon={PackagePlus} label="Schedule pickup" color="text-primary" onClick={() => onNavigate('schedule')} />
-        <QuickAction icon={Gift} label="Donate an item" color="text-manager" onClick={() => onNavigate('donations')} />
-        <QuickAction icon={AlertCircle} label="Raise a ticket" color="text-accent" onClick={() => onNavigate('tickets')} />
-        <QuickAction icon={MapPin} label="Browse marketplace" color="text-recycler" onClick={() => onNavigate('marketplace')} />
+        <QuickAction
+          icon={PackagePlus}
+          label="Schedule pickup"
+          color="text-primary"
+          onClick={() => onNavigate("schedule")}
+        />
+        <QuickAction
+          icon={Gift}
+          label="Donate an item"
+          color="text-manager"
+          onClick={() => onNavigate("donations")}
+        />
+        <QuickAction
+          icon={AlertCircle}
+          label="Raise a ticket"
+          color="text-accent"
+          onClick={() => onNavigate("tickets")}
+        />
+        <QuickAction
+          icon={MapPin}
+          label="Browse marketplace"
+          color="text-recycler"
+          onClick={() => onNavigate("marketplace")}
+        />
       </div>
 
       {/* Notifications */}
@@ -410,7 +466,7 @@ export default function Home({ onNavigate }) {
                 <div
                   key={n.id}
                   className={`group flex items-start gap-3 py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-gray-50 ${
-                    idx !== notifications.length - 1 ? 'border-b border-gray-50' : ''
+                    idx !== notifications.length - 1 ? "border-b border-gray-50" : ""
                   }`}
                 >
                   <div
@@ -470,7 +526,7 @@ function HeroCarousel({ children }) {
           alt=""
           aria-hidden="true"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-            i === index ? 'opacity-100' : 'opacity-0'
+            i === index ? "opacity-100" : "opacity-0"
           }`}
         />
       ))}
@@ -508,7 +564,7 @@ function HeroCarousel({ children }) {
             onClick={() => goTo(i)}
             aria-label={`Go to slide ${i + 1}`}
             className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === index ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'
+              i === index ? "w-6 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60"
             }`}
           />
         ))}
@@ -517,7 +573,15 @@ function HeroCarousel({ children }) {
   );
 }
 
-function AnimatedStat({ label, value, decimals = 0, suffix = '', icon: Icon, color = 'text-primary', sub }) {
+function AnimatedStat({
+  label,
+  value,
+  decimals = 0,
+  suffix = "",
+  icon: Icon,
+  color = "text-primary",
+  sub,
+}) {
   return (
     <div className="bg-white rounded-card shadow-soft hover-lift p-5 flex items-start gap-4 rise-in">
       {Icon && <Icon className={`${color} mt-0.5`} size={28} strokeWidth={1.5} />}

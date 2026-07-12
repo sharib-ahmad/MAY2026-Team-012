@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Card, Empty } from '../../../components/UI';
-import { Search, Sun, Moon, MapPin, AlertCircle } from 'lucide-react';
-import { getWardSchedule, listWardCodes } from '../../../lib/mockSchedules';
+import { useState } from "react";
+import { Card, Empty } from "../../../components/UI";
+import { Search, Sun, Moon, MapPin, AlertCircle } from "lucide-react";
+import { getWardSchedule, listWardCodes } from "../../../lib/mockSchedules";
 
 export default function ScheduleLookup() {
   const wards = listWardCodes();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   // AC3: no result renders until a ward code has actually been searched.
   const [result, setResult] = useState(null);
   const [searched, setSearched] = useState(false);
@@ -26,7 +26,8 @@ export default function ScheduleLookup() {
       <div>
         <h1 className="text-xl font-bold">Schedule Look-up</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Search your ward code to see the morning/evening arrival windows for wet, dry, and recyclable waste.
+          Search your ward code to see the morning/evening arrival windows for wet, dry, and
+          recyclable waste.
         </p>
       </div>
 
@@ -72,7 +73,11 @@ export default function ScheduleLookup() {
       {/* AC2: ward code doesn't exist */}
       {searched && result && !result.found && (
         <Card>
-          <Empty icon={AlertCircle} title="Ward code not found" description={`No ward matches "${code.trim()}". Double-check the code and try again.`} />
+          <Empty
+            icon={AlertCircle}
+            title="Ward code not found"
+            description={`No ward matches "${code.trim()}". Double-check the code and try again.`}
+          />
         </Card>
       )}
 
@@ -97,11 +102,15 @@ export default function ScheduleLookup() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Sun size={15} className="text-amber-500 shrink-0" />
-                    <span className={w.morning ? 'text-gray-700' : 'text-gray-400'}>{w.morning || 'Not scheduled'}</span>
+                    <span className={w.morning ? "text-gray-700" : "text-gray-400"}>
+                      {w.morning || "Not scheduled"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Moon size={15} className="text-indigo-500 shrink-0" />
-                    <span className={w.evening ? 'text-gray-700' : 'text-gray-400'}>{w.evening || 'Not scheduled'}</span>
+                    <span className={w.evening ? "text-gray-700" : "text-gray-400"}>
+                      {w.evening || "Not scheduled"}
+                    </span>
                   </div>
                 </div>
               </div>

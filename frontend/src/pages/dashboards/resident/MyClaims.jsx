@@ -1,29 +1,29 @@
-import { useMemo, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, StatusPill, Empty } from '../../../components/UI';
-import DonationImages from '../../../components/DonationImages';
-import { Gift, Search } from 'lucide-react';
-import { listMyClaims } from '../../../lib/mockResidentData';
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, StatusPill, Empty } from "../../../components/UI";
+import DonationImages from "../../../components/DonationImages";
+import { Gift, Search } from "lucide-react";
+import { listMyClaims } from "../../../lib/mockResidentData";
 
 const FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'CLAIM_REQUESTED', label: 'Pending' },
-  { value: 'COMPLETED', label: 'Approved' },
+  { value: "", label: "All" },
+  { value: "CLAIM_REQUESTED", label: "Pending" },
+  { value: "COMPLETED", label: "Approved" },
 ];
 
 export default function MyClaims() {
   const { user } = useAuth();
-  const [filter, setFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const items = useMemo(() => listMyClaims(user.id, filter), [user.id, filter]);
 
   const stats = useMemo(
     () => ({
       total: items.length,
-      pending: items.filter((i) => i.status === 'CLAIM_REQUESTED').length,
-      approved: items.filter((i) => i.status === 'COMPLETED').length,
-      completed: items.filter((i) => i.status === 'COMPLETED').length,
+      pending: items.filter((i) => i.status === "CLAIM_REQUESTED").length,
+      approved: items.filter((i) => i.status === "COMPLETED").length,
+      completed: items.filter((i) => i.status === "COMPLETED").length,
     }),
     [items]
   );
@@ -34,16 +34,16 @@ export default function MyClaims() {
     return items.filter((d) =>
       [d.title, d.donor_name, d.status, d.address]
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .toLowerCase()
         .includes(query)
     );
   }, [items, search]);
 
   const statusLabel = (d) => {
-    if (d.status === 'CLAIM_REQUESTED') return 'Pending';
-    if (d.status === 'COMPLETED') return 'Approved';
-    return d.status?.replace(/_/g, ' ');
+    if (d.status === "CLAIM_REQUESTED") return "Pending";
+    if (d.status === "COMPLETED") return "Approved";
+    return d.status?.replace(/_/g, " ");
   };
 
   return (
@@ -88,7 +88,7 @@ export default function MyClaims() {
             type="button"
             onClick={() => setFilter(f.value)}
             className={`px-3 py-1.5 rounded-input text-xs font-medium ${
-              filter === f.value ? 'bg-primary text-white' : 'bg-gray-100'
+              filter === f.value ? "bg-primary text-white" : "bg-gray-100"
             }`}
           >
             {f.label}
@@ -99,29 +99,37 @@ export default function MyClaims() {
       {filteredItems.length === 0 ? (
         <Empty
           icon={Gift}
-          title={search ? 'No claims found' : 'No claims yet'}
-          description={search ? 'Try another search term.' : 'Browse the marketplace to claim donated products'}
+          title={search ? "No claims found" : "No claims yet"}
+          description={
+            search ? "Try another search term." : "Browse the marketplace to claim donated products"
+          }
         />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((d) => (
             <Card key={d.id} className="!p-0 overflow-hidden">
-              <DonationImages images={d.images} alt={d.title} thumbClass="w-full h-40 object-cover" />
+              <DonationImages
+                images={d.images}
+                alt={d.title}
+                thumbClass="w-full h-40 object-cover"
+              />
               <div className="p-4 space-y-2">
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="font-medium">{d.title}</h3>
                   <StatusPill status={d.status} />
                 </div>
                 <p className="text-xs text-gray-500">Donor: {d.donor_name}</p>
-                <p className="text-xs text-gray-400">Claimed: {new Date(d.updated_at).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-400">
+                  Claimed: {new Date(d.updated_at).toLocaleDateString()}
+                </p>
                 <p className="text-xs">
                   <span className="text-gray-500">Status:</span> {statusLabel(d)}
                 </p>
-                {d.status === 'COMPLETED' && (
+                {d.status === "COMPLETED" && (
                   <div className="bg-green-50 text-green-800 text-xs rounded-input p-2">
-                    Pickup: contact donor at {d.donor_phone || d.donor_email || 'via marketplace'}
+                    Pickup: contact donor at {d.donor_phone || d.donor_email || "via marketplace"}
                     <br />
-                    Address: {d.address || 'See donor details'}
+                    Address: {d.address || "See donor details"}
                   </div>
                 )}
               </div>

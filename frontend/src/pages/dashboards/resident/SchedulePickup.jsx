@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card } from '../../../components/UI';
-import AddressField from '../../../components/AddressField';
-import { createPickup } from '../../../lib/mockResidentData';
-import { CheckCircle2 } from 'lucide-react';
+import { useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card } from "../../../components/UI";
+import AddressField from "../../../components/AddressField";
+import { createPickup } from "../../../lib/mockResidentData";
+import { CheckCircle2 } from "lucide-react";
 
 // Local YYYY-MM-DD for a given date, so the date picker's min (and our own
 // validation) respects the resident's own clock rather than UTC.
@@ -25,33 +25,35 @@ export default function SchedulePickup({ onNavigate }) {
   const { user } = useAuth();
   const minDateStr = minLeadDate();
   const [form, setForm] = useState({
-    category: 'Paper',
-    estimated_weight: '',
-    scheduled_date: '',
-    time_slot: 'Morning (8-11)',
-    notes: '',
+    category: "Paper",
+    estimated_weight: "",
+    scheduled_date: "",
+    time_slot: "Morning (8-11)",
+    notes: "",
   });
-  const [address, setAddress] = useState(user?.address || '');
-  const [err, setErr] = useState('');
+  const [address, setAddress] = useState(user?.address || "");
+  const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
 
-  const categories = ['Daily Waste', 'Paper', 'Plastic', 'Metal', 'Mixed Dry', 'E-waste', 'Glass'];
-  const slots = ['Morning (8-11)', 'Midday (11-2)', 'Evening (4-7)'];
-  const isDailyWaste = form.category === 'Daily Waste';
+  const categories = ["Daily Waste", "Paper", "Plastic", "Metal", "Mixed Dry", "E-waste", "Glass"];
+  const slots = ["Morning (8-11)", "Midday (11-2)", "Evening (4-7)"];
+  const isDailyWaste = form.category === "Daily Waste";
 
   const submit = (e) => {
     e.preventDefault();
-    setErr('');
+    setErr("");
     if (!address.trim()) {
-      setErr('Please add a pickup address.');
+      setErr("Please add a pickup address.");
       return;
     }
     if (!isDailyWaste && !form.scheduled_date) {
-      setErr('Please choose a date.');
+      setErr("Please choose a date.");
       return;
     }
     if (!isDailyWaste && form.scheduled_date < minDateStr) {
-      setErr(`Pickup requests need at least ${MIN_LEAD_HOURS} hours' notice — please choose ${minDateStr} or later.`);
+      setErr(
+        `Pickup requests need at least ${MIN_LEAD_HOURS} hours' notice — please choose ${minDateStr} or later.`
+      );
       return;
     }
     const scheduled = form.scheduled_date
@@ -60,14 +62,18 @@ export default function SchedulePickup({ onNavigate }) {
 
     createPickup(user, {
       category: form.category,
-      estimated_weight: isDailyWaste ? 5 : form.estimated_weight ? parseFloat(form.estimated_weight) : null,
+      estimated_weight: isDailyWaste
+        ? 5
+        : form.estimated_weight
+          ? parseFloat(form.estimated_weight)
+          : null,
       scheduled_date: isDailyWaste ? new Date().toISOString() : scheduled,
-      time_slot: isDailyWaste ? 'Morning (8-11)' : form.time_slot,
+      time_slot: isDailyWaste ? "Morning (8-11)" : form.time_slot,
       notes: form.notes || null,
       pickup_address: address,
     });
     setDone(true);
-    setTimeout(() => onNavigate('pickups'), 900);
+    setTimeout(() => onNavigate("pickups"), 900);
   };
 
   if (done) {
@@ -102,7 +108,9 @@ export default function SchedulePickup({ onNavigate }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Est. Weight (kg)</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Est. Weight (kg)
+                  </label>
                   <input
                     type="number"
                     step="0.1"
@@ -122,7 +130,9 @@ export default function SchedulePickup({ onNavigate }) {
                     value={form.scheduled_date}
                     onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })}
                   />
-                  <p className="text-[11px] text-gray-400 mt-1">Requires at least {MIN_LEAD_HOURS}h notice.</p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Requires at least {MIN_LEAD_HOURS}h notice.
+                  </p>
                 </div>
               </div>
               <div>
@@ -134,7 +144,9 @@ export default function SchedulePickup({ onNavigate }) {
                       type="button"
                       onClick={() => setForm({ ...form, time_slot: s })}
                       className={`px-3 py-2 rounded-input text-xs font-medium border ${
-                        form.time_slot === s ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200'
+                        form.time_slot === s
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-gray-200"
                       }`}
                     >
                       {s}

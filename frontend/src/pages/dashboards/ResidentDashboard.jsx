@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Home as HomeIcon,
   PackagePlus,
@@ -16,47 +16,52 @@ import {
   CalendarSearch,
   BookOpen,
   Recycle,
-} from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { ensureResidentSeed, listNotifications } from '../../lib/mockResidentData';
-import heroBg from '../../assets/eco-banner-bg.jpg';
-import Footer from '../../components/Footer';
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { ensureResidentSeed, listNotifications } from "../../lib/mockResidentData";
+import heroBg from "../../assets/eco-banner-bg.jpg";
+import Footer from "../../components/Footer";
 
-import Home from './resident/Home';
-import SchedulePickup from './resident/SchedulePickup';
-import MyPickups from './resident/MyPickups';
-import CollectionFlow from './resident/CollectionFlow';
-import Tickets from './resident/Tickets';
-import Marketplace from './resident/Marketplace';
-import MyDonations from './resident/MyDonations';
-import CreateDonation from './resident/CreateDonation';
-import MyClaims from './resident/MyClaims';
-import Impact from './resident/Impact';
-import EcoBotChat from './resident/EcoBotChat';
-import ScheduleLookup from './resident/ScheduleLookup';
-import SortingGuide from './resident/SortingGuide';
-import RecyclingTransparency from './resident/RecyclingTransparency';
+import Home from "./resident/Home";
+import SchedulePickup from "./resident/SchedulePickup";
+import MyPickups from "./resident/MyPickups";
+import CollectionFlow from "./resident/CollectionFlow";
+import Tickets from "./resident/Tickets";
+import Marketplace from "./resident/Marketplace";
+import MyDonations from "./resident/MyDonations";
+import CreateDonation from "./resident/CreateDonation";
+import MyClaims from "./resident/MyClaims";
+import Impact from "./resident/Impact";
+import EcoBotChat from "./resident/EcoBotChat";
+import ScheduleLookup from "./resident/ScheduleLookup";
+import SortingGuide from "./resident/SortingGuide";
+import RecyclingTransparency from "./resident/RecyclingTransparency";
 
 const TABS = [
-  { key: 'home', label: 'Home', icon: HomeIcon, component: Home },
-  { key: 'lookup', label: 'Schedule Look-up', icon: CalendarSearch, component: ScheduleLookup },
-  { key: 'schedule', label: 'Schedule Pickup', icon: PackagePlus, component: SchedulePickup },
-  { key: 'pickups', label: 'My Pickups', icon: Package, component: MyPickups },
-  { key: 'flow', label: "Today's Collection", icon: Route, component: CollectionFlow },
-  { key: 'tickets', label: 'Tickets', icon: AlertCircle, component: Tickets },
-  { key: 'sorting', label: 'Sorting Guide', icon: BookOpen, component: SortingGuide },
-  { key: 'marketplace', label: 'Marketplace', icon: Gift, component: Marketplace },
-  { key: 'donations', label: 'My Donations', icon: Package, component: MyDonations },
-  { key: 'donate', label: 'Donate Item', icon: Gift, component: CreateDonation, hidden: true },
-  { key: 'claims', label: 'My Claims', icon: Gift, component: MyClaims },
-  { key: 'impact', label: 'My Impact', icon: Leaf, component: Impact },
-  { key: 'ecobot', label: 'EcoBot Chat', icon: Bot, component: EcoBotChat },
-  { key: 'recycling', label: 'Recycling Transparency ', icon: Recycle, component: RecyclingTransparency },
+  { key: "home", label: "Home", icon: HomeIcon, component: Home },
+  { key: "lookup", label: "Schedule Look-up", icon: CalendarSearch, component: ScheduleLookup },
+  { key: "schedule", label: "Schedule Pickup", icon: PackagePlus, component: SchedulePickup },
+  { key: "pickups", label: "My Pickups", icon: Package, component: MyPickups },
+  { key: "flow", label: "Today's Collection", icon: Route, component: CollectionFlow },
+  { key: "tickets", label: "Tickets", icon: AlertCircle, component: Tickets },
+  { key: "sorting", label: "Sorting Guide", icon: BookOpen, component: SortingGuide },
+  { key: "marketplace", label: "Marketplace", icon: Gift, component: Marketplace },
+  { key: "donations", label: "My Donations", icon: Package, component: MyDonations },
+  { key: "donate", label: "Donate Item", icon: Gift, component: CreateDonation, hidden: true },
+  { key: "claims", label: "My Claims", icon: Gift, component: MyClaims },
+  { key: "impact", label: "My Impact", icon: Leaf, component: Impact },
+  { key: "ecobot", label: "EcoBot Chat", icon: Bot, component: EcoBotChat },
+  {
+    key: "recycling",
+    label: "Recycling Transparency ",
+    icon: Recycle,
+    component: RecyclingTransparency,
+  },
 ];
 
 export default function ResidentDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState("home");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -66,8 +71,11 @@ export default function ResidentDashboard() {
     ensureResidentSeed(user);
   }, [user]);
 
-  const ActiveTab = useMemo(() => TABS.find((t) => t.key === activeTab)?.component || Home, [activeTab]);
-  const activeLabel = TABS.find((t) => t.key === activeTab)?.label || 'Home';
+  const ActiveTab = useMemo(
+    () => TABS.find((t) => t.key === activeTab)?.component || Home,
+    [activeTab]
+  );
+  const activeLabel = TABS.find((t) => t.key === activeTab)?.label || "Home";
   const notifications = useMemo(() => listNotifications(user.id), [user.id]);
   const notificationCount = notifications.length;
 
@@ -87,17 +95,19 @@ export default function ResidentDashboard() {
       {/* ── Sidebar (desktop) ───────────────────────────────────── */}
       <aside
         className={`hidden lg:flex lg:flex-col ${
-          sidebarCollapsed ? 'w-20' : 'w-64'
+          sidebarCollapsed ? "w-20" : "w-64"
         } shrink-0 bg-[#0B2F2C] text-white p-5 sticky top-0 h-screen transition-[width] duration-200 ease-out bg-cover bg-center`}
         style={{
           backgroundImage: `linear-gradient(rgba(11,47,44,0.85), rgba(11,47,44,0.85)), url(${heroBg})`,
         }}
       >
-        <div className={`flex items-center mb-8 px-1 ${sidebarCollapsed ? 'justify-center' : 'justify-end'}`}>
+        <div
+          className={`flex items-center mb-8 px-1 ${sidebarCollapsed ? "justify-center" : "justify-end"}`}
+        >
           <button
             type="button"
             onClick={() => setSidebarCollapsed((c) => !c)}
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="shrink-0 p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition"
           >
             <Menu size={18} />
@@ -115,9 +125,11 @@ export default function ResidentDashboard() {
                 onClick={() => goTo(tab.key)}
                 title={sidebarCollapsed ? tab.label : undefined}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                  sidebarCollapsed ? 'justify-center px-0' : ''
+                  sidebarCollapsed ? "justify-center px-0" : ""
                 } ${
-                  isActive ? 'bg-amber-500/15 text-amber-300' : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  isActive
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon size={17} className="shrink-0" />
@@ -128,13 +140,15 @@ export default function ResidentDashboard() {
         </nav>
 
         <div className="pt-4 mt-4 border-t border-white/10">
-          <div className={`flex items-center gap-3 px-1 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+          <div
+            className={`flex items-center gap-3 px-1 ${sidebarCollapsed ? "justify-center" : ""}`}
+          >
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center font-semibold text-sm shrink-0">
-              {user?.name?.[0]?.toUpperCase() || 'R'}
+              {user?.name?.[0]?.toUpperCase() || "R"}
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{user?.name || 'Resident'}</p>
+                <p className="text-sm font-medium truncate">{user?.name || "Resident"}</p>
                 <p className="text-[11px] text-white/50 truncate">{user?.email}</p>
               </div>
             )}
@@ -142,13 +156,13 @@ export default function ResidentDashboard() {
           <button
             type="button"
             onClick={logout}
-            title={sidebarCollapsed ? 'Sign out' : undefined}
+            title={sidebarCollapsed ? "Sign out" : undefined}
             className={`w-full mt-3 flex items-center gap-2 text-white/60 hover:text-amber-300 text-sm px-1 ${
-              sidebarCollapsed ? 'justify-center' : ''
+              sidebarCollapsed ? "justify-center" : ""
             }`}
           >
             <LogOut size={15} className="shrink-0" />
-            {!sidebarCollapsed && 'Sign out'}
+            {!sidebarCollapsed && "Sign out"}
           </button>
         </div>
       </aside>
@@ -184,7 +198,7 @@ export default function ResidentDashboard() {
                     type="button"
                     onClick={() => goTo(tab.key)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                      isActive ? 'bg-amber-500/15 text-amber-300' : 'text-white/70'
+                      isActive ? "bg-amber-500/15 text-amber-300" : "text-white/70"
                     }`}
                   >
                     <Icon size={17} />
@@ -208,7 +222,11 @@ export default function ResidentDashboard() {
       <div className="flex-1 min-w-0">
         <header className="bg-[#0b362f] text-white border-b border-[#145047] px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3 flex-1">
-            <button type="button" className="lg:hidden text-white/75 hover:text-white" onClick={() => setMobileNavOpen(true)}>
+            <button
+              type="button"
+              className="lg:hidden text-white/75 hover:text-white"
+              onClick={() => setMobileNavOpen(true)}
+            >
               <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
@@ -217,7 +235,9 @@ export default function ResidentDashboard() {
               </span>
               <div className="leading-tight">
                 <div className="font-display font-semibold text-white">Verdeza</div>
-                <div className="text-[10px] text-white/50 uppercase tracking-wide hidden sm:block">Resident Portal</div>
+                <div className="text-[10px] text-white/50 uppercase tracking-wide hidden sm:block">
+                  Resident Portal
+                </div>
               </div>
             </div>
             <div className="hidden sm:block max-w-sm w-full" />
@@ -250,7 +270,9 @@ export default function ResidentDashboard() {
                       <div key={n.id} className="border-b border-slate-100 p-4 last:border-b-0">
                         <p className="font-medium text-sm text-slate-900">{n.title}</p>
                         <p className="text-xs text-slate-500 mt-1">{n.body}</p>
-                        <p className="text-[10px] text-slate-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400 mt-2">
+                          {new Date(n.created_at).toLocaleString()}
+                        </p>
                       </div>
                     ))
                   )}
@@ -263,7 +285,7 @@ export default function ResidentDashboard() {
               className="flex items-center gap-2"
             >
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">
-                {user?.name?.[0]?.toUpperCase() || 'R'}
+                {user?.name?.[0]?.toUpperCase() || "R"}
               </div>
               <ChevronDown size={14} className="hidden sm:block text-gray-400" />
             </button>
@@ -291,10 +313,10 @@ export default function ResidentDashboard() {
 
         <Footer />
 
-        {activeTab !== 'ecobot' && (
+        {activeTab !== "ecobot" && (
           <button
             type="button"
-            onClick={() => goTo('ecobot')}
+            onClick={() => goTo("ecobot")}
             className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-primary text-white shadow-elevated flex items-center justify-center hover:bg-primary/90 hover-lift"
             title="Ask EcoBot"
           >

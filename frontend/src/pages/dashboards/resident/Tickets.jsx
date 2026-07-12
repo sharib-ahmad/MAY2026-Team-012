@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, StatusPill, Modal, Empty, Table } from '../../../components/UI';
-import { AlertCircle, Search, CheckCircle2 } from 'lucide-react';
-import { listMyTickets, createTicket } from '../../../lib/mockResidentData';
-import { listZones } from '../../../lib/mockZones';
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, StatusPill, Modal, Empty, Table } from "../../../components/UI";
+import { AlertCircle, Search, CheckCircle2 } from "lucide-react";
+import { listMyTickets, createTicket } from "../../../lib/mockResidentData";
+import { listZones } from "../../../lib/mockZones";
 
 const DESCRIPTION_MIN = 10;
 const DESCRIPTION_MAX = 500;
@@ -14,17 +14,17 @@ export default function Tickets() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const wards = useMemo(() => listZones(), []);
-  const defaultWard = user?.zone_id ? `WARD-${String(user.zone_id).padStart(2, '0')}` : '';
+  const defaultWard = user?.zone_id ? `WARD-${String(user.zone_id).padStart(2, "0")}` : "";
   const [form, setForm] = useState({
-    issue_type: 'MISSED_PICKUP',
-    description: '',
-    severity: 'MEDIUM',
-    ward_code: wards.some((w) => w.code === defaultWard) ? defaultWard : '',
+    issue_type: "MISSED_PICKUP",
+    description: "",
+    severity: "MEDIUM",
+    ward_code: wards.some((w) => w.code === defaultWard) ? defaultWard : "",
   });
   // Field-specific errors (AC2) instead of one generic "form invalid" message.
   const [fieldErrors, setFieldErrors] = useState({});
   const [lastSubmitted, setLastSubmitted] = useState(null); // AC1: show the generated ticket ID
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   // version is a deliberate cache-bust counter for listMyTickets after localStorage updates
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -36,7 +36,7 @@ export default function Tickets() {
     return tickets.filter((t) =>
       [t.ref_code, t.issue_type, t.status, t.description]
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .toLowerCase()
         .includes(query)
     );
@@ -47,8 +47,8 @@ export default function Tickets() {
     // AC2 (Required field validation): issue type, ward, and description
     // are each checked independently, with field-specific messages.
     const errors = {};
-    if (!form.issue_type) errors.issue_type = 'Please select an issue type.';
-    if (!form.ward_code) errors.ward_code = 'Please select your ward.';
+    if (!form.issue_type) errors.issue_type = "Please select an issue type.";
+    if (!form.ward_code) errors.ward_code = "Please select your ward.";
     const descLen = form.description.trim().length;
     if (descLen < DESCRIPTION_MIN) {
       errors.description = `Description must be at least ${DESCRIPTION_MIN} characters.`;
@@ -60,18 +60,23 @@ export default function Tickets() {
 
     const ticket = createTicket(user, form);
     setOpen(false);
-    setForm({ issue_type: 'MISSED_PICKUP', description: '', severity: 'MEDIUM', ward_code: defaultWard });
+    setForm({
+      issue_type: "MISSED_PICKUP",
+      description: "",
+      severity: "MEDIUM",
+      ward_code: defaultWard,
+    });
     setFieldErrors({});
     setVersion((v) => v + 1);
     setLastSubmitted(ticket); // AC1: unique ticket ID generated and shown to the citizen
   };
 
   const cols = [
-    { key: 'ref_code', label: 'Ref' },
-    { key: 'issue_type', label: 'Type', render: (v) => v?.replace(/_/g, ' ') },
-    { key: 'ward_code', label: 'Ward', render: (v) => v || '—' },
-    { key: 'status', label: 'Status', render: (v) => <StatusPill status={v} /> },
-    { key: 'created_at', label: 'Date', render: (v) => v && new Date(v).toLocaleDateString() },
+    { key: "ref_code", label: "Ref" },
+    { key: "issue_type", label: "Type", render: (v) => v?.replace(/_/g, " ") },
+    { key: "ward_code", label: "Ward", render: (v) => v || "—" },
+    { key: "status", label: "Status", render: (v) => <StatusPill status={v} /> },
+    { key: "created_at", label: "Date", render: (v) => v && new Date(v).toLocaleDateString() },
   ];
 
   return (
@@ -103,10 +108,15 @@ export default function Tickets() {
         <div className="bg-green-50 text-green-800 text-sm p-3 rounded-input flex items-center justify-between gap-3">
           <span className="flex items-center gap-2">
             <CheckCircle2 size={16} className="shrink-0" />
-            Ticket submitted — your reference ID is{' '}
-            <span className="font-semibold">{lastSubmitted.ref_code}</span>. Keep this for follow-up.
+            Ticket submitted — your reference ID is{" "}
+            <span className="font-semibold">{lastSubmitted.ref_code}</span>. Keep this for
+            follow-up.
           </span>
-          <button type="button" onClick={() => setLastSubmitted(null)} className="text-green-700 hover:text-green-900 text-xs">
+          <button
+            type="button"
+            onClick={() => setLastSubmitted(null)}
+            className="text-green-700 hover:text-green-900 text-xs"
+          >
             Dismiss
           </button>
         </div>
@@ -116,32 +126,40 @@ export default function Tickets() {
         {filteredTickets.length === 0 ? (
           <Empty
             icon={search ? Search : AlertCircle}
-            title={search ? 'No tickets found' : 'No tickets'}
-            description={search ? 'Try a different search term.' : 'Raise a ticket if you have any issues'}
+            title={search ? "No tickets found" : "No tickets"}
+            description={
+              search ? "Try a different search term." : "Raise a ticket if you have any issues"
+            }
           />
         ) : (
           <Table columns={cols} rows={filteredTickets} onRowClick={setSelected} />
         )}
       </Card>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Ticket ${selected?.ref_code}`}>
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={`Ticket ${selected?.ref_code}`}
+      >
         {selected && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <span className="text-gray-400">Type:</span> {selected.issue_type?.replace(/_/g, ' ')}
+                <span className="text-gray-400">Type:</span>{" "}
+                {selected.issue_type?.replace(/_/g, " ")}
               </div>
               <div>
-                <span className="text-gray-400">Status:</span> <StatusPill status={selected.status} />
+                <span className="text-gray-400">Status:</span>{" "}
+                <StatusPill status={selected.status} />
               </div>
               <div>
-                <span className="text-gray-400">Severity:</span> {selected.severity || '—'}
+                <span className="text-gray-400">Severity:</span> {selected.severity || "—"}
               </div>
               <div>
-                <span className="text-gray-400">Ward:</span> {selected.ward_code || '—'}
+                <span className="text-gray-400">Ward:</span> {selected.ward_code || "—"}
               </div>
               <div>
-                <span className="text-gray-400">Created:</span>{' '}
+                <span className="text-gray-400">Created:</span>{" "}
                 {new Date(selected.created_at).toLocaleDateString()}
               </div>
             </div>
@@ -156,7 +174,7 @@ export default function Tickets() {
                   {selected.resolution_notes}
                   {selected.resolver_name && (
                     <p className="text-xs text-green-600 mt-2">
-                      — {selected.resolver_name},{' '}
+                      — {selected.resolver_name},{" "}
                       {selected.resolved_at && new Date(selected.resolved_at).toLocaleString()}
                     </p>
                   )}
@@ -180,7 +198,7 @@ export default function Tickets() {
             <label className="block text-xs font-medium text-gray-600 mb-1">Issue Type</label>
             <select
               className={`w-full border rounded-input px-3 py-2.5 text-sm ${
-                fieldErrors.issue_type ? 'border-red-300' : 'border-gray-200'
+                fieldErrors.issue_type ? "border-red-300" : "border-gray-200"
               }`}
               value={form.issue_type}
               onChange={(e) => setForm({ ...form, issue_type: e.target.value })}
@@ -192,13 +210,15 @@ export default function Tickets() {
               <option value="COLLECTOR_BEHAVIOR">Collector Behavior</option>
               <option value="OTHER">Other</option>
             </select>
-            {fieldErrors.issue_type && <p className="text-xs text-red-600 mt-1">{fieldErrors.issue_type}</p>}
+            {fieldErrors.issue_type && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.issue_type}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Ward</label>
             <select
               className={`w-full border rounded-input px-3 py-2.5 text-sm ${
-                fieldErrors.ward_code ? 'border-red-300' : 'border-gray-200'
+                fieldErrors.ward_code ? "border-red-300" : "border-gray-200"
               }`}
               value={form.ward_code}
               onChange={(e) => setForm({ ...form, ward_code: e.target.value })}
@@ -210,7 +230,9 @@ export default function Tickets() {
                 </option>
               ))}
             </select>
-            {fieldErrors.ward_code && <p className="text-xs text-red-600 mt-1">{fieldErrors.ward_code}</p>}
+            {fieldErrors.ward_code && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.ward_code}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Severity</label>
@@ -234,14 +256,16 @@ export default function Tickets() {
             <textarea
               maxLength={DESCRIPTION_MAX}
               className={`w-full border rounded-input px-3 py-2.5 text-sm ${
-                fieldErrors.description ? 'border-red-300' : 'border-gray-200'
+                fieldErrors.description ? "border-red-300" : "border-gray-200"
               }`}
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Describe the issue and its location in detail…"
             />
-            {fieldErrors.description && <p className="text-xs text-red-600 mt-1">{fieldErrors.description}</p>}
+            {fieldErrors.description && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.description}</p>
+            )}
           </div>
           <button
             type="submit"

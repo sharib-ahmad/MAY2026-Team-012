@@ -1,5 +1,5 @@
-import { Card } from '../../../components/UI';
-import { Droplets, Newspaper, Recycle } from 'lucide-react';
+import { Card } from "../../../components/UI";
+import { Droplets, Newspaper, Recycle } from "lucide-react";
 
 // AC1: renders fully with no login required and no external data fetch —
 // this is a static reference page, so it loads instantly.
@@ -7,42 +7,42 @@ import { Droplets, Newspaper, Recycle } from 'lucide-react';
 // images, so it stays lightweight on slow connections.
 const STREAMS = [
   {
-    key: 'wet',
-    label: 'Wet Waste',
+    key: "wet",
+    label: "Wet Waste",
     icon: Droplets,
-    color: 'text-emerald-600 bg-emerald-50',
+    color: "text-emerald-600 bg-emerald-50",
     items: [
-      'Fruit & vegetable peels',
-      'Cooked/uncooked food scraps',
-      'Tea leaves & coffee grounds',
-      'Eggshells',
-      'Garden trimmings, flowers, leaves',
+      "Fruit & vegetable peels",
+      "Cooked/uncooked food scraps",
+      "Tea leaves & coffee grounds",
+      "Eggshells",
+      "Garden trimmings, flowers, leaves",
     ],
   },
   {
-    key: 'dry',
-    label: 'Dry Waste',
+    key: "dry",
+    label: "Dry Waste",
     icon: Newspaper,
-    color: 'text-amber-600 bg-amber-50',
+    color: "text-amber-600 bg-amber-50",
     items: [
-      'Paper, cardboard & cartons',
-      'Plastic wrappers & packaging',
-      'Cloth, rags & footwear',
-      'Broken ceramics & glass',
-      'Rubber & thermocol',
+      "Paper, cardboard & cartons",
+      "Plastic wrappers & packaging",
+      "Cloth, rags & footwear",
+      "Broken ceramics & glass",
+      "Rubber & thermocol",
     ],
   },
   {
-    key: 'recyclable',
-    label: 'Recyclable',
+    key: "recyclable",
+    label: "Recyclable",
     icon: Recycle,
-    color: 'text-sky-600 bg-sky-50',
+    color: "text-sky-600 bg-sky-50",
     items: [
-      'Clean plastic bottles & containers (PET/HDPE)',
-      'Metal cans & foil',
-      'Glass bottles & jars',
-      'Newspaper, office paper, cardboard (dry & clean)',
-      'E-waste — batteries, cables, small electronics (bag separately)',
+      "Clean plastic bottles & containers (PET/HDPE)",
+      "Metal cans & foil",
+      "Glass bottles & jars",
+      "Newspaper, office paper, cardboard (dry & clean)",
+      "E-waste — batteries, cables, small electronics (bag separately)",
     ],
   },
 ];
@@ -78,8 +78,9 @@ export default function SortingGuide() {
 
       <Card>
         <p className="text-xs text-gray-500">
-          Rules are set by your municipal ward office and may be updated periodically by an administrator.
-          If something you have isn't listed here, ask EcoBot or raise a ticket for guidance.
+          Rules are set by your municipal ward office and may be updated periodically by an
+          administrator. If something you have isn't listed here, ask EcoBot or raise a ticket for
+          guidance.
         </p>
       </Card>
     </div>

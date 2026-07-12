@@ -7,10 +7,10 @@
 // Swap the functions below for real API calls once a backend exists —
 // nothing above this file (the resident pages) should need to change.
 
-const PICKUPS_KEY = 'gc_resident_pickups';
-const TICKETS_KEY = 'gc_resident_tickets';
-const DONATIONS_KEY = 'gc_resident_donations';
-const SEED_FLAG_PREFIX = 'gc_resident_seeded_';
+const PICKUPS_KEY = "gc_resident_pickups";
+const TICKETS_KEY = "gc_resident_tickets";
+const DONATIONS_KEY = "gc_resident_donations";
+const SEED_FLAG_PREFIX = "gc_resident_seeded_";
 
 function readList(key) {
   try {
@@ -27,7 +27,7 @@ function uid() {
   return crypto.randomUUID();
 }
 function refCode(prefix, n) {
-  return `${prefix}-${String(n).padStart(4, '0')}`;
+  return `${prefix}-${String(n).padStart(4, "0")}`;
 }
 function daysAgo(n) {
   const d = new Date();
@@ -40,7 +40,7 @@ function daysFromNow(n) {
   return d.toISOString();
 }
 
-const COLLECTOR_NAMES = ['Arun Deka', 'Priya Sharma', 'Bibek Sonowal'];
+const COLLECTOR_NAMES = ["Arun Deka", "Priya Sharma", "Bibek Sonowal"];
 
 // ── Seeding ─────────────────────────────────────────────────────────
 export function ensureResidentSeed(user) {
@@ -54,65 +54,65 @@ export function ensureResidentSeed(user) {
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('PK', pickups.length + 1),
-      category: 'Mixed Dry',
+      ref_code: refCode("PK", pickups.length + 1),
+      category: "Mixed Dry",
       estimated_weight: 6.4,
       scheduled_date: daysAgo(1),
-      time_slot: 'Morning (8-11)',
-      notes: 'Two bags near the gate',
-      status: 'COLLECTED',
-      zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
-      pickup_address: user.address || 'Home address',
+      time_slot: "Morning (8-11)",
+      notes: "Two bags near the gate",
+      status: "COLLECTED",
+      zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
+      pickup_address: user.address || "Home address",
       collector_name: COLLECTOR_NAMES[0],
-      collector_phone: '+91 98765 43210',
+      collector_phone: "+91 98765 43210",
       created_at: daysAgo(1),
     },
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('PK', pickups.length + 2),
-      category: 'E-waste',
+      ref_code: refCode("PK", pickups.length + 2),
+      category: "E-waste",
       estimated_weight: 2.1,
       scheduled_date: daysAgo(6),
-      time_slot: 'Evening (4-7)',
+      time_slot: "Evening (4-7)",
       notes: null,
-      status: 'COLLECTED',
-      zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
-      pickup_address: user.address || 'Home address',
+      status: "COLLECTED",
+      zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
+      pickup_address: user.address || "Home address",
       collector_name: COLLECTOR_NAMES[1],
-      collector_phone: '+91 98765 22334',
+      collector_phone: "+91 98765 22334",
       created_at: daysAgo(6),
     },
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('PK', pickups.length + 3),
-      category: 'Paper',
+      ref_code: refCode("PK", pickups.length + 3),
+      category: "Paper",
       estimated_weight: 3.8,
       scheduled_date: daysAgo(13),
-      time_slot: 'Midday (11-2)',
+      time_slot: "Midday (11-2)",
       notes: null,
-      status: 'COLLECTED',
-      zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
-      pickup_address: user.address || 'Home address',
+      status: "COLLECTED",
+      zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
+      pickup_address: user.address || "Home address",
       collector_name: COLLECTOR_NAMES[0],
-      collector_phone: '+91 98765 43210',
+      collector_phone: "+91 98765 43210",
       created_at: daysAgo(13),
     },
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('PK', pickups.length + 4),
-      category: 'Daily Waste',
+      ref_code: refCode("PK", pickups.length + 4),
+      category: "Daily Waste",
       estimated_weight: 5,
       scheduled_date: new Date(now).toISOString(),
-      time_slot: 'Morning (8-11)',
-      notes: 'Daily scheduled pickup',
-      status: 'IN_PROGRESS',
-      zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
-      pickup_address: user.address || 'Home address',
+      time_slot: "Morning (8-11)",
+      notes: "Daily scheduled pickup",
+      status: "IN_PROGRESS",
+      zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
+      pickup_address: user.address || "Home address",
       collector_name: COLLECTOR_NAMES[2],
-      collector_phone: '+91 98765 90876',
+      collector_phone: "+91 98765 90876",
       created_at: new Date(now).toISOString(),
       pickup_order: 7,
       is_daily_schedule: true,
@@ -120,15 +120,15 @@ export function ensureResidentSeed(user) {
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('PK', pickups.length + 5),
-      category: 'Plastic',
+      ref_code: refCode("PK", pickups.length + 5),
+      category: "Plastic",
       estimated_weight: 4.2,
       scheduled_date: daysFromNow(2),
-      time_slot: 'Morning (8-11)',
+      time_slot: "Morning (8-11)",
       notes: null,
-      status: 'REQUESTED',
-      zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
-      pickup_address: user.address || 'Home address',
+      status: "REQUESTED",
+      zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
+      pickup_address: user.address || "Home address",
       collector_name: null,
       collector_phone: null,
       created_at: new Date(now).toISOString(),
@@ -141,24 +141,24 @@ export function ensureResidentSeed(user) {
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('TK', tickets.length + 1),
-      issue_type: 'MISSED_PICKUP',
-      description: 'Collector skipped our lane last Tuesday morning.',
-      severity: 'MEDIUM',
-      status: 'RESOLVED',
+      ref_code: refCode("TK", tickets.length + 1),
+      issue_type: "MISSED_PICKUP",
+      description: "Collector skipped our lane last Tuesday morning.",
+      severity: "MEDIUM",
+      status: "RESOLVED",
       created_at: daysAgo(9),
-      resolution_notes: 'Rescheduled and confirmed with the zone collector — should not recur.',
-      resolver_name: 'Ward Manager',
+      resolution_notes: "Rescheduled and confirmed with the zone collector — should not recur.",
+      resolver_name: "Ward Manager",
       resolved_at: daysAgo(7),
     },
     {
       id: uid(),
       user_id: user.id,
-      ref_code: refCode('TK', tickets.length + 2),
-      issue_type: 'WRONG_ITEM_COLLECTED',
-      description: 'A bag of e-waste was picked up along with dry waste by mistake.',
-      severity: 'LOW',
-      status: 'IN_REVIEW',
+      ref_code: refCode("TK", tickets.length + 2),
+      issue_type: "WRONG_ITEM_COLLECTED",
+      description: "A bag of e-waste was picked up along with dry waste by mistake.",
+      severity: "LOW",
+      status: "IN_REVIEW",
       created_at: daysAgo(2),
       resolution_notes: null,
       resolver_name: null,
@@ -175,13 +175,13 @@ export function ensureResidentSeed(user) {
       donor_name: user.name,
       donor_phone: user.phone,
       donor_email: user.email,
-      title: 'Study table & chair set',
-      category: 'FURNITURE',
-      condition: 'GOOD',
-      description: 'Wooden study table with matching chair, minor scuffs, sturdy.',
-      address: user.address || 'Pickup on request',
+      title: "Study table & chair set",
+      category: "FURNITURE",
+      condition: "GOOD",
+      description: "Wooden study table with matching chair, minor scuffs, sturdy.",
+      address: user.address || "Pickup on request",
       images: [],
-      status: 'AVAILABLE',
+      status: "AVAILABLE",
       created_at: daysAgo(4),
       updated_at: daysAgo(4),
     },
@@ -193,59 +193,59 @@ export function ensureResidentSeed(user) {
     ? [
         {
           id: uid(),
-          donor_id: 'seed-1',
-          donor_name: 'Meera Bora',
-          donor_phone: '+91 90000 11111',
-          donor_email: 'meera@example.com',
-          title: 'Kids storybook bundle (12 books)',
-          category: 'BOOKS',
-          condition: 'LIKE_NEW',
-          description: 'Assorted picture books, ages 4-8, barely used.',
-          address: 'Ward 4, near the community hall',
+          donor_id: "seed-1",
+          donor_name: "Meera Bora",
+          donor_phone: "+91 90000 11111",
+          donor_email: "meera@example.com",
+          title: "Kids storybook bundle (12 books)",
+          category: "BOOKS",
+          condition: "LIKE_NEW",
+          description: "Assorted picture books, ages 4-8, barely used.",
+          address: "Ward 4, near the community hall",
           images: [],
-          status: 'AVAILABLE',
+          status: "AVAILABLE",
           created_at: daysAgo(5),
           updated_at: daysAgo(5),
         },
         {
           id: uid(),
-          donor_id: 'seed-2',
-          donor_name: 'Rohit Baruah',
-          donor_phone: '+91 90000 22222',
-          donor_email: 'rohit@example.com',
-          title: 'Working microwave oven',
-          category: 'ELECTRONICS',
-          condition: 'FAIR',
-          description: '20L microwave, works fine, minor dent on the door.',
-          address: 'Ward 2, opposite the market',
+          donor_id: "seed-2",
+          donor_name: "Rohit Baruah",
+          donor_phone: "+91 90000 22222",
+          donor_email: "rohit@example.com",
+          title: "Working microwave oven",
+          category: "ELECTRONICS",
+          condition: "FAIR",
+          description: "20L microwave, works fine, minor dent on the door.",
+          address: "Ward 2, opposite the market",
           images: [],
-          status: 'AVAILABLE',
+          status: "AVAILABLE",
           created_at: daysAgo(8),
           updated_at: daysAgo(8),
         },
         {
           id: uid(),
-          donor_id: 'seed-3',
-          donor_name: 'Sanjana Gogoi',
-          donor_phone: '+91 90000 33333',
-          donor_email: 'sanjana@example.com',
+          donor_id: "seed-3",
+          donor_name: "Sanjana Gogoi",
+          donor_phone: "+91 90000 33333",
+          donor_email: "sanjana@example.com",
           title: "Kid's bicycle (age 6-9)",
-          category: 'BICYCLE',
-          condition: 'GOOD',
-          description: 'Well maintained, tyres recently replaced.',
-          address: 'Ward 3, lane 5',
+          category: "BICYCLE",
+          condition: "GOOD",
+          description: "Well maintained, tyres recently replaced.",
+          address: "Ward 3, lane 5",
           images: [],
-          status: 'AVAILABLE',
+          status: "AVAILABLE",
           created_at: daysAgo(2),
           updated_at: daysAgo(2),
         },
       ]
     : [];
-  if (globalSeed.length) localStorage.setItem(GLOBAL_SEED_FLAG, '1');
+  if (globalSeed.length) localStorage.setItem(GLOBAL_SEED_FLAG, "1");
 
   writeList(DONATIONS_KEY, [...donations, ...seedMine, ...globalSeed]);
 
-  localStorage.setItem(flag, '1');
+  localStorage.setItem(flag, "1");
 }
 
 // ── Pickups ─────────────────────────────────────────────────────────
@@ -264,11 +264,11 @@ export function createPickup(user, payload) {
   const pickup = {
     id: uid(),
     user_id: user.id,
-    ref_code: refCode('PK', all.length + 1),
-    status: 'REQUESTED',
+    ref_code: refCode("PK", all.length + 1),
+    status: "REQUESTED",
     collector_name: null,
     collector_phone: null,
-    zone_name: user.zone_id ? `Zone ${user.zone_id}` : 'Zone 3',
+    zone_name: user.zone_id ? `Zone ${user.zone_id}` : "Zone 3",
     created_at: new Date().toISOString(),
     ...payload,
   };
@@ -278,20 +278,20 @@ export function createPickup(user, payload) {
 
 // Statuses where cancelling still makes sense — once a collector is en
 // route (or the job is already finished/cancelled), it's too late.
-const CANCELLABLE_STATUSES = ['REQUESTED', 'SCHEDULED', 'ASSIGNED'];
+const CANCELLABLE_STATUSES = ["REQUESTED", "SCHEDULED", "ASSIGNED"];
 
 export function cancelPickup(id) {
   const all = readList(PICKUPS_KEY);
   const pickup = all.find((p) => p.id === id);
   if (!pickup) {
-    return Promise.reject(new Error('Pickup not found.'));
+    return Promise.reject(new Error("Pickup not found."));
   }
   if (!CANCELLABLE_STATUSES.includes(pickup.status)) {
-    return Promise.reject(new Error('This pickup can no longer be cancelled.'));
+    return Promise.reject(new Error("This pickup can no longer be cancelled."));
   }
 
   const next = all.map((p) =>
-    p.id === id ? { ...p, status: 'CANCELLED', cancelled_at: new Date().toISOString() } : p
+    p.id === id ? { ...p, status: "CANCELLED", cancelled_at: new Date().toISOString() } : p
   );
   writeList(PICKUPS_KEY, next);
   return Promise.resolve(next.find((p) => p.id === id));
@@ -313,8 +313,8 @@ export function createTicket(user, payload) {
   const ticket = {
     id: uid(),
     user_id: user.id,
-    ref_code: refCode('TK', all.length + 1),
-    status: 'OPEN',
+    ref_code: refCode("TK", all.length + 1),
+    status: "OPEN",
     resolution_notes: null,
     resolver_name: null,
     resolved_at: null,
@@ -326,9 +326,9 @@ export function createTicket(user, payload) {
 }
 
 // ── Donations / Marketplace ────────────────────────────────────────
-export function listMarketplace(userId, { search = '', category = '' } = {}) {
+export function listMarketplace(userId, { search = "", category = "" } = {}) {
   return readList(DONATIONS_KEY)
-    .filter((d) => d.status === 'AVAILABLE' && d.donor_id !== userId)
+    .filter((d) => d.status === "AVAILABLE" && d.donor_id !== userId)
     .filter((d) => !category || d.category === category)
     .filter(
       (d) => !search || `${d.title} ${d.description}`.toLowerCase().includes(search.toLowerCase())
@@ -358,7 +358,7 @@ export function createDonation(user, payload) {
     donor_name: user.name,
     donor_phone: user.phone,
     donor_email: user.email,
-    status: 'PENDING_APPROVAL',
+    status: "PENDING_APPROVAL",
     images: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -370,10 +370,14 @@ export function createDonation(user, payload) {
     const current = readList(DONATIONS_KEY);
     const still = current.find((d) => d.id === donation.id);
     // Only auto-approve if the resident hasn't withdrawn it in the meantime.
-    if (still && still.status === 'PENDING_APPROVAL') {
+    if (still && still.status === "PENDING_APPROVAL") {
       writeList(
         DONATIONS_KEY,
-        current.map((d) => (d.id === donation.id ? { ...d, status: 'AVAILABLE', updated_at: new Date().toISOString() } : d))
+        current.map((d) =>
+          d.id === donation.id
+            ? { ...d, status: "AVAILABLE", updated_at: new Date().toISOString() }
+            : d
+        )
       );
     }
   }, 8000);
@@ -388,13 +392,14 @@ export function createDonation(user, payload) {
 export function withdrawDonation(donationId, userId) {
   const all = readList(DONATIONS_KEY);
   const donation = all.find((d) => d.id === donationId);
-  if (!donation) return Promise.reject(new Error('Listing not found.'));
-  if (donation.donor_id !== userId) return Promise.reject(new Error('You can only withdraw your own listing.'));
-  if (donation.status !== 'PENDING_APPROVAL') {
-    return Promise.reject(new Error('Only a listing still pending approval can be withdrawn.'));
+  if (!donation) return Promise.reject(new Error("Listing not found."));
+  if (donation.donor_id !== userId)
+    return Promise.reject(new Error("You can only withdraw your own listing."));
+  if (donation.status !== "PENDING_APPROVAL") {
+    return Promise.reject(new Error("Only a listing still pending approval can be withdrawn."));
   }
   const next = all.map((d) =>
-    d.id === donationId ? { ...d, status: 'WITHDRAWN', updated_at: new Date().toISOString() } : d
+    d.id === donationId ? { ...d, status: "WITHDRAWN", updated_at: new Date().toISOString() } : d
   );
   writeList(DONATIONS_KEY, next);
   return Promise.resolve(next.find((d) => d.id === donationId));
@@ -406,7 +411,7 @@ export function claimDonation(donationId, user) {
     d.id === donationId
       ? {
           ...d,
-          status: 'CLAIM_REQUESTED',
+          status: "CLAIM_REQUESTED",
           claimant_id: user.id,
           claimant_name: user.name,
           updated_at: new Date().toISOString(),
@@ -420,13 +425,13 @@ export function claimDonation(donationId, user) {
     const current = readList(DONATIONS_KEY);
     writeList(
       DONATIONS_KEY,
-      current.map((d) => (d.id === donationId ? { ...d, status: 'COMPLETED' } : d))
+      current.map((d) => (d.id === donationId ? { ...d, status: "COMPLETED" } : d))
     );
   }, 6000);
   return next.find((d) => d.id === donationId);
 }
 
-export function listMyClaims(userId, filter = '') {
+export function listMyClaims(userId, filter = "") {
   return readList(DONATIONS_KEY)
     .filter((d) => d.claimant_id === userId)
     .filter((d) => !filter || d.status === filter)
@@ -435,14 +440,14 @@ export function listMyClaims(userId, filter = '') {
 
 // ── Impact / analytics ─────────────────────────────────────────────
 const BADGES = [
-  { code: 'FIRST_PICKUP', name: 'First Pickup', icon: '🌱', min: 1 },
-  { code: 'FIVE_PICKUPS', name: '5 Pickups', icon: '♻️', min: 5 },
-  { code: 'TEN_PICKUPS', name: '10 Pickups', icon: '🏆', min: 10 },
-  { code: 'FIFTY_KG', name: '50kg Diverted', icon: '🌍', minKg: 50 },
+  { code: "FIRST_PICKUP", name: "First Pickup", icon: "🌱", min: 1 },
+  { code: "FIVE_PICKUPS", name: "5 Pickups", icon: "♻️", min: 5 },
+  { code: "TEN_PICKUPS", name: "10 Pickups", icon: "🏆", min: 10 },
+  { code: "FIFTY_KG", name: "50kg Diverted", icon: "🌍", minKg: 50 },
 ];
 
 export function getMyImpact(userId) {
-  const pickups = listMyPickups(userId).filter((p) => p.status === 'COLLECTED');
+  const pickups = listMyPickups(userId).filter((p) => p.status === "COLLECTED");
   const total_pickups = pickups.length;
   const total_kg_diverted = pickups.reduce((sum, p) => sum + (p.estimated_weight || 0), 0);
   const co2_saved_kg = total_kg_diverted * 1.3;
@@ -450,7 +455,7 @@ export function getMyImpact(userId) {
 
   const byCategory = {};
   pickups.forEach((p) => {
-    const cat = p.category || 'Other';
+    const cat = p.category || "Other";
     byCategory[cat] = byCategory[cat] || { category: cat, weight_kg: 0, credits: 0, co2_kg: 0 };
     byCategory[cat].weight_kg += p.estimated_weight || 0;
     byCategory[cat].credits += (p.estimated_weight || 0) * 2.5;
@@ -460,7 +465,7 @@ export function getMyImpact(userId) {
   const monthly_trend = Array.from({ length: 6 }).map((_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - (5 - i));
-    const month = d.toLocaleString('default', { month: 'short' });
+    const month = d.toLocaleString("default", { month: "short" });
     const monthPickups = pickups.filter((p) => {
       const pd = new Date(p.created_at);
       return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
@@ -496,12 +501,12 @@ export function getMyImpact(userId) {
 // zone in a future month) correctly reports no activity rather than
 // fabricating numbers, so the empty state (AC2) is genuine, not just
 // theoretical.
-const RECYCLING_DEMO_ZONES = new Set(['Zone 1', 'Zone 3']);
+const RECYCLING_DEMO_ZONES = new Set(["Zone 1", "Zone 3"]);
 
 export function getRecyclingSummary(user) {
-  const zoneName = user?.zone_id ? `Zone ${user.zone_id}` : 'Zone 3';
+  const zoneName = user?.zone_id ? `Zone ${user.zone_id}` : "Zone 3";
   const now = new Date();
-  const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
 
   if (!RECYCLING_DEMO_ZONES.has(zoneName)) {
     return { zone_name: zoneName, month_label: monthLabel, entries: [] };
@@ -509,22 +514,22 @@ export function getRecyclingSummary(user) {
 
   const entries = [
     {
-      material_type: 'Paper & Cardboard',
+      material_type: "Paper & Cardboard",
       approx_volume_kg: 128.4,
       dispatch_date: daysAgo(6),
-      facility: 'Guwahati Regional Recycling Facility',
+      facility: "Guwahati Regional Recycling Facility",
     },
     {
-      material_type: 'Plastic (PET/HDPE)',
+      material_type: "Plastic (PET/HDPE)",
       approx_volume_kg: 74.2,
       dispatch_date: daysAgo(3),
-      facility: 'Guwahati Regional Recycling Facility',
+      facility: "Guwahati Regional Recycling Facility",
     },
     {
-      material_type: 'E-waste',
+      material_type: "E-waste",
       approx_volume_kg: 19.6,
       dispatch_date: daysAgo(11),
-      facility: 'Assam E-Waste Processing Unit',
+      facility: "Assam E-Waste Processing Unit",
     },
   ];
 
@@ -535,24 +540,24 @@ export function listNotifications(userId) {
   const pickups = listMyPickups(userId);
   const notifs = [];
   pickups.slice(0, 3).forEach((p) => {
-    if (p.status === 'COLLECTED') {
+    if (p.status === "COLLECTED") {
       notifs.push({
         id: `n-${p.id}`,
-        title: 'Pickup collected',
-        body: `${p.category} pickup (${p.ref_code}) was collected by ${p.collector_name || 'your collector'}.`,
+        title: "Pickup collected",
+        body: `${p.category} pickup (${p.ref_code}) was collected by ${p.collector_name || "your collector"}.`,
         created_at: p.created_at,
       });
-    } else if (p.status === 'IN_PROGRESS') {
+    } else if (p.status === "IN_PROGRESS") {
       notifs.push({
         id: `n-${p.id}`,
-        title: 'Collector on the way',
-        body: `${p.collector_name || 'Your collector'} is working through your zone right now.`,
+        title: "Collector on the way",
+        body: `${p.collector_name || "Your collector"} is working through your zone right now.`,
         created_at: p.created_at,
       });
-    } else if (p.status === 'REQUESTED') {
+    } else if (p.status === "REQUESTED") {
       notifs.push({
         id: `n-${p.id}`,
-        title: 'Pickup requested',
+        title: "Pickup requested",
         body: `Your ${p.category} pickup (${p.ref_code}) is awaiting collector assignment.`,
         created_at: p.created_at,
       });
@@ -580,25 +585,25 @@ export function getZoneFlow(userId) {
   const queue = getTodayQueue(userId);
   const myOrder = queue?.pickup_number || 7;
   const names = [
-    'Deka Residence',
-    'Sharma Household',
-    'Green Villa',
-    'Baruah Family',
-    'Sonowal House',
-    'Lake View Apartments',
-    'You',
-    'Gogoi Residence',
-    'Riverside Cottage',
-    'Hilltop Bungalow',
+    "Deka Residence",
+    "Sharma Household",
+    "Green Villa",
+    "Baruah Family",
+    "Sonowal House",
+    "Lake View Apartments",
+    "You",
+    "Gogoi Residence",
+    "Riverside Cottage",
+    "Hilltop Bungalow",
   ];
   const stops = names.map((name, i) => {
     const order = i + 1;
     return {
       id: `stop-${order}`,
       pickup_order: order,
-      resident_name: order === myOrder ? 'You' : name,
-      address: order === myOrder ? 'Your address' : `House #${order}, Zone 3`,
-      status: order < myOrder - 2 ? 'COLLECTED' : 'PENDING',
+      resident_name: order === myOrder ? "You" : name,
+      address: order === myOrder ? "Your address" : `House #${order}, Zone 3`,
+      status: order < myOrder - 2 ? "COLLECTED" : "PENDING",
     };
   });
   return {
@@ -609,31 +614,43 @@ export function getZoneFlow(userId) {
 
 export function getMyTodayStop(userId) {
   const flow = getZoneFlow(userId);
-  return flow.stops.find((s) => s.resident_name === 'You') || null;
+  return flow.stops.find((s) => s.resident_name === "You") || null;
 }
 
 // ── Single-pickup live tracking ─────────────────────────────────────
 // Scoped to exactly one pickup — used by "Track Live Pickup" so a
 // resident only ever sees their own pickup's progress, never the whole
 // zone's queue.
-const STAGE_ORDER = ['REQUESTED', 'ASSIGNED', 'IN_PROGRESS', 'COLLECTED'];
+const STAGE_ORDER = ["REQUESTED", "ASSIGNED", "IN_PROGRESS", "COLLECTED"];
 
 export function getPickupTracking(pickup) {
   const stageIndex = STAGE_ORDER.indexOf(pickup.status);
   const stopsRemaining = stageIndex >= 0 ? Math.max(STAGE_ORDER.length - 1 - stageIndex, 0) : 0;
-  const etaMinutes = pickup.status === 'COLLECTED' ? 0 : Math.max(stopsRemaining * 12, 5);
+  const etaMinutes = pickup.status === "COLLECTED" ? 0 : Math.max(stopsRemaining * 12, 5);
 
   const created = new Date(pickup.created_at);
   const timeline = [
-    { stage: 'REQUESTED', label: 'Pickup requested', at: created },
-    pickup.status !== 'REQUESTED'
-      ? { stage: 'ASSIGNED', label: `Assigned to ${pickup.collector_name || 'a collector'}`, at: new Date(created.getTime() + 20 * 60000) }
+    { stage: "REQUESTED", label: "Pickup requested", at: created },
+    pickup.status !== "REQUESTED"
+      ? {
+          stage: "ASSIGNED",
+          label: `Assigned to ${pickup.collector_name || "a collector"}`,
+          at: new Date(created.getTime() + 20 * 60000),
+        }
       : null,
-    ['IN_PROGRESS', 'COLLECTED'].includes(pickup.status)
-      ? { stage: 'IN_PROGRESS', label: 'Collector en route to your area', at: new Date(created.getTime() + 45 * 60000) }
+    ["IN_PROGRESS", "COLLECTED"].includes(pickup.status)
+      ? {
+          stage: "IN_PROGRESS",
+          label: "Collector en route to your area",
+          at: new Date(created.getTime() + 45 * 60000),
+        }
       : null,
-    pickup.status === 'COLLECTED'
-      ? { stage: 'COLLECTED', label: 'Pickup collected', at: new Date(created.getTime() + 90 * 60000) }
+    pickup.status === "COLLECTED"
+      ? {
+          stage: "COLLECTED",
+          label: "Pickup collected",
+          at: new Date(created.getTime() + 90 * 60000),
+        }
       : null,
   ].filter(Boolean);
 
@@ -642,7 +659,7 @@ export function getPickupTracking(pickup) {
     ref_code: pickup.ref_code,
     status: pickup.status,
     stops_remaining: stopsRemaining,
-    estimated_arrival: pickup.status === 'COLLECTED' ? null : `~${etaMinutes} min`,
+    estimated_arrival: pickup.status === "COLLECTED" ? null : `~${etaMinutes} min`,
     timeline,
   };
 }
@@ -659,14 +676,14 @@ export function getTrackResult(code) {
   if (pickup) {
     const tracking = getPickupTracking(pickup);
     return {
-      entity_type: 'PICKUP',
+      entity_type: "PICKUP",
       code: pickup.ref_code,
       ref_code: pickup.ref_code,
       status: pickup.status,
       category: pickup.category,
       weight: pickup.estimated_weight,
-      co2_saved: pickup.status === 'COLLECTED' ? (pickup.estimated_weight || 0) * 1.3 : null,
-      credits: pickup.status === 'COLLECTED' ? (pickup.estimated_weight || 0) * 2.5 : null,
+      co2_saved: pickup.status === "COLLECTED" ? (pickup.estimated_weight || 0) * 1.3 : null,
+      credits: pickup.status === "COLLECTED" ? (pickup.estimated_weight || 0) * 2.5 : null,
       scheduled_date: pickup.scheduled_date,
       collector_name: pickup.collector_name,
       notes: pickup.notes,
@@ -676,7 +693,7 @@ export function getTrackResult(code) {
         event_type: t.stage,
         created_at: t.at.toISOString(),
         note: t.label,
-        hash: `${pickup.id}${i}`.padEnd(16, '0'),
+        hash: `${pickup.id}${i}`.padEnd(16, "0"),
       })),
       created_at: pickup.created_at,
       last_updated: pickup.created_at,
@@ -686,7 +703,7 @@ export function getTrackResult(code) {
   const ticket = readList(TICKETS_KEY).find((t) => t.ref_code?.toUpperCase() === needle);
   if (ticket) {
     return {
-      entity_type: 'TICKET',
+      entity_type: "TICKET",
       code: ticket.ref_code,
       status: ticket.status,
       issue_type: ticket.issue_type,

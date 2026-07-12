@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { Card, Empty } from '../../../components/UI';
-import { Recycle, Info } from 'lucide-react';
-import { getRecyclingSummary } from '../../../lib/mockResidentData';
+import { useMemo } from "react";
+import { useAuth } from "../../../context/AuthContext";
+import { Card, Empty } from "../../../components/UI";
+import { Recycle, Info } from "lucide-react";
+import { getRecyclingSummary } from "../../../lib/mockResidentData";
 
 export default function RecyclingTransparency() {
   const { user } = useAuth();
@@ -21,7 +21,10 @@ export default function RecyclingTransparency() {
           not an automated or real-time verification. */}
       <div className="flex items-start gap-2 bg-amber-50 text-amber-800 text-xs rounded-input p-3">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>As reported by municipal records — recycling data in this MVP is entered manually by municipal staff and is not yet independently verified.</span>
+        <span>
+          As reported by municipal records — recycling data in this MVP is entered manually by
+          municipal staff and is not yet independently verified.
+        </span>
       </div>
 
       {summary.entries.length === 0 ? (
@@ -44,7 +47,9 @@ export default function RecyclingTransparency() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-semibold">{e.approx_volume_kg.toFixed(1)} kg</p>
-                  <p className="text-xs text-gray-400">{new Date(e.dispatch_date).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(e.dispatch_date).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             </Card>

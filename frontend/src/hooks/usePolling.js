@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 /** Poll on an interval so lists update without manual refresh. */
 export function usePolling(callback, intervalMs = 15000) {

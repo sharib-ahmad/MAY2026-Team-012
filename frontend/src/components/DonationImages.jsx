@@ -1,13 +1,20 @@
-import { ImageOff, Expand } from 'lucide-react';
+import { ImageOff, Expand } from "lucide-react";
 
-export default function DonationImages({ images, alt, thumbClass = 'w-full h-40 object-cover', onClick }) {
+export default function DonationImages({
+  images,
+  alt,
+  thumbClass = "w-full h-40 object-cover",
+  onClick,
+}) {
   const src = images && images.length > 0 ? images[0] : null;
   const count = images?.length || 0;
-  const clickable = typeof onClick === 'function';
+  const clickable = typeof onClick === "function";
 
   if (!src) {
     return (
-      <div className={`${thumbClass} bg-primary/5 flex items-center justify-center text-primary/40`}>
+      <div
+        className={`${thumbClass} bg-primary/5 flex items-center justify-center text-primary/40`}
+      >
         <ImageOff size={28} strokeWidth={1.5} />
       </div>
     );
@@ -15,10 +22,10 @@ export default function DonationImages({ images, alt, thumbClass = 'w-full h-40 
 
   return (
     <div
-      className={`relative group ${clickable ? 'cursor-pointer' : ''}`}
+      className={`relative group ${clickable ? "cursor-pointer" : ""}`}
       onClick={clickable ? onClick : undefined}
-      role={clickable ? 'button' : undefined}
-      aria-label={clickable ? `View photo${count > 1 ? 's' : ''} of ${alt}` : undefined}
+      role={clickable ? "button" : undefined}
+      aria-label={clickable ? `View photo${count > 1 ? "s" : ""} of ${alt}` : undefined}
     >
       <img src={src} alt={alt} className={thumbClass} />
       {clickable && (
