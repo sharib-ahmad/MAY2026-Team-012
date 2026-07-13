@@ -43,10 +43,14 @@ export default function AdminDashboard() {
       <header className="bg-[#0B2F2C] px-4 sm:px-6 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
-            <span className="text-2xl">♻</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#0B2F2C]">
+              V
+            </span>
             <div className="leading-tight">
-              <div className="font-semibold">Verdeza</div>
-              <div className="text-[11px] text-white/60">System Administration</div>
+              <div className="font-display font-semibold">Verdeza</div>
+              <div className="text-[10px] text-white/50 uppercase tracking-wide hidden sm:block">
+                Admin Portal
+              </div>
             </div>
           </div>
           <button
