@@ -89,3 +89,29 @@ export function updateComplaint(complaint, { status, note, officerName }) {
   }
   return listComplaints();
 }
+
+// ── Crew assignments ────────────────────────────────────────────────
+// Officer reassignments (worker → ward/route) persist as an id → patch
+// map layered over the read-only worker fixture.
+
+const CREW_OVERRIDES_KEY = "gc_officer_crew_overrides";
+
+function listCrewOverrides() {
+  return readJson(CREW_OVERRIDES_KEY, {});
+}
+
+/** Fixture workers with any officer reassignments applied. */
+export function listWorkerAssignments() {
+  const overrides = listCrewOverrides();
+  return DATA.workers.map((w) => ({ ...w, ...(overrides[w.id] || {}) }));
+}
+
+/** Moves a worker to another ward/route and returns the refreshed roster. */
+export function reassignWorker(workerId, { ward_code, route_id, shift }) {
+  const next = {
+    ...listCrewOverrides(),
+    [workerId]: { ward_code, route_id: route_id || null, shift },
+  };
+  localStorage.setItem(CREW_OVERRIDES_KEY, JSON.stringify(next));
+  return listWorkerAssignments();
+}
