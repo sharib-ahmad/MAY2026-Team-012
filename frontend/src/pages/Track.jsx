@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import API from "../lib/api";
 import PublicLayout from "../components/PublicLayout";
 import { Card, StatusPill } from "../components/UI";
 import { Search, ShieldCheck, ShieldAlert, MapPin, Package, Clock, Ticket } from "lucide-react";
+import { getTrackResult } from "../lib/mockResidentData";
 
 export default function Track() {
   const [code, setCode] = useState("");
@@ -11,32 +11,20 @@ export default function Track() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // A response only counts as "real" if it has the minimum fields every
-  // entity type needs. Anything else (missing backend, wrong shape, an
-  // HTML fallback page, etc.) is treated the same as "not found" instead
-  // of rendering a mostly-empty card that could look like broken data.
-  const isValidTrackResult = (data) =>
-    !!data &&
-    typeof data === "object" &&
-    typeof data.code === "string" &&
-    typeof data.entity_type === "string" &&
-    typeof data.status === "string";
-
-  const search = async (e) => {
+  const search = (e) => {
     e.preventDefault();
     if (!code.trim()) return;
     setErr("");
     setResult(null);
     setLoading(true);
-    try {
-      const { data } = await API.get(`/track/${encodeURIComponent(code.trim())}`);
-      if (isValidTrackResult(data)) {
-        setResult(data);
-      } else {
-        setErr("Id not found");
-      }
-    } catch ({ response }) {
-      setErr(response?.data?.detail || "Id not found");
+    // Local, backend-free lookup — searches this browser's pickups and
+    // tickets for an exact ref-code match and returns exactly one
+    // result (or none), never a full listing.
+    const data = getTrackResult(code);
+    if (data) {
+      setResult(data);
+    } else {
+      setErr("Id not found");
     }
     setLoading(false);
   };
