@@ -1,0 +1,795 @@
+{
+  "stats": {
+    "open_complaints": 14,
+    "resolved_this_week": 23,
+    "escalated_complaints": 2,
+    "avg_resolution_hours": 18.5,
+    "routes_today": 8,
+    "routes_completed_today": 3,
+    "route_points_total": 96,
+    "route_points_collected": 61,
+    "active_workers": 12,
+    "wards_supervised": 5,
+    "mixed_waste_flags_week": 9,
+    "delay_logs_today": 4
+  },
+
+  "wards": [
+    {
+      "id": "zone-1",
+      "code": "WARD-01",
+      "name": "Gomti Nagar",
+      "households": 1240,
+      "routes_today": 2,
+      "active_workers": 4,
+      "coverage_pct": 78
+    },
+    {
+      "id": "zone-2",
+      "code": "WARD-02",
+      "name": "Hazratganj",
+      "households": 980,
+      "routes_today": 2,
+      "active_workers": 3,
+      "coverage_pct": 64
+    },
+    {
+      "id": "zone-3",
+      "code": "WARD-03",
+      "name": "Alambagh",
+      "households": 1105,
+      "routes_today": 2,
+      "active_workers": 3,
+      "coverage_pct": 55
+    },
+    {
+      "id": "zone-4",
+      "code": "WARD-04",
+      "name": "Indira Nagar",
+      "households": 860,
+      "routes_today": 1,
+      "active_workers": 2,
+      "coverage_pct": 100
+    },
+    {
+      "id": "zone-5",
+      "code": "WARD-05",
+      "name": "Chowk",
+      "households": 730,
+      "routes_today": 1,
+      "active_workers": 2,
+      "coverage_pct": 40
+    }
+  ],
+
+  "complaints": [
+    {
+      "id": "cmp-301",
+      "ref_code": "TK-2026-0301",
+      "ward_code": "WARD-01",
+      "citizen_name": "Ritu Sharma",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "MISSED_PICKUP",
+      "description": "Vehicle skipped Vibhuti Khand lane 4 two days in a row. Wet waste piling up near the gate.",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "created_at": "2026-07-12T07:40:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-302",
+      "ref_code": "TK-2026-0302",
+      "ward_code": "WARD-02",
+      "citizen_name": "Anil Verma",
+      "citizen_type": "SHOPKEEPER",
+      "issue_type": "BIN_OVERFLOW",
+      "description": "Community bin outside Janpath market overflowing since Friday evening; stray animals scattering waste.",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "created_at": "2026-07-12T09:15:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-303",
+      "ref_code": "TK-2026-0303",
+      "ward_code": "WARD-03",
+      "citizen_name": "St. Mary Inter College",
+      "citizen_type": "INSTITUTION",
+      "issue_type": "BULK_CLEARANCE",
+      "description": "Requested bulk clearance after annual function was not attended. Cafeteria waste stored for 3 days.",
+      "severity": "MEDIUM",
+      "status": "IN_REVIEW",
+      "created_at": "2026-07-11T11:00:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-304",
+      "ref_code": "TK-2026-0304",
+      "ward_code": "WARD-01",
+      "citizen_name": "Sanjeev Gupta",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "VEHICLE_DELAY",
+      "description": "Collection reaching lane after 11 AM instead of the notified 8-9 AM window all this week.",
+      "severity": "LOW",
+      "status": "OPEN",
+      "created_at": "2026-07-11T12:30:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-305",
+      "ref_code": "TK-2026-0305",
+      "ward_code": "WARD-05",
+      "citizen_name": "Mohd. Salim",
+      "citizen_type": "SHOPKEEPER",
+      "issue_type": "ILLEGAL_DUMPING",
+      "description": "Construction debris dumped at the Koneshwar crossing collection point, blocking bin access.",
+      "severity": "HIGH",
+      "status": "ESCALATED",
+      "created_at": "2026-07-10T08:05:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-306",
+      "ref_code": "TK-2026-0306",
+      "ward_code": "WARD-04",
+      "citizen_name": "Kavita Singh",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "MISSED_PICKUP",
+      "description": "Pickup missed on Sector 14 back lane; truck turned around at the water-works barricade.",
+      "severity": "MEDIUM",
+      "status": "RESOLVED",
+      "created_at": "2026-07-09T07:55:00Z",
+      "resolution_notes": "Backup tricycle cart assigned for the barricaded stretch until road work completes.",
+      "resolved_at": "2026-07-10T10:20:00Z"
+    },
+    {
+      "id": "cmp-307",
+      "ref_code": "TK-2026-0307",
+      "ward_code": "WARD-02",
+      "citizen_name": "Hazratganj Traders Assoc.",
+      "citizen_type": "SHOPKEEPER",
+      "issue_type": "SEGREGATION_GUIDANCE",
+      "description": "Shops need clarity on disposing mixed packaging with foam and foil lining — no municipal template available.",
+      "severity": "LOW",
+      "status": "RESOLVED",
+      "created_at": "2026-07-08T14:10:00Z",
+      "resolution_notes": "Shared the ward sorting guide link and scheduled an awareness drive for 18 July.",
+      "resolved_at": "2026-07-09T16:00:00Z"
+    },
+    {
+      "id": "cmp-308",
+      "ref_code": "TK-2026-0308",
+      "ward_code": "WARD-03",
+      "citizen_name": "Meera Nair",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "WORKER_CONDUCT",
+      "description": "Helper refused to take properly segregated sanitary waste bag despite red-bag marking.",
+      "severity": "MEDIUM",
+      "status": "IN_REVIEW",
+      "created_at": "2026-07-10T09:45:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-309",
+      "ref_code": "TK-2026-0309",
+      "ward_code": "WARD-01",
+      "citizen_name": "Green Valley School",
+      "citizen_type": "INSTITUTION",
+      "issue_type": "BULK_CLEARANCE",
+      "description": "Advance booking needed for exam-week paper waste clearance, approx 40 sacks on 20 July.",
+      "severity": "LOW",
+      "status": "OPEN",
+      "created_at": "2026-07-12T10:25:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-310",
+      "ref_code": "TK-2026-0310",
+      "ward_code": "WARD-05",
+      "citizen_name": "Farhan Ahmed",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "MISSED_PICKUP",
+      "description": "Narrow gali behind Phool Wali Gali not covered since Wednesday — cart never entered.",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "created_at": "2026-07-12T06:50:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-311",
+      "ref_code": "TK-2026-0311",
+      "ward_code": "WARD-04",
+      "citizen_name": "Rajesh Pandey",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "BIN_OVERFLOW",
+      "description": "Sector 9 corner bin lid broken and overflowing; requesting replacement and extra pickup.",
+      "severity": "MEDIUM",
+      "status": "RESOLVED",
+      "created_at": "2026-07-07T08:30:00Z",
+      "resolution_notes": "Bin replaced on 8 July; extra evening pickup ran for two days.",
+      "resolved_at": "2026-07-08T17:45:00Z"
+    },
+    {
+      "id": "cmp-312",
+      "ref_code": "TK-2026-0312",
+      "ward_code": "WARD-02",
+      "citizen_name": "Sushila Devi",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "VEHICLE_DELAY",
+      "description": "No horn or announcement when vehicle passes; elderly residents miss the window.",
+      "severity": "LOW",
+      "status": "OPEN",
+      "created_at": "2026-07-11T07:20:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-313",
+      "ref_code": "TK-2026-0313",
+      "ward_code": "WARD-03",
+      "citizen_name": "Alambagh Kirana Stores",
+      "citizen_type": "SHOPKEEPER",
+      "issue_type": "MISSED_PICKUP",
+      "description": "Dry-waste-only pickup skipped market stretch on Thursday; cartons stacked on footpath.",
+      "severity": "MEDIUM",
+      "status": "ESCALATED",
+      "created_at": "2026-07-09T13:40:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-314",
+      "ref_code": "TK-2026-0314",
+      "ward_code": "WARD-01",
+      "citizen_name": "Nidhi Kapoor",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "SEGREGATION_GUIDANCE",
+      "description": "Confusion about disposing broken CFL bulbs and old medicine strips — which stream?",
+      "severity": "LOW",
+      "status": "RESOLVED",
+      "created_at": "2026-07-06T18:00:00Z",
+      "resolution_notes": "Guided to hazardous drop-point at ward office; sorting guide page updated with examples.",
+      "resolved_at": "2026-07-07T12:10:00Z"
+    },
+    {
+      "id": "cmp-315",
+      "ref_code": "TK-2026-0315",
+      "ward_code": "WARD-05",
+      "citizen_name": "Chowk Sabzi Mandi Union",
+      "citizen_type": "SHOPKEEPER",
+      "issue_type": "BULK_CLEARANCE",
+      "description": "Mandi day (Sunday) produces triple wet-waste volume; single evening trip is not enough.",
+      "severity": "HIGH",
+      "status": "IN_REVIEW",
+      "created_at": "2026-07-10T16:35:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    },
+    {
+      "id": "cmp-316",
+      "ref_code": "TK-2026-0316",
+      "ward_code": "WARD-04",
+      "citizen_name": "Sunil Rastogi",
+      "citizen_type": "HOUSEHOLD",
+      "issue_type": "OTHER",
+      "description": "Leachate dripping from compactor truck leaves a smelly trail on Sector 11 main road.",
+      "severity": "MEDIUM",
+      "status": "OPEN",
+      "created_at": "2026-07-12T08:10:00Z",
+      "resolution_notes": null,
+      "resolved_at": null
+    }
+  ],
+
+  "complaints_trend": [
+    { "day": "Mon", "filed": 4, "resolved": 3 },
+    { "day": "Tue", "filed": 6, "resolved": 4 },
+    { "day": "Wed", "filed": 3, "resolved": 5 },
+    { "day": "Thu", "filed": 7, "resolved": 4 },
+    { "day": "Fri", "filed": 5, "resolved": 3 },
+    { "day": "Sat", "filed": 8, "resolved": 2 },
+    { "day": "Sun", "filed": 4, "resolved": 2 }
+  ],
+
+  "routes": [
+    {
+      "id": "rt-01",
+      "code": "RT-GN-A",
+      "ward_code": "WARD-01",
+      "worker_id": "usr-009",
+      "vehicle": "Compactor UP32 GN 4410",
+      "shift": "MORNING",
+      "status": "IN_PROGRESS",
+      "started_at": "2026-07-13T02:35:00Z",
+      "last_update_at": "2026-07-13T05:50:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Vibhuti Khand lane 1-3",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:05:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Vibhuti Khand lane 4-6",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:40:00Z"
+        },
+        {
+          "seq": 3,
+          "label": "Vipul Khand market strip",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:30:00Z"
+        },
+        {
+          "seq": 4,
+          "label": "Vishal Khand apartments",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T05:45:00Z"
+        },
+        {
+          "seq": 5,
+          "label": "Patrakarpuram crossing bins",
+          "status": "PENDING",
+          "updated_at": null
+        },
+        { "seq": 6, "label": "Green Valley School", "status": "PENDING", "updated_at": null }
+      ]
+    },
+    {
+      "id": "rt-02",
+      "code": "RT-GN-B",
+      "ward_code": "WARD-01",
+      "worker_id": "usr-010",
+      "vehicle": "E-cart UP32 EC 1108",
+      "shift": "MORNING",
+      "status": "COMPLETED",
+      "started_at": "2026-07-13T02:20:00Z",
+      "last_update_at": "2026-07-13T06:10:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Viram Khand inner lanes",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:00:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Viraj Khand park side",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:55:00Z"
+        },
+        {
+          "seq": 3,
+          "label": "Husadia crossing bins",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:50:00Z"
+        },
+        {
+          "seq": 4,
+          "label": "Sahara hospital back gate",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T06:05:00Z"
+        }
+      ]
+    },
+    {
+      "id": "rt-03",
+      "code": "RT-HZ-A",
+      "ward_code": "WARD-02",
+      "worker_id": "usr-011",
+      "vehicle": "Tipper UP32 TP 2231",
+      "shift": "MORNING",
+      "status": "DELAYED",
+      "started_at": "2026-07-13T02:45:00Z",
+      "last_update_at": "2026-07-13T04:20:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Janpath market bins",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:20:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Lalbagh residential block",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:15:00Z"
+        },
+        { "seq": 3, "label": "Hazratganj crossing", "status": "PENDING", "updated_at": null },
+        { "seq": 4, "label": "Royal Hotel service lane", "status": "PENDING", "updated_at": null },
+        { "seq": 5, "label": "GPO park perimeter", "status": "PENDING", "updated_at": null }
+      ]
+    },
+    {
+      "id": "rt-04",
+      "code": "RT-HZ-B",
+      "ward_code": "WARD-02",
+      "worker_id": "wrk-104",
+      "vehicle": "E-cart UP32 EC 1214",
+      "shift": "EVENING",
+      "status": "ASSIGNED",
+      "started_at": null,
+      "last_update_at": null,
+      "points": [
+        { "seq": 1, "label": "Sapru Marg offices", "status": "PENDING", "updated_at": null },
+        { "seq": 2, "label": "Ashok Marg shops", "status": "PENDING", "updated_at": null },
+        { "seq": 3, "label": "Vidhan Sabha rear lane", "status": "PENDING", "updated_at": null }
+      ]
+    },
+    {
+      "id": "rt-05",
+      "code": "RT-AL-A",
+      "ward_code": "WARD-03",
+      "worker_id": "wrk-101",
+      "vehicle": "Tricycle cart AL-07",
+      "shift": "MORNING",
+      "status": "IN_PROGRESS",
+      "started_at": "2026-07-13T03:00:00Z",
+      "last_update_at": "2026-07-13T05:30:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Alambagh bus depot side",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:45:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Kirana market stretch",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:40:00Z"
+        },
+        {
+          "seq": 3,
+          "label": "Railway colony gate 2",
+          "status": "MISSED",
+          "updated_at": "2026-07-13T05:25:00Z"
+        },
+        { "seq": 4, "label": "Singar Nagar crossing", "status": "PENDING", "updated_at": null },
+        { "seq": 5, "label": "St. Mary Inter College", "status": "PENDING", "updated_at": null }
+      ]
+    },
+    {
+      "id": "rt-06",
+      "code": "RT-AL-B",
+      "ward_code": "WARD-03",
+      "worker_id": "wrk-102",
+      "vehicle": "E-cart UP32 EC 1302",
+      "shift": "EVENING",
+      "status": "ASSIGNED",
+      "started_at": null,
+      "last_update_at": null,
+      "points": [
+        { "seq": 1, "label": "Chander Nagar block A", "status": "PENDING", "updated_at": null },
+        { "seq": 2, "label": "Chander Nagar block B", "status": "PENDING", "updated_at": null },
+        { "seq": 3, "label": "LDA colony bins", "status": "PENDING", "updated_at": null },
+        { "seq": 4, "label": "Mawaiya underpass point", "status": "PENDING", "updated_at": null }
+      ]
+    },
+    {
+      "id": "rt-07",
+      "code": "RT-IN-A",
+      "ward_code": "WARD-04",
+      "worker_id": "wrk-103",
+      "vehicle": "Compactor UP32 GN 4522",
+      "shift": "MORNING",
+      "status": "COMPLETED",
+      "started_at": "2026-07-13T02:30:00Z",
+      "last_update_at": "2026-07-13T06:00:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Sector 9 corner bins",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T03:10:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Sector 11 main road",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:05:00Z"
+        },
+        {
+          "seq": 3,
+          "label": "Sector 14 back lane",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T05:00:00Z"
+        },
+        {
+          "seq": 4,
+          "label": "Bhootnath market",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T05:55:00Z"
+        }
+      ]
+    },
+    {
+      "id": "rt-08",
+      "code": "RT-CH-A",
+      "ward_code": "WARD-05",
+      "worker_id": "wrk-105",
+      "vehicle": "Pushcart CH-11",
+      "shift": "MORNING",
+      "status": "IN_PROGRESS",
+      "started_at": "2026-07-13T03:15:00Z",
+      "last_update_at": "2026-07-13T04:45:00Z",
+      "points": [
+        {
+          "seq": 1,
+          "label": "Koneshwar crossing point",
+          "status": "MISSED",
+          "updated_at": "2026-07-13T03:50:00Z"
+        },
+        {
+          "seq": 2,
+          "label": "Phool Wali Gali",
+          "status": "COLLECTED",
+          "updated_at": "2026-07-13T04:40:00Z"
+        },
+        { "seq": 3, "label": "Chowk sabzi mandi", "status": "PENDING", "updated_at": null },
+        { "seq": 4, "label": "Gol Darwaza lanes", "status": "PENDING", "updated_at": null }
+      ]
+    }
+  ],
+
+  "delay_logs": [
+    {
+      "id": "dl-401",
+      "route_id": "rt-03",
+      "route_code": "RT-HZ-A",
+      "ward_code": "WARD-02",
+      "worker_name": "Ramesh Chauhan",
+      "reason": "VEHICLE_BREAKDOWN",
+      "note": "Tipper hydraulic hose burst near Lalbagh; waiting for workshop van.",
+      "logged_at": "2026-07-13T04:20:00Z"
+    },
+    {
+      "id": "dl-402",
+      "route_id": "rt-08",
+      "route_code": "RT-CH-A",
+      "ward_code": "WARD-05",
+      "worker_name": "Israr Khan",
+      "reason": "ACCESS_BLOCKED",
+      "note": "Debris dump at Koneshwar crossing blocking cart entry, point skipped.",
+      "logged_at": "2026-07-13T03:50:00Z"
+    },
+    {
+      "id": "dl-403",
+      "route_id": "rt-05",
+      "route_code": "RT-AL-A",
+      "ward_code": "WARD-03",
+      "worker_name": "Mahesh Rawat",
+      "reason": "HEAVY_TRAFFIC",
+      "note": "Railway colony gate 2 closed for goods train shunting, will retry after round.",
+      "logged_at": "2026-07-13T05:25:00Z"
+    },
+    {
+      "id": "dl-404",
+      "route_id": "rt-01",
+      "route_code": "RT-GN-A",
+      "ward_code": "WARD-01",
+      "worker_name": "Deepak Kumar",
+      "reason": "WASTE_NOT_READY",
+      "note": "Vishal Khand apartments staged bins 40 min late; round resumed after wait.",
+      "logged_at": "2026-07-13T05:45:00Z"
+    },
+    {
+      "id": "dl-405",
+      "route_id": "rt-03",
+      "route_code": "RT-HZ-A",
+      "ward_code": "WARD-02",
+      "worker_name": "Ramesh Chauhan",
+      "reason": "HEAVY_TRAFFIC",
+      "note": "Market crowding on Janpath stretch on Saturday, 25 min behind window.",
+      "logged_at": "2026-07-12T04:10:00Z"
+    },
+    {
+      "id": "dl-406",
+      "route_id": "rt-07",
+      "route_code": "RT-IN-A",
+      "ward_code": "WARD-04",
+      "worker_name": "Bablu Verma",
+      "reason": "ROUTE_OVERLOAD",
+      "note": "Wedding-season surge at Bhootnath market, second trip needed for full clearance.",
+      "logged_at": "2026-07-11T06:30:00Z"
+    }
+  ],
+
+  "mixed_waste_flags": [
+    {
+      "id": "mw-501",
+      "route_code": "RT-GN-A",
+      "ward_code": "WARD-01",
+      "point_label": "Vipul Khand market strip",
+      "severity": "HIGH",
+      "note": "Wet food waste mixed into dry cartons across six shops; batch quality degraded.",
+      "flagged_at": "2026-07-13T04:30:00Z"
+    },
+    {
+      "id": "mw-502",
+      "route_code": "RT-CH-A",
+      "ward_code": "WARD-05",
+      "point_label": "Chowk sabzi mandi",
+      "severity": "MEDIUM",
+      "note": "Vegetable waste bags contain plastic sheets and broken crates.",
+      "flagged_at": "2026-07-12T05:15:00Z"
+    },
+    {
+      "id": "mw-503",
+      "route_code": "RT-AL-A",
+      "ward_code": "WARD-03",
+      "point_label": "Kirana market stretch",
+      "severity": "HIGH",
+      "note": "Broken glass and blades found in dry recycling bags — handling hazard.",
+      "flagged_at": "2026-07-12T04:55:00Z"
+    },
+    {
+      "id": "mw-504",
+      "route_code": "RT-HZ-A",
+      "ward_code": "WARD-02",
+      "point_label": "Janpath market bins",
+      "severity": "MEDIUM",
+      "note": "Sanitary waste in green wet-waste bins, repeated for third day.",
+      "flagged_at": "2026-07-11T03:40:00Z"
+    },
+    {
+      "id": "mw-505",
+      "route_code": "RT-IN-A",
+      "ward_code": "WARD-04",
+      "point_label": "Sector 11 main road",
+      "severity": "LOW",
+      "note": "Garden trimmings mixed with household dry waste after weekend pruning.",
+      "flagged_at": "2026-07-11T04:25:00Z"
+    },
+    {
+      "id": "mw-506",
+      "route_code": "RT-GN-B",
+      "ward_code": "WARD-01",
+      "point_label": "Sahara hospital back gate",
+      "severity": "HIGH",
+      "note": "Suspected medical strips and syringe found in general waste — escalate to admin.",
+      "flagged_at": "2026-07-10T05:35:00Z"
+    },
+    {
+      "id": "mw-507",
+      "route_code": "RT-AL-B",
+      "ward_code": "WARD-03",
+      "point_label": "LDA colony bins",
+      "severity": "LOW",
+      "note": "E-waste (old chargers, batteries) dropped in dry bin instead of collection point.",
+      "flagged_at": "2026-07-09T13:20:00Z"
+    }
+  ],
+
+  "workers": [
+    {
+      "id": "usr-009",
+      "name": "Deepak Kumar",
+      "phone": "+91 98765 43207",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-01",
+      "route_id": "rt-01",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "usr-010",
+      "name": "Suresh Pal",
+      "phone": "+91 98765 43208",
+      "crew_role": "HELPER",
+      "ward_code": "WARD-01",
+      "route_id": "rt-02",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "usr-011",
+      "name": "Ramesh Chauhan",
+      "phone": "+91 98765 43209",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-02",
+      "route_id": "rt-03",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "usr-012",
+      "name": "Om Prakash",
+      "phone": "+91 98765 43210",
+      "crew_role": "HELPER",
+      "ward_code": "WARD-03",
+      "route_id": null,
+      "shift": "MORNING",
+      "status": "SUSPENDED"
+    },
+    {
+      "id": "wrk-101",
+      "name": "Mahesh Rawat",
+      "phone": "+91 98765 43311",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-03",
+      "route_id": "rt-05",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "wrk-102",
+      "name": "Sanjay Nishad",
+      "phone": "+91 98765 43312",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-03",
+      "route_id": "rt-06",
+      "shift": "EVENING",
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "wrk-103",
+      "name": "Bablu Verma",
+      "phone": "+91 98765 43313",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-04",
+      "route_id": "rt-07",
+      "shift": "MORNING",
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "wrk-104",
+      "name": "Dinesh Sonkar",
+      "phone": "+91 98765 43314",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-02",
+      "route_id": "rt-04",
+      "shift": "EVENING",
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "wrk-105",
+      "name": "Israr Khan",
+      "phone": "+91 98765 43315",
+      "crew_role": "DRIVER",
+      "ward_code": "WARD-05",
+      "route_id": "rt-08",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "wrk-106",
+      "name": "Raju Valmiki",
+      "phone": "+91 98765 43316",
+      "crew_role": "HELPER",
+      "ward_code": "WARD-05",
+      "route_id": "rt-08",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    },
+    {
+      "id": "wrk-107",
+      "name": "Shiv Kumar",
+      "phone": "+91 98765 43317",
+      "crew_role": "HELPER",
+      "ward_code": "WARD-04",
+      "route_id": null,
+      "shift": "EVENING",
+      "status": "ON_LEAVE"
+    },
+    {
+      "id": "wrk-108",
+      "name": "Kallu Yadav",
+      "phone": "+91 98765 43318",
+      "crew_role": "HELPER",
+      "ward_code": "WARD-02",
+      "route_id": "rt-03",
+      "shift": "MORNING",
+      "status": "ON_ROUTE"
+    }
+  ]
+}
