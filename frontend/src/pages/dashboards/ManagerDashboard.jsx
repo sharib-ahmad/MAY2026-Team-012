@@ -11,10 +11,14 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import DATA from "../../data/municipal_officer_data.json";
 import Overview from "./manager/Overview";
+import Complaints from "./manager/Complaints";
 
-// Officer workspace tabs: ward overview now; Complaints, Route Tracking,
-// and Crew Assignments panels land here as they are built.
-const TABS = [{ key: "overview", label: "Overview", icon: LayoutDashboard, component: Overview }];
+// Officer workspace tabs: ward overview and the citizen grievance grid;
+// Route Tracking and Crew Assignments panels land here as they are built.
+const TABS = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard, component: Overview },
+  { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
+];
 
 export default function ManagerDashboard() {
   const { user, logout } = useAuth();
