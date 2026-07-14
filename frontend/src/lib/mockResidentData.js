@@ -164,6 +164,19 @@ export function ensureResidentSeed(user) {
       resolver_name: null,
       resolved_at: null,
     },
+    {
+      id: uid(),
+      user_id: user.id,
+      ref_code: refCode("TK", tickets.length + 3),
+      issue_type: "OVERFLOW",
+      description: "Bin overflow near the community center - waste spilling onto the street.",
+      severity: "HIGH",
+      status: "RESOLVED",
+      created_at: daysAgo(1),
+      resolution_notes: "Additional collection arranged and area cleaned.",
+      resolver_name: "Ward Manager",
+      resolved_at: new Date(now).toISOString(),
+    },
   ];
   writeList(TICKETS_KEY, [...tickets, ...seedTickets]);
 
@@ -323,6 +336,31 @@ export function createTicket(user, payload) {
   };
   writeList(TICKETS_KEY, [...all, ticket]);
   return ticket;
+}
+
+export function reopenTicket(ticketId) {
+  const all = readList(TICKETS_KEY);
+  const ticket = all.find((t) => t.id === ticketId);
+  if (!ticket) {
+    return Promise.reject(new Error("Ticket not found."));
+  }
+  if (ticket.status !== "RESOLVED") {
+    return Promise.reject(new Error("Only resolved tickets can be reopened."));
+  }
+
+  const next = all.map((t) =>
+    t.id === ticketId
+      ? {
+          ...t,
+          status: "OPEN",
+          resolution_notes: null,
+          resolver_name: null,
+          resolved_at: null,
+        }
+      : t
+  );
+  writeList(TICKETS_KEY, next);
+  return Promise.resolve(next.find((t) => t.id === ticketId));
 }
 
 // ── Donations / Marketplace ────────────────────────────────────────

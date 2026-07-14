@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Modal, Empty, Table } from "../../../components/UI";
 import { AlertCircle, Search, CheckCircle2 } from "lucide-react";
-import { listMyTickets, createTicket } from "../../../lib/mockResidentData";
+import { listMyTickets, createTicket, reopenTicket } from "../../../lib/mockResidentData";
 import { listZones } from "../../../lib/mockZones";
 
 const DESCRIPTION_MIN = 10;
@@ -69,6 +69,24 @@ export default function Tickets() {
     setFieldErrors({});
     setVersion((v) => v + 1);
     setLastSubmitted(ticket); // AC1: unique ticket ID generated and shown to the citizen
+  };
+
+  const handleReopen = async (ticketId) => {
+    try {
+      await reopenTicket(ticketId);
+      setVersion((v) => v + 1);
+      setSelected(null);
+    } catch (err) {
+      console.error("Failed to reopen ticket:", err);
+    }
+  };
+
+  const canReopen = (ticket) => {
+    if (ticket.status !== "RESOLVED" || !ticket.resolved_at) return false;
+    const resolvedTime = new Date(ticket.resolved_at).getTime();
+    // eslint-disable-next-line react-hooks/purity
+    const hoursSinceResolution = (Date.now() - resolvedTime) / (1000 * 60 * 60);
+    return hoursSinceResolution <= 48;
   };
 
   const cols = [
@@ -179,6 +197,21 @@ export default function Tickets() {
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+            {selected.status === "RESOLVED" && (
+              <div>
+                {canReopen(selected) ? (
+                  <button
+                    type="button"
+                    onClick={() => handleReopen(selected.id)}
+                    className="w-full bg-primary text-white py-2.5 rounded-input font-medium hover:bg-primary/90"
+                  >
+                    Reopen Ticket
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-500 text-center">Reopen window expired.</p>
+                )}
               </div>
             )}
           </div>
