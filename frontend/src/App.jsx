@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ResidentDashboard from "./pages/dashboards/ResidentDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
+import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
 import ComingSoon from "./pages/dashboards/ComingSoon";
 
 export default function App() {
@@ -55,7 +56,7 @@ export default function App() {
         path="/manager/dashboard"
         element={
           <ProtectedRoute role="MANAGER">
-            <ComingSoon roleLabel="Manager" />
+            <ManagerDashboard />
           </ProtectedRoute>
         }
       />

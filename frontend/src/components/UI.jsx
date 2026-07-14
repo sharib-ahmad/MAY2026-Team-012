@@ -107,6 +107,10 @@ const STATUS_MAP = {
   WITHDRAWN: "pill-slate",
   CLAIM_REQUESTED: "pill-warn",
   COMPLETED: "pill-success",
+  DELAYED: "pill-danger",
+  ON_ROUTE: "pill-info",
+  AVAILABLE: "pill-success",
+  ON_LEAVE: "pill-slate",
 };
 
 export function StatusPill({ status }) {
