@@ -84,8 +84,8 @@ export default function Tickets() {
   const canReopen = (ticket) => {
     if (ticket.status !== "RESOLVED" || !ticket.resolved_at) return false;
     const resolvedTime = new Date(ticket.resolved_at).getTime();
-    const now = Date.now();
-    const hoursSinceResolution = (now - resolvedTime) / (1000 * 60 * 60);
+    // eslint-disable-next-line react-hooks/purity
+    const hoursSinceResolution = (Date.now() - resolvedTime) / (1000 * 60 * 60);
     return hoursSinceResolution <= 48;
   };
 
