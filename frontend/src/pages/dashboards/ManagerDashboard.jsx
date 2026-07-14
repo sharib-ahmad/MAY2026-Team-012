@@ -12,12 +12,16 @@ import { useAuth } from "../../context/AuthContext";
 import DATA from "../../data/municipal_officer_data.json";
 import Overview from "./manager/Overview";
 import Complaints from "./manager/Complaints";
+import RouteTracking from "./manager/RouteTracking";
+import Crews from "./manager/Crews";
 
-// Officer workspace tabs: ward overview and the citizen grievance grid;
-// Route Tracking and Crew Assignments panels land here as they are built.
+// Officer workspace: ward overview, citizen grievance grid, same-day
+// route supervision, and crew assignment controls.
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard, component: Overview },
   { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
+  { key: "routes", label: "Route Tracking", icon: MapPinned, component: RouteTracking },
+  { key: "crews", label: "Crew Assignments", icon: Users, component: Crews },
 ];
 
 export default function ManagerDashboard() {
