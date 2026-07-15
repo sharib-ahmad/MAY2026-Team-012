@@ -24,7 +24,11 @@ const SORT_OPTIONS = [
   { value: "NEWEST", label: "Newest first" },
   { value: "OLDEST", label: "Oldest first" },
   { value: "WARD", label: "By ward code" },
+  { value: "STATUS", label: "By status" },
 ];
+
+// Workflow order, not alphabetical: unhandled tickets surface first.
+const STATUS_SORT_ORDER = { OPEN: 0, IN_REVIEW: 1, ESCALATED: 2, RESOLVED: 3 };
 
 // Officer can move a ticket forward, escalate it, or close it out.
 const NEXT_STATUS_OPTIONS = ["IN_REVIEW", "ESCALATED", "RESOLVED"];
@@ -73,8 +77,13 @@ export default function Complaints() {
     )
     .sort((a, b) => {
       if (sortBy === "WARD") return a.ward_code.localeCompare(b.ward_code);
-      const diff = new Date(b.created_at) - new Date(a.created_at);
-      return sortBy === "OLDEST" ? -diff : diff;
+      const newestFirst = new Date(b.created_at) - new Date(a.created_at);
+      if (sortBy === "STATUS") {
+        return (
+          (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99) || newestFirst
+        );
+      }
+      return sortBy === "OLDEST" ? -newestFirst : newestFirst;
     });
 
   const openDetail = (row) => {
