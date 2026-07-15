@@ -33,6 +33,14 @@ const STATUS_SORT_ORDER = { OPEN: 0, IN_REVIEW: 1, ESCALATED: 2, RESOLVED: 3 };
 // Officer can move a ticket forward, escalate it, or close it out.
 const NEXT_STATUS_OPTIONS = ["IN_REVIEW", "ESCALATED", "RESOLVED"];
 
+// Unresolved complaints older than this are flagged "Aging" in the grid
+// so accountability gaps stay visible.
+const AGING_THRESHOLD_DAYS = 3;
+const AGING_THRESHOLD_MS = AGING_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+
+const isAging = (c) =>
+  c.status !== "RESOLVED" && Date.now() - new Date(c.created_at) > AGING_THRESHOLD_MS;
+
 const typeLabel = (t) =>
   String(t || "OTHER")
     .replace(/_/g, " ")
@@ -144,7 +152,23 @@ export default function Complaints() {
             { key: "issue_type", label: "Issue", render: (v) => typeLabel(v) },
             { key: "severity", label: "Severity", render: (v) => <SeverityPill severity={v} /> },
             { key: "created_at", label: "Submitted", render: (v) => formatDate(v) },
-            { key: "status", label: "Status", render: (v) => <StatusPill status={v} /> },
+            {
+              key: "status",
+              label: "Status",
+              render: (v, row) => (
+                <span className="inline-flex items-center gap-1.5">
+                  <StatusPill status={v} />
+                  {isAging(row) && (
+                    <span
+                      className="pill bg-red-100 text-red-800"
+                      title={`Unresolved for over ${AGING_THRESHOLD_DAYS} days`}
+                    >
+                      Aging
+                    </span>
+                  )}
+                </span>
+              ),
+            },
           ]}
           rows={rows}
         />
