@@ -1,8 +1,12 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { Modal, StatusPill } from "../../../components/UI";
-import { listComplaints, updateComplaint } from "../../../lib/mockOfficerData";
+import {
+  listComplaints,
+  updateComplaint,
+  isOutsideAssignedWards,
+} from "../../../lib/mockOfficerData";
 import DATA from "../../../data/municipal_officer_data.json";
 import { Section, PaginatedTable, SearchInput, FilterSelect, SeverityPill } from "./shared";
 import { formatDate } from "./format";
@@ -101,19 +105,27 @@ export default function Complaints() {
     setError("");
   };
 
+  // Officers with a ward list can only act inside it (Story 2.3 AC3).
+  const outsideWard = selected ? isOutsideAssignedWards(selected, user?.assigned_wards) : false;
+
   const save = () => {
     if (nextStatus === "RESOLVED" && !note.trim()) {
       setError("A short resolution note is required to close a complaint.");
       return;
     }
-    setComplaints(
-      updateComplaint(selected, {
-        status: nextStatus,
-        note: note.trim(),
-        officerName: user?.name || "Municipal Officer",
-      })
-    );
-    setSelected(null);
+    try {
+      setComplaints(
+        updateComplaint(selected, {
+          status: nextStatus,
+          note: note.trim(),
+          officerName: user?.name || "Municipal Officer",
+          assignedWards: user?.assigned_wards,
+        })
+      );
+      setSelected(null);
+    } catch (e) {
+      setError(e.message);
+    }
   };
 
   return (
@@ -216,6 +228,17 @@ export default function Complaints() {
                   {selected.resolver_name ? ` by ${selected.resolver_name}` : ""}
                 </p>
                 <p className="text-green-900 mt-1">{selected.resolution_notes}</p>
+              </div>
+            ) : outsideWard ? (
+              <div className="rounded-input border border-amber-200 bg-amber-50 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                  <ShieldAlert size={13} /> View only
+                </p>
+                <p className="text-amber-900 mt-1">
+                  {selected.ward_code} is outside your assigned wards (
+                  {(user?.assigned_wards || []).join(", ")}), so this complaint can be viewed but
+                  not updated from this account.
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
