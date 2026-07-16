@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, History, ShieldAlert } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { Modal, StatusPill } from "../../../components/UI";
 import {
@@ -220,6 +220,27 @@ export default function Complaints() {
             <p className="rounded-input bg-gray-50 border border-gray-100 p-3 text-gray-700">
               {selected.description}
             </p>
+
+            {(selected.status_history || []).length > 0 && (
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                  <History size={13} /> Status history
+                </p>
+                <ol className="mt-2 space-y-1.5 border-l border-gray-200 pl-3">
+                  {selected.status_history.map((entry, i) => (
+                    <li key={i} className="text-xs">
+                      <span className="font-semibold text-[#1C2312]">
+                        {typeLabel(entry.from)} → {typeLabel(entry.to)}
+                      </span>
+                      <span className="text-gray-400">
+                        {" "}
+                        · {entry.by} · {formatDate(entry.at)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             {selected.status === "RESOLVED" ? (
               <div className="rounded-input border border-green-100 bg-green-50 p-3">

@@ -356,6 +356,17 @@ export function reopenTicket(ticketId) {
           resolution_notes: null,
           resolver_name: null,
           resolved_at: null,
+          // Reopens land in the same audit trail officers see on their
+          // side (see updateComplaint in mockOfficerData.js).
+          status_history: [
+            ...(t.status_history || []),
+            {
+              from: "RESOLVED",
+              to: "OPEN",
+              by: "Resident (reopened)",
+              at: new Date().toISOString(),
+            },
+          ],
         }
       : t
   );

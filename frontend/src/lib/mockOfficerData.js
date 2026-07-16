@@ -50,6 +50,7 @@ function normalizeTicket(ticket) {
     resolution_notes: ticket.resolution_notes,
     resolver_name: ticket.resolver_name,
     resolved_at: ticket.resolved_at,
+    status_history: ticket.status_history || [],
     citizen_type: "HOUSEHOLD",
     source: "PORTAL",
     ...ticketReporter(ticket.user_id),
@@ -90,11 +91,23 @@ export function updateComplaint(complaint, { status, note, officerName, assigned
     );
   }
 
+  // Audit trail (Story 2.3 AC4): every actual status change is recorded
+  // with who made it and when. `by` rather than `officer` so citizen
+  // reopens from the resident portal fit the same shape.
+  const history =
+    status !== complaint.status
+      ? [
+          ...(complaint.status_history || []),
+          { from: complaint.status, to: status, by: officerName, at: new Date().toISOString() },
+        ]
+      : complaint.status_history || [];
+
   const patch = {
     status,
     resolution_notes: note || complaint.resolution_notes || null,
     resolver_name: note ? officerName : complaint.resolver_name || null,
     resolved_at: status === "RESOLVED" ? new Date().toISOString() : null,
+    status_history: history,
   };
 
   if (complaint.source === "PORTAL") {
