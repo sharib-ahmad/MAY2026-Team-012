@@ -137,6 +137,7 @@ export default function Complaints() {
       >
         <PaginatedTable
           onRowClick={openDetail}
+          emptyMessage="No matching complaints."
           columns={[
             {
               key: "ref_code",
