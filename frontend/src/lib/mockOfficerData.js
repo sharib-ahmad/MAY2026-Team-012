@@ -69,9 +69,27 @@ export function listComplaints() {
   return [...tickets, ...fixture].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
+/** True when an officer restricted to a ward list is looking at a
+ *  complaint from a real ward outside it. Complaints whose ward could
+ *  not be resolved ("UNASSIGNED") stay actionable by everyone, as does
+ *  everything for officers without a ward list (e.g. admins). */
+export function isOutsideAssignedWards(complaint, assignedWards) {
+  if (!Array.isArray(assignedWards)) return false;
+  const isRealWard = DATA.wards.some((w) => w.code === complaint.ward_code);
+  return isRealWard && !assignedWards.includes(complaint.ward_code);
+}
+
 /** Persists an officer's status update / resolution for one complaint
- *  and returns the refreshed complaint list. */
-export function updateComplaint(complaint, { status, note, officerName }) {
+ *  and returns the refreshed complaint list. Throws if the complaint's
+ *  ward is outside the officer's assigned wards — the UI already hides
+ *  the form in that case, this is the data-layer backstop. */
+export function updateComplaint(complaint, { status, note, officerName, assignedWards }) {
+  if (isOutsideAssignedWards(complaint, assignedWards)) {
+    throw new Error(
+      `${complaint.ward_code} is outside your assigned wards, so this complaint can't be updated.`
+    );
+  }
+
   const patch = {
     status,
     resolution_notes: note || complaint.resolution_notes || null,

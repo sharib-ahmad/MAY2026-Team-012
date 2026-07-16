@@ -140,16 +140,43 @@ export function listUsers() {
   return readUsers().map(toPublicUser);
 }
 
+// Managers are only authorized to act on complaints from their own wards
+// (Story 2.3 AC3). The demo manager gets a subset of the five fixture
+// wards so the view-only path is reachable in testing.
+const MANAGER_ASSIGNED_WARDS = ["WARD-01", "WARD-02", "WARD-03"];
+
+// Browsers seeded before ward authorization existed hold managers without
+// assigned_wards — patch them in place so the rule applies there too.
+function backfillManagerWards(users) {
+  if (!users.some((u) => u.role === "MANAGER" && !u.assigned_wards)) return;
+  writeUsers(
+    users.map((u) =>
+      u.role === "MANAGER" && !u.assigned_wards
+        ? { ...u, assigned_wards: MANAGER_ASSIGNED_WARDS }
+        : u
+    )
+  );
+}
+
 // Registration only offers Resident / Collector / Recycler (see Register.jsx),
 // so Manager and Admin accounts can't be created through the UI. Seed a
 // couple of demo logins once, on first run, so those dashboards are still
 // reachable for testing. Safe to delete this call once a real backend
 // with proper role provisioning exists.
 export function seedDemoAccountsOnce() {
-  if (readUsers().length > 0) return;
+  const existing = readUsers();
+  if (existing.length > 0) {
+    backfillManagerWards(existing);
+    return;
+  }
 
   const seeds = [
-    { name: "Demo Manager", email: "manager@verdeza.test", role: "MANAGER" },
+    {
+      name: "Demo Manager",
+      email: "manager@verdeza.test",
+      role: "MANAGER",
+      assigned_wards: MANAGER_ASSIGNED_WARDS,
+    },
     { name: "Demo Admin", email: "admin@verdeza.test", role: "ADMIN" },
   ];
 
@@ -165,6 +192,7 @@ export function seedDemoAccountsOnce() {
         address: null,
         zone_id: null,
         role: seed.role,
+        assigned_wards: seed.assigned_wards || null,
         passwordHash,
         salt,
         createdAt: new Date().toISOString(),
