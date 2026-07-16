@@ -71,7 +71,7 @@ export function SeverityPill({ severity }) {
 const PAGE_SIZE = 10;
 
 /** Table showing at most 10 rows at a time with Prev / Next controls. */
-export function PaginatedTable({ columns, rows, onRowClick }) {
+export function PaginatedTable({ columns, rows, onRowClick, emptyMessage = "No records found." }) {
   const [page, setPage] = useState(0);
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -85,7 +85,7 @@ export function PaginatedTable({ columns, rows, onRowClick }) {
     <div>
       <Table columns={columns} rows={slice} onRowClick={onRowClick} />
       {rows.length === 0 && (
-        <p className="text-center text-sm text-gray-400 py-8">No records found.</p>
+        <p className="text-center text-sm text-gray-400 py-8">{emptyMessage}</p>
       )}
       {rows.length > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-4 text-sm">
