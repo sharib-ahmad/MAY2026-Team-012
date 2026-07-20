@@ -116,11 +116,15 @@ export default function Reports({ focusBatchId, onFocusConsumed }) {
               </div>
               <div>
                 <span className="text-gray-400">Approx Weight:</span>{" "}
-                <span className="font-medium">{(selected ?? focusedBatch).approx_weight_kg} kg</span>
+                <span className="font-medium">
+                  {(selected ?? focusedBatch).approx_weight_kg} kg
+                </span>
               </div>
               <div>
                 <span className="text-gray-400">Actual Weight:</span>{" "}
-                <span className="font-medium">{(selected ?? focusedBatch).actual_weight_kg ?? "—"} kg</span>
+                <span className="font-medium">
+                  {(selected ?? focusedBatch).actual_weight_kg ?? "—"} kg
+                </span>
               </div>
               <div>
                 <span className="text-gray-400">Quality:</span>{" "}
