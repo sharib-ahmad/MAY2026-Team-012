@@ -10,7 +10,7 @@ import ResidentDashboard from "./pages/dashboards/ResidentDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
 import CollectorDashboard from "./pages/dashboards/CollectorDashboard";
-import ComingSoon from "./pages/dashboards/ComingSoon";
+import RecyclerDashboard from "./pages/dashboards/RecyclerDashoard";
 
 export default function App() {
   const { user, homePath, loading } = useAuth();
@@ -49,7 +49,7 @@ export default function App() {
         path="/recycler/dashboard"
         element={
           <ProtectedRoute role="RECYCLER">
-            <ComingSoon roleLabel="Recycler" />
+            <RecyclerDashboard />
           </ProtectedRoute>
         }
       />
