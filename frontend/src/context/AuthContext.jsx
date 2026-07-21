@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import { homePathForRole } from "./roles";
 import * as auth from "../lib/mockAuth";
+import { usePolling } from "../hooks/usePolling";
 
 const AuthContext = createContext(null);
 
@@ -41,6 +42,21 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("gc_token");
     setUser(null);
   };
+
+  // Story 5.1-AC2: re-checks the session every few seconds so suspending
+  // an account takes effect right away for anyone already logged in,
+  // rather than only on their next login.
+  usePolling(() => {
+    if (!user) return;
+    const raw = localStorage.getItem("gc_token");
+    if (!raw) return;
+    try {
+      const { access_token } = JSON.parse(raw);
+      if (!auth.getSessionUser(access_token)) logout();
+    } catch {
+      logout();
+    }
+  }, 5000);
 
   const homePath = user ? homePathForRole(user.role) : "/login";
 

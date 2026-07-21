@@ -1,53 +1,22 @@
 import { Card } from "../../../components/UI";
 import { Droplets, Newspaper, Recycle } from "lucide-react";
+import { getSortingGuideItems } from "../../../lib/mockSortingGuide";
 
 // AC1: renders fully with no login required and no external data fetch —
-// this is a static reference page, so it loads instantly.
+// this is a static reference page, so it loads instantly. Publicly
+// reachable at /sorting-guide (see App.jsx) as well as this dashboard tab.
+// AC2: item text comes from mockSortingGuide, which an admin can edit.
 // AC3 (Performance on low-end devices): pure text/table content, no
 // images, so it stays lightweight on slow connections.
-const STREAMS = [
-  {
-    key: "wet",
-    label: "Wet Waste",
-    icon: Droplets,
-    color: "text-emerald-600 bg-emerald-50",
-    items: [
-      "Fruit & vegetable peels",
-      "Cooked/uncooked food scraps",
-      "Tea leaves & coffee grounds",
-      "Eggshells",
-      "Garden trimmings, flowers, leaves",
-    ],
-  },
-  {
-    key: "dry",
-    label: "Dry Waste",
-    icon: Newspaper,
-    color: "text-amber-600 bg-amber-50",
-    items: [
-      "Paper, cardboard & cartons",
-      "Plastic wrappers & packaging",
-      "Cloth, rags & footwear",
-      "Broken ceramics & glass",
-      "Rubber & thermocol",
-    ],
-  },
-  {
-    key: "recyclable",
-    label: "Recyclable",
-    icon: Recycle,
-    color: "text-sky-600 bg-sky-50",
-    items: [
-      "Clean plastic bottles & containers (PET/HDPE)",
-      "Metal cans & foil",
-      "Glass bottles & jars",
-      "Newspaper, office paper, cardboard (dry & clean)",
-      "E-waste — batteries, cables, small electronics (bag separately)",
-    ],
-  },
+const STREAM_META = [
+  { key: "wet", label: "Wet Waste", icon: Droplets, color: "text-emerald-600 bg-emerald-50" },
+  { key: "dry", label: "Dry Waste", icon: Newspaper, color: "text-amber-600 bg-amber-50" },
+  { key: "recyclable", label: "Recyclable", icon: Recycle, color: "text-sky-600 bg-sky-50" },
 ];
 
 export default function SortingGuide() {
+  const items = getSortingGuideItems();
+  const streams = STREAM_META.map((s) => ({ ...s, items: items[s.key] || [] }));
   return (
     <div className="space-y-6 fade-in max-w-4xl mx-auto">
       <div>
@@ -58,7 +27,7 @@ export default function SortingGuide() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        {STREAMS.map((s) => {
+        {streams.map((s) => {
           const Icon = s.icon;
           return (
             <Card key={s.key} className="!p-0 overflow-hidden">

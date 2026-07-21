@@ -4,6 +4,8 @@
 // that talks to this module — swap it for real axios calls to /api/auth/*
 // once a backend exists and nothing else in the app should need to change.
 
+import { listStatusOverrides } from "./mockUserStatus";
+
 const USERS_KEY = "gc_users";
 const TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -121,6 +123,14 @@ export async function login(email, password) {
     throw { response: { data: { detail: "Invalid email or password." } } };
   }
 
+  // Story 5.1-AC2: a suspended account must be blocked from logging in,
+  // not just hidden from an admin's account list.
+  if (listStatusOverrides()[user.id] === "SUSPENDED") {
+    throw {
+      response: { data: { detail: "This account has been suspended by an administrator." } },
+    };
+  }
+
   return { ...issueTokens(user), user: toPublicUser(user) };
 }
 
@@ -129,6 +139,10 @@ export async function login(email, password) {
 export function getSessionUser(accessToken) {
   const claims = decodeToken(accessToken);
   if (!claims || claims.exp < Date.now()) return null;
+
+  // Story 5.1-AC2: re-checked on every session restore, so a suspension
+  // takes effect immediately rather than only blocking the next login.
+  if (listStatusOverrides()[claims.sub] === "SUSPENDED") return null;
 
   const user = readUsers().find((u) => u.id === claims.sub);
   return user ? toPublicUser(user) : null;

@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Track from "./pages/Track";
 import Flows from "./pages/Flows";
+import SortingGuidePublic from "./pages/SortingGuidePublic";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ResidentDashboard from "./pages/dashboards/ResidentDashboard";
@@ -26,6 +27,7 @@ export default function App() {
     <AppRoutes>
       <Route path="/track" element={<Track />} />
       <Route path="/flows" element={<Flows />} />
+      <Route path="/sorting-guide" element={<SortingGuidePublic />} />
       <Route path="/login" element={user ? <Navigate to={homePath} replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <Register />} />
 
