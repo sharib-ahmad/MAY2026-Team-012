@@ -124,7 +124,7 @@ export default function RecyclerDashboard() {
     return items;
   }, [user]);
 
-  const ActivePanel = TABS.find((t) => t.key === activeTab).component;
+  const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
 
   return (
     <div className="min-h-screen bg-[#FBF7F0]">

@@ -589,7 +589,16 @@ export function listNotifications(userId) {
   const pickups = listMyPickups(userId);
   const notifs = [];
   pickups.slice(0, 3).forEach((p) => {
-    if (p.status === "COLLECTED") {
+    // Story 1.2-AC1: a logged delay takes priority over the plain status
+    // message, since it's the thing the citizen most needs to see.
+    if (p.last_delay) {
+      notifs.push({
+        id: `n-delay-${p.id}`,
+        title: "Collection delayed",
+        body: `${p.category} pickup (${p.ref_code}) is delayed — ${p.last_delay.comment}`,
+        created_at: p.last_delay.notified_at,
+      });
+    } else if (p.status === "COLLECTED") {
       notifs.push({
         id: `n-${p.id}`,
         title: "Pickup collected",

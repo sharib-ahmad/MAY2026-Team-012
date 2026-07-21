@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { Ban, CheckCircle2 } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  ShieldCheck,
+  Users,
+  MapPin,
+  AlertTriangle,
+  Activity,
+} from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 import { StatusPill } from "../../../components/UI";
 import { listUsers } from "../../../lib/mockAuth";
 import { listZones } from "../../../lib/mockZones";
@@ -41,7 +50,53 @@ const STATUS_ACTIONS = {
   },
 };
 
+// Platform health hero — moved here from the dashboard shell so it lives
+// with the page it summarizes rather than as a full-bleed band sitting
+// above the sidebar. Same teal/amber styling as before.
+function PlatformHealthHero({ name, stats }) {
+  return (
+    <div className="rounded-2xl overflow-hidden mb-6">
+      <div className="bg-[#0B4F4A] px-5 sm:px-8 pt-7 pb-5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
+          <ShieldCheck size={13} /> {name || "System Admin"}
+        </div>
+        <h1 className="font-display mt-3 text-2xl sm:text-3xl font-semibold text-white leading-[1.1]">
+          Platform health &amp; access control.
+        </h1>
+      </div>
+      <div className="bg-[#0B4F4A] px-5 sm:px-8 pb-7 grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/15">
+        {[
+          [Users, stats.total_users, "registered users", `${stats.active_users} active`],
+          [
+            MapPin,
+            stats.total_zones,
+            "wards configured",
+            `${stats.pending_users} pending accounts`,
+          ],
+          [
+            AlertTriangle,
+            stats.errors_last_24h,
+            "errors in 24h",
+            `${stats.open_complaints} open complaints`,
+          ],
+          [Activity, `${stats.system_uptime_pct}%`, "system uptime", "last 30 days"],
+        ].map(([Icon, value, label, sub]) => (
+          <div key={label} className="px-3 sm:px-5 py-1">
+            <Icon size={15} className="text-amber-300" />
+            <p className="font-display mt-1.5 text-xl sm:text-2xl font-semibold text-white">
+              {value}
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-white/70 mt-0.5">{label}</p>
+            <p className="font-mono-civic text-[10px] text-white/45 mt-1">{sub}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Accounts() {
+  const { user } = useAuth();
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [query, setQuery] = useState("");
@@ -80,46 +135,58 @@ export default function Accounts() {
   );
 
   return (
-    <Section
-      eyebrow="Identity provisioning"
-      title="User accounts"
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={query} onChange={setQuery} placeholder="Search name, email, zone…" />
-          <FilterSelect value={roleFilter} onChange={setRoleFilter} options={ROLE_OPTIONS} />
-          <FilterSelect value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
-        </div>
-      }
-    >
-      <PaginatedTable
-        columns={[
-          { key: "name", label: "Name" },
-          { key: "email", label: "Email" },
-          { key: "role", label: "Role", render: (v) => roleLabel(v) },
-          { key: "zone_id", label: "Zone", render: (v) => zoneName(v) },
-          { key: "last_login_at", label: "Last login", render: (v) => formatDate(v) },
-          { key: "status", label: "Status", render: (v) => <StatusPill status={v} /> },
-          {
-            key: "actions",
-            label: "Actions",
-            render: (_, row) => {
-              const action = STATUS_ACTIONS[row.status];
-              if (!action) return null;
-              const Icon = action.icon;
-              return (
-                <button
-                  type="button"
-                  onClick={() => setStatusOverrides(setUserStatus(row.id, action.next))}
-                  className={`inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold transition ${action.tone}`}
-                >
-                  <Icon size={13} /> {action.label}
-                </button>
-              );
+    <>
+      <PlatformHealthHero name={user?.name} stats={DATA.stats} />
+
+      <Section
+        eyebrow="Identity provisioning"
+        title="User accounts"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Search name, email, zone…"
+            />
+            <FilterSelect value={roleFilter} onChange={setRoleFilter} options={ROLE_OPTIONS} />
+            <FilterSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={STATUS_OPTIONS}
+            />
+          </div>
+        }
+      >
+        <PaginatedTable
+          columns={[
+            { key: "name", label: "Name" },
+            { key: "email", label: "Email" },
+            { key: "role", label: "Role", render: (v) => roleLabel(v) },
+            { key: "zone_id", label: "Zone", render: (v) => zoneName(v) },
+            { key: "last_login_at", label: "Last login", render: (v) => formatDate(v) },
+            { key: "status", label: "Status", render: (v) => <StatusPill status={v} /> },
+            {
+              key: "actions",
+              label: "Actions",
+              render: (_, row) => {
+                const action = STATUS_ACTIONS[row.status];
+                if (!action) return null;
+                const Icon = action.icon;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setStatusOverrides(setUserStatus(row.id, action.next))}
+                    className={`inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold transition ${action.tone}`}
+                  >
+                    <Icon size={13} /> {action.label}
+                  </button>
+                );
+              },
             },
-          },
-        ]}
-        rows={filtered}
-      />
-    </Section>
+          ]}
+          rows={filtered}
+        />
+      </Section>
+    </>
   );
 }

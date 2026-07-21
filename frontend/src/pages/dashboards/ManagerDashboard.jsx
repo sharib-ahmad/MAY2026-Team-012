@@ -1,22 +1,33 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
-  BadgeCheck,
   LayoutDashboard,
   Landmark,
   LogOut,
   MapPinned,
   Users,
+  Menu,
+  Bell,
+  ChevronDown,
+  User,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DATA from "../../data/municipal_officer_data.json";
+import Footer from "../../components/Footer";
 import Overview from "./manager/Overview";
 import Complaints from "./manager/Complaints";
 import RouteTracking from "./manager/RouteTracking";
 import Crews from "./manager/Crews";
 
-// Officer workspace: ward overview, citizen grievance grid, same-day
-// route supervision, and crew assignment controls.
+// Shell mirrors the recycler portal's app frame — sticky top bar +
+// collapsible left nav rail (off-canvas drawer on mobile, width-collapse
+// on desktop) with bell/account dropdowns and a footer — restyled onto
+// a single theme color (#14171F) for the chrome, per request. The
+// official strip and stat band keep their existing olive/goldenrod
+// identity (same treatment as the admin portal: unique page content
+// isn't forced onto the shell's single color) and now live inside the
+// content column as a contained card next to the sidebar, rather than
+// a full-bleed band sitting above it.
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard, component: Overview },
   { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
@@ -24,12 +35,51 @@ const TABS = [
   { key: "crews", label: "Crew Assignments", icon: Users, component: Crews },
 ];
 
+const RAIL = "#14171F"; // single theme color — top bar & sidebar
+// Active/contrast states use white/black opacity overlays on top of
+// RAIL rather than a second hex, matching the recycler shell.
+
 export default function ManagerDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(TABS[0].key);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
 
   const { stats } = DATA;
-  const ActivePanel = TABS.find((t) => t.key === activeTab).component;
+  const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
+
+  const goToTab = (tab) => {
+    setActiveTab(tab);
+    setSidebarOpen(false);
+    setShowNotifications(false);
+  };
+
+  // No separate activity feed in this dataset — the bell surfaces the
+  // same numbers the stat band already shows, each deep-linking to the
+  // tab that explains it.
+  const notifications = useMemo(
+    () =>
+      [
+        stats.escalated_complaints > 0 && {
+          title: `${stats.escalated_complaints} escalated complaint${stats.escalated_complaints === 1 ? "" : "s"}`,
+          tab: "complaints",
+          icon: AlertCircle,
+          tone: "danger",
+        },
+        {
+          title: `${stats.routes_completed_today}/${stats.routes_today} routes completed today`,
+          tab: "routes",
+          icon: MapPinned,
+        },
+        {
+          title: `${stats.active_workers} workers on duty across ${stats.wards_supervised} wards`,
+          tab: "crews",
+          icon: Users,
+        },
+      ].filter(Boolean),
+    [stats]
+  );
 
   return (
     <div className="min-h-screen bg-[#F6F3EA]">
@@ -39,112 +89,215 @@ export default function ManagerDashboard() {
         .font-mono-civic { font-family: 'IBM Plex Mono', monospace; }
       `}</style>
 
-      {/* Header — deep olive, goldenrod badge (Municipal Officer palette) */}
-      <header className="bg-[#26321B] px-4 sm:px-6 py-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#D9A521] font-display text-lg font-bold text-[#26321B]">
-              V
-            </span>
-            <div className="leading-tight">
-              <div className="font-semibold">Verdeza</div>
-              <div className="text-[11px] text-white/60">Municipal Operations</div>
-            </div>
-          </div>
+      {/* Top bar — full width, sits above the sidebar/content split */}
+      <header
+        className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 border-b border-black/10"
+        style={{ backgroundColor: RAIL }}
+      >
+        <div className="flex items-center gap-3">
           <button
-            onClick={logout}
-            className="flex items-center gap-1.5 text-white/75 hover:text-[#E9C55F] text-sm"
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="text-white/80 hover:text-white"
+            aria-label="Toggle sidebar"
           >
-            <LogOut size={15} /> Sign out
+            <Menu size={20} />
           </button>
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
+            style={{ color: RAIL }}
+          >
+            V
+          </span>
+          <div className="leading-tight">
+            <div className="font-semibold text-white">Verdeza</div>
+            <div className="text-[11px] text-white/60">Municipal Operations</div>
+          </div>
         </div>
+
+        <div className="flex items-center gap-4 relative z-30">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowNotifications((v) => !v);
+                setShowAccountMenu(false);
+              }}
+              className="relative text-white/70 hover:text-white transition"
+              aria-label="Notifications"
+            >
+              <Bell size={18} />
+              {notifications.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white" />
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
+                <div className="px-3.5 py-1.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
+                  Ward Status
+                </div>
+                {notifications.map((n, i) => {
+                  const Icon = n.icon;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => goToTab(n.tab)}
+                      className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-black/[0.03] transition"
+                    >
+                      <span
+                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: n.tone === "danger" ? "#FEE2E2" : "#EDEDF2",
+                          color: n.tone === "danger" ? "#DC2626" : RAIL,
+                        }}
+                      >
+                        <Icon size={13} />
+                      </span>
+                      <span className="text-sm font-medium text-gray-800 leading-snug">
+                        {n.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAccountMenu((v) => !v);
+                setShowNotifications(false);
+              }}
+              className="flex items-center gap-2"
+              aria-label="Account menu"
+            >
+              <span
+                className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-xs font-semibold shrink-0"
+                style={{ color: RAIL }}
+              >
+                {user?.name ? user.name[0].toUpperCase() : <User size={14} />}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-white/50 hidden sm:block transition-transform ${
+                  showAccountMenu ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showAccountMenu && (
+              <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
+                <div className="px-3.5 py-2 border-b border-black/5 mb-1">
+                  <div className="text-sm font-semibold text-gray-800 truncate">
+                    {user?.name || "Municipal Officer"}
+                  </div>
+                  <div className="text-xs text-gray-400 truncate">{user?.email}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:bg-black/[0.03] transition"
+                >
+                  <LogOut size={15} /> Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {(showNotifications || showAccountMenu) && (
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => {
+              setShowNotifications(false);
+              setShowAccountMenu(false);
+            }}
+          />
+        )}
       </header>
 
-      {/* Official strip */}
+      {/* Official strip — full width, sits with the top bar */}
       <div className="bg-[#8C6D1F] text-white text-xs">
-        <div className="max-w-6xl mx-auto px-4 py-1.5 flex items-center gap-2">
+        <div className="px-4 sm:px-6 py-1.5 flex items-center gap-2">
           <Landmark size={13} />
           Municipal supervision dashboard &middot; Multi-ward pilot, Uttar Pradesh
         </div>
       </div>
 
-      {/* Title band */}
-      <div className="bg-[#3F5426]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#E9C55F]/40 bg-[#E9C55F]/10 px-3 py-1 text-xs font-medium text-[#F0D488]">
-            <BadgeCheck size={13} /> {user?.name || "Municipal Officer"}
-          </div>
-          <h1 className="font-display mt-4 text-3xl sm:text-4xl font-semibold text-white leading-[1.1]">
-            Wards, routes &amp; citizen grievances.
-          </h1>
-        </div>
+      <div className="flex">
+        {/* Sidebar */}
+        <aside
+          className={`fixed lg:sticky top-16 left-0 z-20 h-[calc(100vh-4rem)] shrink-0 flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-all duration-200 ${
+            sidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-0 lg:translate-x-0"
+          }`}
+          style={{ backgroundColor: RAIL }}
+        >
+          <nav className="w-64 px-3 py-4 space-y-1">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => goToTab(tab.key)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-white/10 text-white ring-1 ring-white/30"
+                      : "text-white/60 hover:text-white/90 hover:bg-white/5"
+                  }`}
+                >
+                  <Icon size={17} /> {tab.label}
+                </button>
+              );
+            })}
+          </nav>
 
-        {/* Stat band */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/15">
-          {[
-            [
-              AlertCircle,
-              stats.open_complaints,
-              "open complaints",
-              `${stats.escalated_complaints} escalated`,
-            ],
-            [
-              MapPinned,
-              `${stats.routes_completed_today}/${stats.routes_today}`,
-              "routes completed",
-              `${stats.route_points_collected}/${stats.route_points_total} points collected`,
-            ],
-            [
-              Users,
-              stats.active_workers,
-              "workers on duty",
-              `${stats.wards_supervised} wards supervised`,
-            ],
-            [
-              BadgeCheck,
-              stats.resolved_this_week,
-              "resolved this week",
-              `avg ${stats.avg_resolution_hours} hrs to close`,
-            ],
-          ].map(([Icon, value, label, sub]) => (
-            <div key={label} className="px-4 sm:px-6 py-2">
-              <Icon size={16} className="text-[#F0D488]" />
-              <p className="font-display mt-2 text-2xl sm:text-3xl font-semibold text-white">
-                {value}
-              </p>
-              <p className="text-xs uppercase tracking-wide text-white/70 mt-0.5">{label}</p>
-              <p className="font-mono-civic text-[11px] text-white/45 mt-1">{sub}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tab navigation */}
-      <div className="bg-white border-b border-gray-200 sticky top-[57px] z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = tab.key === activeTab;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition ${
-                  isActive
-                    ? "border-[#B8860B] text-[#1C2312]"
-                    : "border-transparent text-gray-500 hover:text-[#1C2312]"
-                }`}
+          <div className="w-64 p-3 border-t border-white/10 shrink-0">
+            <div className="flex items-center gap-2.5 px-2 py-2">
+              <span
+                className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-sm font-semibold shrink-0"
+                style={{ color: RAIL }}
               >
-                <Icon size={15} /> {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                {user?.name ? user.name[0].toUpperCase() : <User size={15} />}
+              </span>
+              <div className="min-w-0 leading-tight">
+                <div className="text-sm font-semibold text-white truncate">
+                  {user?.name || "Municipal Officer"}
+                </div>
+                <div className="text-xs text-white/40 truncate">{user?.email}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full flex items-center gap-2 px-2 py-2 mt-1 text-sm text-white/60 hover:text-white rounded-xl hover:bg-white/5 transition"
+            >
+              <LogOut size={15} /> Sign out
+            </button>
+          </div>
+        </aside>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <ActivePanel />
-      </main>
+        {/* Mobile scrim */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 top-16 bg-black/30 z-10 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <ActivePanel />
+          </div>
+          <Footer />
+        </main>
+      </div>
     </div>
   );
 }

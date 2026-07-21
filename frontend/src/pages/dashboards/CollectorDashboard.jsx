@@ -1,11 +1,26 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Menu, LogOut, User, LayoutDashboard, ChevronDown } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import CollectorRoutes from "./collector/Routes";
-import CollectorImage from "../../assets/collector-image.webp";
+
+// Collector workspace shell — mirrors the Recycler Dashboard's app frame
+// (top bar with account dropdown, left nav rail with an account card +
+// sign out at the bottom, and a Footer at the end of the content area)
+// while keeping the Collector's existing navy/amber Verdeza branding.
+//
+// Layout note: the whole shell is locked to the viewport height
+// (h-screen + overflow-hidden) with only <main> scrolling internally.
+// This avoids relying on `sticky`, which silently breaks whenever any
+// ancestor has `overflow-x-hidden` (a common gotcha) — that was the
+// cause of the sidebar appearing to "scroll away" / show as empty.
+const RAIL = "#16214D"; // single brand color — top bar & sidebar, matches existing header
 
 export default function CollectorDashboard() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -13,38 +28,130 @@ export default function CollectorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] overflow-x-hidden">
-      <header className="bg-[#16214D] text-white shadow-sm">
-        <div className="w-full px-4 sm:px-8 py-5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#16214D]">
-              V
-            </span>
-            <div className="leading-tight">
-              <div className="text-lg font-semibold tracking-wide text-white">◈Verdeza◈</div>
-              <div className="text-[11px] text-white/60">Government of Uttar Pradesh</div>
-            </div>
-          </div>
-
+    <div className="h-screen flex flex-col overflow-hidden bg-[#F4F6FB]">
+      {/* Top bar — fixed height, never scrolls */}
+      <header
+        className="shrink-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 border-b border-black/10"
+        style={{ backgroundColor: RAIL }}
+      >
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={handleLogout}
-            className="rounded-input border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="text-white/80 hover:text-white"
+            aria-label="Toggle sidebar"
           >
-            Log out
+            <Menu size={20} />
           </button>
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#16214D] shrink-0">
+            V
+          </span>
+          <div className="leading-tight">
+            <div className="text-base sm:text-lg font-semibold tracking-wide text-white">
+              ◈Verdeza◈
+            </div>
+            <div className="text-[10px] sm:text-xs text-white/60">Collector Portal</div>
+          </div>
         </div>
+
+        <div className="flex items-center gap-4 relative z-30">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowAccountMenu((v) => !v)}
+              className="flex items-center gap-2"
+              aria-label="Account menu"
+            >
+              <span
+                className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-xs font-semibold shrink-0"
+                style={{ color: RAIL }}
+              >
+                {user?.name ? user.name[0].toUpperCase() : <User size={14} />}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-white/50 hidden sm:block transition-transform ${
+                  showAccountMenu ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showAccountMenu && (
+              <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
+                <div className="px-3.5 py-2 border-b border-black/5 mb-1">
+                  <div className="text-sm font-semibold text-gray-800 truncate">
+                    {user?.name || "Collector"}
+                  </div>
+                  <div className="text-xs text-gray-400 truncate">{user?.email}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:bg-black/[0.03] transition"
+                >
+                  <LogOut size={15} /> Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {showAccountMenu && (
+          <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
+        )}
       </header>
 
-      <img
-        src={CollectorImage}
-        alt="Collector"
-        className="w-full max-h-[340px] object-cover shadow-soft"
-      />
+      {/* Body row fills the rest of the viewport; only <main> scrolls */}
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar — fixed height, part of normal flex flow, never
+            floats over content and never relies on `sticky` */}
+        <aside
+          className={`shrink-0 h-full flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-all duration-200 ${
+            sidebarOpen ? "w-64" : "w-0"
+          }`}
+          style={{ backgroundColor: RAIL }}
+        >
+          <nav className="w-64 px-3 py-4 space-y-1">
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white/20 text-white ring-1 ring-white/30 transition"
+            >
+              <LayoutDashboard size={17} /> Dashboard
+            </button>
+          </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <CollectorRoutes />
-      </main>
+          <div className="w-64 p-3 border-t border-white/10 shrink-0">
+            <div className="flex items-center gap-2.5 px-2 py-2">
+              <span
+                className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-sm font-semibold shrink-0"
+                style={{ color: RAIL }}
+              >
+                {user?.name ? user.name[0].toUpperCase() : <User size={15} />}
+              </span>
+              <div className="min-w-0 leading-tight">
+                <div className="text-sm font-semibold text-white truncate">
+                  {user?.name || "Collector"}
+                </div>
+                <div className="text-xs text-white/40 truncate">{user?.email}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-2 py-2 mt-1 text-sm text-white/60 hover:text-white rounded-xl hover:bg-white/5 transition"
+            >
+              <LogOut size={15} /> Sign out
+            </button>
+          </div>
+        </aside>
+
+        {/* Main content — the only scrollable region */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <CollectorRoutes />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

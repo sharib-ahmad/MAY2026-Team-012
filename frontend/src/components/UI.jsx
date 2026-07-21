@@ -81,6 +81,7 @@ export function Card({ children, className = "", title, actions }) {
 // ── StatusPill ─────────────────────────────────────────────────────────
 const STATUS_MAP = {
   REQUESTED: "pill-info",
+  SCHEDULED: "pill-purple",
   ASSIGNED: "pill-purple",
   IN_PROGRESS: "pill-warn",
   COLLECTED: "pill-success",
@@ -93,6 +94,7 @@ const STATUS_MAP = {
   ESCALATED: "pill-danger",
   IN_TRANSIT: "pill-warn",
   ACCEPTED: "pill-success",
+  APPROVED: "pill-success",
   REJECTED: "pill-danger",
   DISPUTED: "pill-danger",
   PROCESSED: "pill-success",

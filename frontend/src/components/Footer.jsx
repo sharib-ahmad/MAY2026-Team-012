@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Github, Mail, MapPin, Recycle } from "lucide-react";
+import { Tag, Mail, MapPin, Recycle } from "lucide-react";
 
 export default function Footer({ variant = "default" }) {
   const isDark = variant === "dark";
@@ -84,7 +84,7 @@ export default function Footer({ variant = "default" }) {
               <MapPin size={14} /> Uttar Pradesh{" "}
             </li>
             <li className="flex items-center gap-2">
-              <Github size={14} /> Verdeza v2.0
+              <Tag size={14} /> Verdeza v2.0
             </li>
           </ul>
         </div>
