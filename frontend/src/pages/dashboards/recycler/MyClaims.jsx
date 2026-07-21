@@ -23,7 +23,7 @@ export default function MyClaims({ focusBatchId, onFocusConsumed }) {
 
   const load = useCallback(() => {
     // Backend-free: reads straight out of localStorage — expired claims
-    // are auto-released back to the marketplace before this list is
+    // are auto-released back to the community shelf before this list is
     // built (Story 4.3-AC2), so a claim that timed out simply won't
     // appear here anymore. Swap for
     // API.get('/batches', { params: { status: 'CLAIMED', mine: true } })
@@ -79,7 +79,7 @@ export default function MyClaims({ focusBatchId, onFocusConsumed }) {
           <Empty
             icon={Truck}
             title="No active claims"
-            description="Claim a batch from the Marketplace to see it here. Unclaimed pickups auto-release after 60 hours."
+            description="Claim a batch from the Community Shelf to see it here. Unclaimed pickups auto-release after 60 hours."
           />
         ) : (
           <Table

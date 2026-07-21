@@ -101,7 +101,9 @@ export default function MyClaims() {
           icon={Gift}
           title={search ? "No claims found" : "No claims yet"}
           description={
-            search ? "Try another search term." : "Browse the marketplace to claim donated products"
+            search
+              ? "Try another search term."
+              : "Browse the Community Shelf to claim donated products"
           }
         />
       ) : (
@@ -127,7 +129,8 @@ export default function MyClaims() {
                 </p>
                 {d.status === "COMPLETED" && (
                   <div className="bg-green-50 text-green-800 text-xs rounded-input p-2">
-                    Pickup: contact donor at {d.donor_phone || d.donor_email || "via marketplace"}
+                    Pickup: contact donor at{" "}
+                    {d.donor_phone || d.donor_email || "via community shelf"}
                     <br />
                     Address: {d.address || "See donor details"}
                   </div>

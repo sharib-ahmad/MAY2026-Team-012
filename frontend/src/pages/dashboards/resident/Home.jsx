@@ -367,9 +367,9 @@ export default function Home({ onNavigate }) {
         />
         <QuickAction
           icon={MapPin}
-          label="Browse marketplace"
+          label="Browse Community Shelf"
           color="text-recycler"
-          onClick={() => onNavigate("marketplace")}
+          onClick={() => onNavigate("communityshelf")}
         />
       </div>
 

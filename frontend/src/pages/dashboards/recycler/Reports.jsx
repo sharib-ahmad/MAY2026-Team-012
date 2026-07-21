@@ -66,7 +66,7 @@ export default function Reports({ focusBatchId, onFocusConsumed }) {
       <Card title="My Collected Batches">
         {collected.length === 0 ? (
           <p className="text-gray-400">
-            No batches collected yet — claim one from the Marketplace to get started.
+            No batches collected yet — claim one from the Community Shelf to get started.
           </p>
         ) : (
           <Table

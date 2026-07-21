@@ -183,7 +183,7 @@ const HERO_SLIDES = [heroSortingLine, heroPaperConveyor, heroBaledMaterials];
 // Mirrors the resident portal's welcome banner (greeting + CTA over a
 // photo, with dot indicators bottom-right) — same interaction pattern,
 // recycler's own facility photos and single brand color for overlay/dots.
-function HeroBanner({ name, onBrowseMarketplace }) {
+function HeroBanner({ name, onBrowseCommunityShelf }) {
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
@@ -227,11 +227,11 @@ function HeroBanner({ name, onBrowseMarketplace }) {
         </p>
         <button
           type="button"
-          onClick={onBrowseMarketplace}
+          onClick={onBrowseCommunityShelf}
           className="mt-5 w-fit inline-flex items-center gap-2 bg-white font-semibold text-sm px-4 py-2.5 rounded-xl hover:bg-white/90 transition"
           style={{ color: "#C4611A" }}
         >
-          <Store size={16} /> Browse Marketplace
+          <Store size={16} /> Browse Community Shelf
         </button>
       </div>
 
@@ -320,8 +320,8 @@ function useDailyTrends(summary, userId) {
     const key = `gc_recycler_stat_snapshot_${userId}`;
     const today = new Date().toISOString().slice(0, 10);
     const current = {
-      marketplace_available: summary.marketplace_available,
-      marketplace_unsafe: summary.marketplace_unsafe,
+      community_shelf_available: summary.community_shelf_available,
+      community_shelf_unsafe: summary.community_shelf_unsafe,
       my_claimed: summary.my_claimed,
     };
 
@@ -331,11 +331,14 @@ function useDailyTrends(summary, userId) {
       if (parsed && parsed.date !== today) {
         const pct = (a, b) => (b ? ((a - b) / b) * 100 : null);
         return {
-          marketplace_available: pct(
-            current.marketplace_available,
-            parsed.values?.marketplace_available
+          community_shelf_available: pct(
+            current.community_shelf_available,
+            parsed.values?.community_shelf_available
           ),
-          marketplace_unsafe: pct(current.marketplace_unsafe, parsed.values?.marketplace_unsafe),
+          community_shelf_unsafe: pct(
+            current.community_shelf_unsafe,
+            parsed.values?.community_shelf_unsafe
+          ),
           my_claimed: pct(current.my_claimed, parsed.values?.my_claimed),
         };
       }
@@ -351,8 +354,8 @@ function useDailyTrends(summary, userId) {
     const key = `gc_recycler_stat_snapshot_${userId}`;
     const today = new Date().toISOString().slice(0, 10);
     const current = {
-      marketplace_available: summary.marketplace_available,
-      marketplace_unsafe: summary.marketplace_unsafe,
+      community_shelf_available: summary.community_shelf_available,
+      community_shelf_unsafe: summary.community_shelf_unsafe,
       my_claimed: summary.my_claimed,
     };
 
@@ -439,10 +442,10 @@ export default function RecyclerDashboard({ onOpenBatch }) {
     const b = recent.available;
     activity.push({
       time: formatActivityTime(b.drop_date),
-      title: `Batch #${b.ref_code} listed in marketplace`,
+      title: `Batch #${b.ref_code} listed in community shelf`,
       description: `${b.material_type} · ${b.source_ward}`,
       icon: PackagePlus,
-      tab: "marketplace",
+      tab: "communityshelf",
       batchId: b.id,
     });
   }
@@ -454,7 +457,7 @@ export default function RecyclerDashboard({ onOpenBatch }) {
       description: "Marked by facility manager",
       icon: ShieldAlert,
       tone: "danger",
-      tab: "marketplace",
+      tab: "communityshelf",
       batchId: b.id,
     });
   }
@@ -488,21 +491,21 @@ export default function RecyclerDashboard({ onOpenBatch }) {
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 fade-in">
       <HeroBanner
         name={user?.name || "there"}
-        onBrowseMarketplace={() => onOpenBatch?.("marketplace", null)}
+        onBrowseCommunityShelf={() => onOpenBatch?.("communityshelf", null)}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Store}
-          label="Available in Marketplace"
-          value={summary.marketplace_available}
-          trend={dailyTrends.marketplace_available}
+          label="Available in Community Shelf"
+          value={summary.community_shelf_available}
+          trend={dailyTrends.community_shelf_available}
         />
         <StatCard
           icon={ShieldAlert}
           label="Flagged Unsafe"
-          value={summary.marketplace_unsafe}
-          trend={dailyTrends.marketplace_unsafe}
+          value={summary.community_shelf_unsafe}
+          trend={dailyTrends.community_shelf_unsafe}
         />
         <StatCard
           icon={Truck}
@@ -532,8 +535,8 @@ export default function RecyclerDashboard({ onOpenBatch }) {
         <div className="bg-white rounded-2xl shadow-sm p-5">
           <p className="text-sm text-gray-500">
             You haven't collected any batches yet. Head to the{" "}
-            <span className="font-medium">Marketplace</span> tab to claim an available batch, then
-            confirm pickup from <span className="font-medium">My Claims</span>.
+            <span className="font-medium">Community Shelf</span> tab to claim an available batch,
+            then confirm pickup from <span className="font-medium">My Claims</span>.
           </p>
         </div>
       )}
