@@ -1,6 +1,6 @@
 # Verdeza — Frontend
 
-Verdeza is a waste-management platform that connects residents, collectors, recyclers, and managers around scheduled pickups, tracking, and reporting. This repository contains the React (Vite) single-page frontend.
+Verdeza is a waste-management platform that connects residents, collectors, recyclers, managers, and admins around scheduled pickups, tracking, recycling, donations, and reporting. This repository contains the React (Vite) single-page frontend.
 
 ## Tech Stack
 
@@ -29,7 +29,7 @@ npm install
 npm run dev
 ```
 
-The dev server proxies `/api` and `/uploads` requests to `http://localhost:8000` (see `vite.config.js`), so it expects a backend running locally on port 8000. If you don't have a backend yet, most of the app still works via the mock authentication layer described below.
+The dev server proxies `/api` and `/uploads` requests to `http://localhost:8000` (see `vite.config.js`), so it expects a backend running locally on port 8000. If you don't have a backend yet, the app still works end-to-end via the mock data layer described below.
 
 ## Environment Variables
 
@@ -58,45 +58,75 @@ cp .env.example .env
 
 ```
 src/
-├── App.jsx                  # Route definitions
-├── main.jsx                 # App entry point
-├── index.css / styles/      # Global styles
+├── App.jsx                        # Route definitions
+├── main.jsx                       # App entry point
+├── index.css / styles/            # Global styles
+├── assets/                        # Banner & facility imagery
 ├── components/
 │   ├── Footer.jsx
-│   ├── ProtectedRoute.jsx   # Role-based route guard
-│   ├── PublicLayout.jsx     # Layout wrapper for public pages
+│   ├── ProtectedRoute.jsx         # Role-based route guard
+│   ├── PublicLayout.jsx           # Layout wrapper for public pages
 │   ├── ScrollToTop.jsx
-│   └── UI.jsx                # Shared UI primitives
+│   ├── AddressField.jsx
+│   ├── DonationImages.jsx
+│   ├── ImageLightBox.jsx
+│   └── UI.jsx                      # Shared UI primitives
 ├── context/
-│   ├── AuthContext.jsx      # Auth state, login/register/logout
-│   └── roles.jsx            # Role → dashboard route mapping
+│   ├── AuthContext.jsx            # Auth state, login/register/logout
+│   └── roles.jsx                  # Role → dashboard route mapping
+├── hooks/
+│   ├── usePolling.js
+│   └── useRefreshOnFocus.js
 ├── lib/
-│   ├── api.js                # Axios instance with JWT + refresh interceptors
-│   └── mockAuth.js           # Local, in-browser mock auth (no backend yet)
+│   ├── api.js                     # Axios instance with JWT + refresh interceptors
+│   ├── mockAuth.js                # Local, in-browser mock auth (no backend yet)
+│   ├── ecobot.js                  # Rule-based assistant used on the resident portal
+│   ├── mockResidentData.js        # Pickups, tickets, donations/Community Shelf, impact stats
+│   ├── mockRecyclerData.js        # Shared batch inventory / Community Shelf for recyclers
+│   ├── mockCollectorData.js
+│   ├── mockOfficerData.js
+│   ├── mockSchedules.js
+│   ├── mockSortingGuide.js
+│   ├── mockUserStatus.js
+│   └── mockZones.js
+├── data/
+│   ├── admin_portal_data.json
+│   └── municipal_officer_data.json
 └── pages/
     ├── Landing.jsx
     ├── Login.jsx
     ├── Register.jsx
     ├── Track.jsx
     ├── Flows.jsx
+    ├── SortingGuidePublic.jsx
     └── dashboards/
-        ├── CitizenDashboard.jsx
-        └── ComingSoon.jsx     # Placeholder for Collector/Recycler/Manager/Admin
+        ├── ResidentDashboard.jsx
+        ├── CollectorDashboard.jsx
+        ├── RecyclerDashoard.jsx
+        ├── ManagerDashboard.jsx
+        ├── AdminDashboard.jsx
+        ├── resident/              # Home, Community Shelf, MyClaims, MyDonations, MyPickups,
+        │                          # CreateDonation, CollectionFlow, SchedulePickup, ScheduleLookup,
+        │                          # SortingGuide, RecyclingTransparency, Impact, Tickets, EcoBotChat
+        ├── recycler/              # Home, Community Shelf, MyClaims, Reports, QualityBadge
+        ├── manager/                # Overview, Crews, Complaints, RouteTracking, shared, format
+        ├── admin/                 # Accounts, CreateAccount, Wards, Logs, SortingGuideEditor, shared, format
+        └── collector/             # Routes
 ```
 
 ## Authentication & Roles
 
 The app supports five roles, each with its own dashboard route:
 
-| Role      | Route                  |
-| --------- | ---------------------- |
-| Resident  | `/resident/dashboard`  |
-| Collector | `/collector/dashboard` |
-| Recycler  | `/recycler/dashboard`  |
-| Manager   | `/manager/dashboard`   |
-| Admin     | `/admin/dashboard`     |
+| Role      | Route                  | Status      |
+| --------- | ---------------------- | ----------- |
+| Resident  | `/resident/dashboard`  | Fully built |
+| Recycler  | `/recycler/dashboard`  | Fully built |
+| Manager   | `/manager/dashboard`   | Fully built |
+| Admin     | `/admin/dashboard`     | Fully built |
+| Collector | `/collector/dashboard` | In progress |
 
-Dashboard routes are guarded by `ProtectedRoute`, which checks the authenticated user's role before rendering. Currently only the Resident dashboard (`CitizenDashboard.jsx`) is fully built; the other roles render a `ComingSoon` placeholder.
+Dashboard routes are guarded by `ProtectedRoute`, which checks the authenticated user's role before rendering. Each dashboard is a self-contained shell (top bar + side nav) that composes the feature pages under its own `pages/dashboards/<role>/` folder.
 
 **Note:** There is no live `/api/auth/*` backend yet. `src/lib/mockAuth.js` simulates registration, login, hashed password storage, and JWT-shaped session tokens entirely in `localStorage` via the Web Crypto API. `AuthContext.jsx` is the single integration point — swap its calls for real `axios` requests to `/api/auth/*` once a backend exists, and the rest of the app should not need to change.
 
@@ -104,6 +134,17 @@ Once a real backend is available, `src/lib/api.js` already handles:
 
 - Attaching the JWT `Authorization` header to every request
 - Automatically refreshing expired tokens on `401` responses and retrying the original request
+
+## Mock Data Layer
+
+Beyond auth, most feature data (pickups, tickets, donations, recycler batches, schedules, zones, sorting guide content, user status) is also backend-free for now: each `lib/mock*Data.js` module reads/writes its own `localStorage`-backed collections and is seeded with realistic demo records the first time a given user opens their dashboard. Every one of these modules is written to mirror the shape of the eventual REST API, so pages import from `lib/mock*Data.js` rather than calling `axios` directly — swapping a module's internals for real API calls should not require changes to the pages that use it.
+
+Notable feature areas:
+
+- **Resident portal** — scheduling pickups, live tracking, tickets/complaints, the sorting guide, recycling transparency stats, impact/credits, an EcoBot assistant chat, and the **Community Shelf** (a peer-to-peer donation marketplace where residents list and claim reusable items).
+- **Recycler portal** — a shared batch inventory (**Community Shelf**) recyclers can browse and claim, claim tracking, and collection reports.
+- **Manager portal** — crew and route oversight, complaints handling, and an operations overview.
+- **Admin portal** — account management, ward configuration, sorting-guide editing, and activity logs.
 
 ## Styling / Design Tokens
 

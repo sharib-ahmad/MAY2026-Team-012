@@ -17,7 +17,7 @@ const STATUS_FILTERS = [
   { value: "", label: "All statuses" },
 ];
 
-export default function Marketplace({ focusBatchId, onFocusConsumed }) {
+export default function CommunityShelf({ focusBatchId, onFocusConsumed }) {
   const { user } = useAuth();
   const [filters, setFilters] = useState({
     material_type: "",
@@ -30,7 +30,7 @@ export default function Marketplace({ focusBatchId, onFocusConsumed }) {
   const [claimErr, setClaimErr] = useState("");
 
   const load = useCallback(() => {
-    // Backend-free: reads the shared marketplace pool out of
+    // Backend-free: reads the shared community shelf pool out of
     // localStorage (see lib/mockRecyclerData.js). Swap for
     // API.get('/batches', { params: filters }) once a real backend exists.
     setBatches(
@@ -49,7 +49,7 @@ export default function Marketplace({ focusBatchId, onFocusConsumed }) {
   useEffect(() => {
     if (!focusBatchId) return;
     // Look this batch up unfiltered — it may not match the currently
-    // selected marketplace filters — then hand focus back once opened.
+    // selected community shelf filters — then hand focus back once opened.
     const match = listBatches({}).find((b) => b.id === focusBatchId);
     if (match) setSelected(match);
     onFocusConsumed?.();
@@ -78,7 +78,7 @@ export default function Marketplace({ focusBatchId, onFocusConsumed }) {
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 fade-in">
       <div>
-        <h1 className="text-xl font-bold">Batch Marketplace</h1>
+        <h1 className="text-xl font-bold">Batch Community Shelf</h1>
         {/* Story 4.1-AC3: honest labeling — this is manually entered municipal
             data, not an automated or recycler-verified feed. */}
         <p className="mt-1 flex items-start gap-1.5 text-xs text-gray-500">

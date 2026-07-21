@@ -1,5 +1,5 @@
 // Backend-free data layer for the Recycler B2G Material Inventory Ledger
-// (Epic 4). This is a SHARED marketplace — all recyclers read/write the
+// (Epic 4). This is a SHARED community shelf — all recyclers read/write the
 // same localStorage-backed pool, not a per-recycler queue — because
 // Story 4.1-AC2 requires a real claim race between recyclers to be
 // representable. Quality status (Story 4.2) is treated as assigned
@@ -102,7 +102,7 @@ const CONTAMINATION_NOTES = {
   ],
 };
 
-// Other recyclers active in the same marketplace, so a freshly registered
+// Other recyclers active in the same community shelf, so a freshly registered
 // demo account sees batches genuinely claimed/collected by someone else
 // (Story 4.1-AC2's race condition, and non-empty history for context).
 const OTHER_RECYCLERS = [
@@ -148,12 +148,12 @@ function makeBatch(n, mat, approxWeight, qStatus, status, overrides = {}) {
 }
 
 /**
- * Seeds the shared marketplace once per browser: resolved history so
+ * Seeds the shared community shelf once per browser: resolved history so
  * Reports/trend charts aren't empty, a few batches claimed by OTHER
  * demo recyclers (some already past their claim window, so the very
  * first list() call visibly auto-releases them — Story 4.3-AC2), and a
  * dozen fresh AVAILABLE batches spanning every ward/material/quality
- * combination for the marketplace view. Safe to call repeatedly.
+ * combination for the community shelf view. Safe to call repeatedly.
  */
 function ensureGlobalSeed() {
   if (localStorage.getItem(SEED_FLAG)) return;
@@ -207,7 +207,7 @@ function ensureGlobalSeed() {
     );
   }
 
-  // Fresh AVAILABLE batches for the marketplace.
+  // Fresh AVAILABLE batches for the community shelf.
   for (let i = 0; i < 12; i++) {
     n += 1;
     const mat = MATERIALS[n % MATERIALS.length];
@@ -252,7 +252,7 @@ function releaseExpiredClaims() {
   return updated;
 }
 
-/** GET /batches — the shared marketplace, optionally filtered by
+/** GET /batches — the shared community shelf, optionally filtered by
  *  material type, source ward, and pickup-readiness status
  *  (Story 4.1-AC1). Pass `mine: true` with `recyclerUser` to scope to
  *  batches this recycler has claimed or collected. */
@@ -330,7 +330,7 @@ export function markCollected(recyclerUser, id, { actual_weight_kg } = {}) {
         data: {
           detail:
             all[idx].status === "AVAILABLE"
-              ? "Your claim on this batch expired and it returned to the marketplace."
+              ? "Your claim on this batch expired and it returned to the community shelf."
               : "This batch is not awaiting pickup confirmation.",
         },
       },
@@ -358,14 +358,14 @@ export function markCollected(recyclerUser, id, { actual_weight_kg } = {}) {
   return all[idx];
 }
 
-/** GET /analytics/recycler — marketplace snapshot + this recycler's own
+/** GET /analytics/recycler — community shelf snapshot + this recycler's own
  *  claim/collection activity for the dashboard. */
 export function getRecyclerSummary(recyclerUser) {
   if (!recyclerUser) throw notFound();
   const all = listBatches({});
 
-  const marketplaceAvailable = all.filter((b) => b.status === "AVAILABLE").length;
-  const marketplaceUnsafe = all.filter(
+  const communityShelfAvailable = all.filter((b) => b.status === "AVAILABLE").length;
+  const communityShelfUnsafe = all.filter(
     (b) => b.status === "AVAILABLE" && b.quality_status === "UNSAFE"
   ).length;
   const myClaimed = all.filter(
@@ -404,8 +404,8 @@ export function getRecyclerSummary(recyclerUser) {
   }
 
   return {
-    marketplace_available: marketplaceAvailable,
-    marketplace_unsafe: marketplaceUnsafe,
+    community_shelf_available: communityShelfAvailable,
+    community_shelf_unsafe: communityShelfUnsafe,
     my_claimed: myClaimed.length,
     my_collected: myCollected.length,
     my_total_kg: Number(myTotalKg.toFixed(1)),

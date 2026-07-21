@@ -27,7 +27,7 @@ import SchedulePickup from "./resident/SchedulePickup";
 import MyPickups from "./resident/MyPickups";
 import CollectionFlow from "./resident/CollectionFlow";
 import Tickets from "./resident/Tickets";
-import Marketplace from "./resident/Marketplace";
+import CommunityShelf from "./resident/CommunityShelf";
 import MyDonations from "./resident/MyDonations";
 import CreateDonation from "./resident/CreateDonation";
 import MyClaims from "./resident/MyClaims";
@@ -52,7 +52,7 @@ const TABS = [
   { key: "flow", label: "Today's Collection", icon: Route, component: CollectionFlow },
   { key: "tickets", label: "Tickets", icon: AlertCircle, component: Tickets },
   { key: "sorting", label: "Sorting Guide", icon: BookOpen, component: SortingGuide },
-  { key: "marketplace", label: "Marketplace", icon: Gift, component: Marketplace },
+  { key: "communityshelf", label: "Community Shelf", icon: Gift, component: CommunityShelf },
   { key: "donations", label: "My Donations", icon: Package, component: MyDonations },
   { key: "donate", label: "Donate Item", icon: Gift, component: CreateDonation, hidden: true },
   { key: "claims", label: "My Claims", icon: Gift, component: MyClaims },
@@ -117,7 +117,7 @@ export default function ResidentDashboard() {
           </span>
           <div className="leading-tight">
             <div className="font-display font-semibold text-white">Verdeza</div>
-            <div className="text-[10px] text-white/50 uppercase tracking-wide hidden sm:block">
+            <div className="text-[10px] text-white/50 tracking-wide hidden sm:block">
               Resident Portal
             </div>
           </div>

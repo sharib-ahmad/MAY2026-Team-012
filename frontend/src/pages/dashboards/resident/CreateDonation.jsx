@@ -111,8 +111,8 @@ export default function CreateDonation({ onNavigate }) {
         <CheckCircle2 className="mx-auto text-success mb-3" size={40} />
         <p className="font-medium">Listing submitted for approval!</p>
         <p className="text-sm text-gray-400 mt-1">
-          A municipal officer will review it before it appears in the Marketplace. Taking you to My
-          Donations…
+          A municipal officer will review it before it appears in the Community Shelf. Taking you to
+          My Donations…
         </p>
       </div>
     );

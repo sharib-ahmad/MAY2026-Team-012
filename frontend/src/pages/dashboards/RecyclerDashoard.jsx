@@ -16,12 +16,12 @@ import { useAuth } from "../../context/AuthContext";
 import { listBatches } from "../../lib/mockRecyclerData";
 import Footer from "../../components/Footer";
 import Home from "./recycler/Home";
-import Marketplace from "./recycler/Marketplace";
+import CommunityShelf from "./recycler/CommunityShelf";
 import MyClaims from "./recycler/MyClaims";
 import Reports from "./recycler/Reports";
 
 // Recycler facility workspace covering Epic 4 (B2G Material Inventory
-// Ledger): browse/claim the shared batch marketplace (Story 4.1),
+// Ledger): browse/claim the shared batch community shelf (Story 4.1),
 // review quality/contamination info (Story 4.2), and confirm pickups
 // (Story 4.3). Entirely backend-free — see lib/mockRecyclerData.js.
 //
@@ -31,7 +31,7 @@ import Reports from "./recycler/Reports";
 // already established in Home.jsx (no green carried over).
 const TABS = [
   { key: "home", label: "Home", icon: LayoutDashboard, component: Home },
-  { key: "marketplace", label: "Marketplace", icon: Store, component: Marketplace },
+  { key: "communityshelf", label: "Community Shelf", icon: Store, component: CommunityShelf },
   { key: "claims", label: "My Claims", icon: Truck, component: MyClaims },
   { key: "reports", label: "Reports", icon: FileBarChart, component: Reports },
 ];
@@ -90,7 +90,7 @@ export default function RecyclerDashboard() {
         time: unsafe[0].drop_date,
         icon: ShieldAlert,
         tone: "danger",
-        tab: "marketplace",
+        tab: "communityshelf",
         batchId: unsafe[0].id,
       });
     }
@@ -105,10 +105,10 @@ export default function RecyclerDashboard() {
     }
     if (available[0]) {
       items.push({
-        title: `Batch #${available[0].ref_code} listed in marketplace`,
+        title: `Batch #${available[0].ref_code} listed in community shelf`,
         time: available[0].drop_date,
         icon: Store,
-        tab: "marketplace",
+        tab: "communityshelf",
         batchId: available[0].id,
       });
     }
@@ -149,7 +149,7 @@ export default function RecyclerDashboard() {
             <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
               Verdeza
             </div>
-            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60 uppercase">
+            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
               Recycler Portal
             </div>
           </div>

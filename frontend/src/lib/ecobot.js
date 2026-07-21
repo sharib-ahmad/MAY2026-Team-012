@@ -38,9 +38,9 @@ export const ECOBOT_TOPICS = [
       "Credits build up automatically for every collected pickup — check the Impact tab to see your running balance and badges.",
   },
   {
-    keywords: ["donate", "donation", "marketplace"],
+    keywords: ["donate", "donation", "community shelf"],
     reply:
-      "Got something still usable? List it on the Marketplace tab instead of throwing it out — other residents nearby can claim it.",
+      "Got something still usable? List it on the Community Shelf tab instead of throwing it out — other residents nearby can claim it.",
   },
   {
     keywords: ["missed", "late", "not collected"],
@@ -75,5 +75,5 @@ export function ecoBotReply(message) {
   const lower = message.toLowerCase();
   const match = ECOBOT_TOPICS.find((t) => t.keywords.some((k) => lower.includes(k)));
   if (match) return match.reply;
-  return "Good question! For now I can help most with segregation tips (plastic, paper, glass, metal, e-waste), scheduling pickups, credits, tracking, or the donation marketplace — try asking about one of those.";
+  return "Good question! For now I can help most with segregation tips (plastic, paper, glass, metal, e-waste), scheduling pickups, credits, tracking, or the donation community shelf — try asking about one of those.";
 }

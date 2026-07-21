@@ -1,5 +1,5 @@
 // Backend-free data layer for the Resident portal. Everything a resident
-// sees — pickups, tickets, donations/marketplace, impact stats, today's
+// sees — pickups, tickets, donations/community shelf, impact stats, today's
 // collection queue — lives in localStorage, keyed per browser. The very
 // first time a given resident opens their dashboard we seed a handful of
 // realistic demo records under their own user id (see ensureResidentSeed)
@@ -199,7 +199,7 @@ export function ensureResidentSeed(user) {
       updated_at: daysAgo(4),
     },
   ];
-  // A shared, global marketplace pool of other residents' donations —
+  // A shared, global community shelf pool of other residents' donations —
   // only seeded once ever, regardless of who logs in.
   const GLOBAL_SEED_FLAG = `${SEED_FLAG_PREFIX}global`;
   const globalSeed = !localStorage.getItem(GLOBAL_SEED_FLAG)
@@ -374,8 +374,8 @@ export function reopenTicket(ticketId) {
   return Promise.resolve(next.find((t) => t.id === ticketId));
 }
 
-// ── Donations / Marketplace ────────────────────────────────────────
-export function listMarketplace(userId, { search = "", category = "" } = {}) {
+// ── Donations / Community Shelf ────────────────────────────────────
+export function listCommunityShelf(userId, { search = "", category = "" } = {}) {
   return readList(DONATIONS_KEY)
     .filter((d) => d.status === "AVAILABLE" && d.donor_id !== userId)
     .filter((d) => !category || d.category === category)
@@ -396,7 +396,7 @@ export function listMyDonations(userId) {
 // 6.2). There's no officer/moderation portal wired up yet in this build, so
 // — same pattern already used below for claim auto-completion — we
 // auto-approve shortly after submission purely so the demo has something to
-// show in the Marketplace. Swap this timeout for the real officer-approval
+// show in the Community Shelf. Swap this timeout for the real officer-approval
 // flow once that portal exists; nothing else about the resident-facing
 // status lifecycle needs to change.
 export function createDonation(user, payload) {

@@ -4,7 +4,7 @@ import { Card, Empty } from "../../../components/UI";
 import DonationImages from "../../../components/DonationImages";
 import ImageLightbox from "../../../components/ImageLightBox";
 import { Gift } from "lucide-react";
-import { listMarketplace, claimDonation } from "../../../lib/mockResidentData";
+import { listCommunityShelf, claimDonation } from "../../../lib/mockResidentData";
 
 const CATEGORIES = [
   "BOOKS",
@@ -18,7 +18,7 @@ const CATEGORIES = [
   "OTHER",
 ];
 
-export default function Marketplace({ onNavigate }) {
+export default function CommunityShelf({ onNavigate }) {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -27,7 +27,7 @@ export default function Marketplace({ onNavigate }) {
   const [viewing, setViewing] = useState(null); // donation whose photos are open in the lightbox
 
   const items = useMemo(
-    () => listMarketplace(user.id, { search, category, version }),
+    () => listCommunityShelf(user.id, { search, category, version }),
     [user.id, search, category, version]
   );
 
@@ -41,7 +41,7 @@ export default function Marketplace({ onNavigate }) {
   return (
     <div className="space-y-6 fade-in">
       <div className="flex justify-between items-center flex-wrap gap-2">
-        <h1 className="text-xl font-bold">Donation Marketplace</h1>
+        <h1 className="text-xl font-bold">Donation Community Shelf</h1>
         <div className="flex gap-2">
           <button
             type="button"
