@@ -149,7 +149,7 @@ export default function RecyclerDashboard() {
             <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
               Verdeza
             </div>
-            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
+            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60 uppercase">
               Recycler Portal
             </div>
           </div>
