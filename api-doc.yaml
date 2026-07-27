@@ -1,0 +1,501 @@
+openapi: 3.0.3
+info:
+  title: Verdeza API
+  version: 0.1.0
+  description: >
+    Sustainable Waste Management & Recycling Platform — MAY2026-Team-012.
+    Sprint 1 vertical slice: system probes, authentication, ward schedule
+    lookup, and the citizen/officer complaint workflow. External vocabulary is
+    /complaints and ward_code; internal table `tickets`, internal key `zone_id`.
+    Enums match the authoritative DBML. Per-operation x-acceptance-criteria give
+    grading traceability; supporting endpoints are labelled with x-requirements
+    rather than falsely mapped to an AC.
+servers:
+  - url: /
+tags:
+  - name: system
+  - name: auth
+  - name: schedule
+  - name: grievance
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: health
+      summary: Liveness probe (no database dependency)
+      x-requirement: platform-liveness
+      security: []
+      responses:
+        "200":
+          description: Process is alive
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, env]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  env: { type: string }
+
+  /ready:
+    get:
+      tags: [system]
+      operationId: ready
+      summary: Readiness probe (checks the database)
+      x-requirement: platform-readiness
+      security: []
+      responses:
+        "200":
+          description: Ready
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [ready] }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Exchange credentials for an access token
+      description: >
+        Platform authentication requirement (NOT a Story 5.1 AC). Returns the
+        authenticated user and canonical role so the frontend routes to the
+        correct dashboard. Sprint 1: no refresh endpoint, no self-registration,
+        no admin provisioning.
+      x-requirement: platform-authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Authenticated
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/schedules:
+    get:
+      tags: [schedule]
+      operationId: getSchedule
+      summary: Look up the collection schedule for a ward
+      description: >
+        Story 1.1. ward_code trimmed and matched case-insensitively (AC5);
+        unknown ward -> 404 (AC2); missing ward_code -> 422 (AC3); valid ward
+        with no published schedule -> 200 with published=false and empty windows
+        (AC4).
+      x-user-stories: ["1.1"]
+      x-acceptance-criteria: ["1.1-AC1", "1.1-AC2", "1.1-AC3", "1.1-AC4", "1.1-AC5"]
+      security: []
+      parameters:
+        - name: ward_code
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 20 }
+      responses:
+        "200":
+          description: Schedule (windows may be empty — Story 1.1 AC4)
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Schedule" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/complaints:
+    post:
+      tags: [grievance]
+      operationId: createComplaint
+      summary: Lodge a complaint (authenticated citizen)
+      description: >
+        Story 2.1. Required issue_type/ward_code/description (AC2); description
+        10–500 chars after trimming, not whitespace-only (AC3); bound to caller
+        and ward_code must exist (AC5). A non-citizen role receives 403.
+      x-user-stories: ["2.1"]
+      x-acceptance-criteria: ["2.1-AC1", "2.1-AC2", "2.1-AC3", "2.1-AC5"]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplaintCreate" }
+      responses:
+        "201":
+          description: Complaint created
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Complaint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    get:
+      tags: [grievance]
+      operationId: listComplaints
+      summary: List complaints (officer; city-wide visibility)
+      description: >
+        Story 2.2. Filter/sort by ward_code, status, issue_type and date (AC1);
+        unresolved past the threshold carry aging=true (AC2); no matches -> empty
+        page (AC3); large volumes paginated with a stable order (AC4). Also
+        surfaces duplicate complaints for officer review (Story 2.1 AC4).
+        Visibility is city-wide; mutation authority stays ward-scoped.
+      x-user-stories: ["2.2", "2.1"]
+      x-acceptance-criteria: ["2.1-AC4", "2.2-AC1", "2.2-AC2", "2.2-AC3", "2.2-AC4"]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: ward_code, in: query, required: false, schema: { type: string, maxLength: 20 } }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ComplaintStatus" }
+        - name: issue_type
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/IssueType" }
+        - { name: created_from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: created_to, in: query, required: false, schema: { type: string, format: date } }
+        - { name: is_aging, in: query, required: false, schema: { type: boolean } }
+        - name: sort
+          in: query
+          required: false
+          description: Controlled sort. Ties broken by id for a stable page order.
+          schema:
+            type: string
+            enum: [created_at, -created_at, ward_code, -ward_code, status, -status]
+            default: -created_at
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated complaint list (may be empty — Story 2.2 AC3)
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplaintPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/me/complaints:
+    get:
+      tags: [grievance]
+      operationId: listMyComplaints
+      summary: List complaints belonging to the authenticated citizen
+      description: >
+        Supporting endpoint for the citizen complaint journey (My Tickets, and
+        discovering a resolved complaint before reopening it). Returns only the
+        caller's own complaints. Not mapped to a story AC — it is a platform
+        support requirement.
+      x-requirement: platform-citizen-self-read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ComplaintStatus" }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Complaints owned by the authenticated citizen
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplaintPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/complaints/{complaint_id}/resolution:
+    patch:
+      tags: [grievance]
+      operationId: resolveComplaint
+      summary: Resolve a complaint (officer, own ward)
+      description: >
+        Story 2.3. Transition OPEN -> RESOLVED. Resolution note mandatory and
+        not whitespace-only (AC1); officer cannot act outside their ward (AC3)
+        -> 403; the change records the officer actor and timestamp (AC4). Any
+        other transition -> 409 ILLEGAL_STATUS_TRANSITION.
+      x-user-stories: ["2.3"]
+      x-acceptance-criteria: ["2.3-AC1", "2.3-AC3", "2.3-AC4"]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: complaint_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplaintResolution" }
+      responses:
+        "200":
+          description: Resolved
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Complaint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/complaints/{complaint_id}/reopen:
+    post:
+      tags: [grievance]
+      operationId: reopenComplaint
+      summary: Reopen a resolved complaint (original complainant, within window)
+      description: >
+        Story 2.3 AC2/AC5. Transition RESOLVED -> OPEN, recording a REOPENED
+        audit event (from RESOLVED, to OPEN, actor=original complainant, server
+        timestamp) under the platform auditability rule. Allowed only for the
+        original complainant and only within the reopen window; otherwise 403
+        (ownership) or 409 (REOPEN_WINDOW_EXPIRED / not reopenable).
+      x-user-stories: ["2.3"]
+      x-acceptance-criteria: ["2.3-AC2", "2.3-AC5"]
+      x-requirements: ["platform-auditability"]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: complaint_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Reopened; status returns to OPEN
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Complaint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  headers:
+    XRequestID:
+      description: The request correlation ID (same UUID as error.request_id).
+      schema: { type: string, format: uuid }
+
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials (AUTHENTICATION_REQUIRED)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: AUTHENTICATION_REQUIRED, message: "Authentication is required.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+    Forbidden:
+      description: Authenticated but not permitted — role/ward/ownership (FORBIDDEN)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: FORBIDDEN, message: "You do not have permission to perform this action.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+    NotFound:
+      description: Resource not found (RESOURCE_NOT_FOUND)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: RESOURCE_NOT_FOUND, message: "The requested resource was not found.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+    Conflict:
+      description: Duplicate or illegal transition (DUPLICATE_RESOURCE / ILLEGAL_STATUS_TRANSITION / REOPEN_WINDOW_EXPIRED)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: ILLEGAL_STATUS_TRANSITION, message: "That status change is not allowed.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+    ValidationError:
+      description: Request failed validation (VALIDATION_ERROR)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: VALIDATION_ERROR, message: "The request contains invalid data.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", details: [] } } } }
+    ServiceUnavailable:
+      description: Database unavailable (DATABASE_UNAVAILABLE)
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: DATABASE_UNAVAILABLE, message: "The service is temporarily unavailable.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+    InternalError:
+      description: Unexpected server error (INTERNAL_ERROR) — internal details never exposed
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/XRequestID" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: INTERNAL_ERROR, message: "An unexpected error occurred.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
+
+  schemas:
+    ComplaintStatus:
+      type: string
+      description: >
+        Matches DBML Enum ticketstatus. Sprint 1 transitions use only OPEN and
+        RESOLVED; IN_PROGRESS, REOPENED and CLOSED are reserved for later
+        workflow expansion (no Sprint 1 endpoint transitions into them).
+      enum: [OPEN, IN_PROGRESS, RESOLVED, REOPENED, CLOSED]
+    IssueType:
+      type: string
+      description: Matches DBML Enum tickettype exactly.
+      enum: [MISSED_PICKUP, OVERFLOW, MIXED_WASTE, DELAY, OTHER]
+    UserRole:
+      type: string
+      description: Matches DBML Enum role exactly.
+      enum: [CITIZEN, COLLECTION_WORKER, MUNICIPAL_OFFICER, RECYCLER, SYSTEM_ADMIN]
+    ComplaintEventType:
+      type: string
+      enum: [STATUS_CHANGED, REOPENED]
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+            request_id: { type: string, format: uuid }
+            details: {}
+
+    UserReference:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    AuthenticatedUser:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/UserRole" }
+        ward_code: { type: string, nullable: true }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, minLength: 1, maxLength: 128 }
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, enum: [bearer] }
+        expires_in: { type: integer, minimum: 1, description: Access-token lifetime in seconds. }
+        user: { $ref: "#/components/schemas/AuthenticatedUser" }
+
+    WardSummary:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string, example: WARD-01 }
+        name: { type: string, example: Civil Lines }
+
+    ScheduleWindow:
+      type: object
+      required: [waste_type, morning, evening]
+      properties:
+        waste_type: { type: string }
+        morning: { type: string, nullable: true, example: "06:30-08:00" }
+        evening: { type: string, nullable: true, example: "17:00-18:30" }
+
+    Schedule:
+      type: object
+      required: [published, ward, windows]
+      properties:
+        published: { type: boolean }
+        ward: { $ref: "#/components/schemas/WardSummary" }
+        windows:
+          type: array
+          items: { $ref: "#/components/schemas/ScheduleWindow" }
+
+    ComplaintCreate:
+      type: object
+      required: [issue_type, ward_code, description]
+      properties:
+        issue_type: { $ref: "#/components/schemas/IssueType" }
+        ward_code: { type: string, minLength: 1, maxLength: 20, pattern: '.*\S.*' }
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          pattern: '.*\S.*'
+          description: Leading/trailing whitespace is trimmed before length validation; whitespace-only is rejected.
+
+    ComplaintResolution:
+      type: object
+      required: [resolution_notes]
+      description: Resolve transition (OPEN -> RESOLVED). Note mandatory, not whitespace-only (Story 2.3 AC1).
+      properties:
+        resolution_notes:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: '.*\S.*'
+
+    ComplaintStatusEvent:
+      type: object
+      required: [event_type, from_status, to_status, actor, occurred_at]
+      properties:
+        event_type: { $ref: "#/components/schemas/ComplaintEventType" }
+        from_status: { $ref: "#/components/schemas/ComplaintStatus" }
+        to_status: { $ref: "#/components/schemas/ComplaintStatus" }
+        actor: { $ref: "#/components/schemas/UserReference" }
+        occurred_at: { type: string, format: date-time }
+
+    Complaint:
+      type: object
+      required: [id, ref_code, status, issue_type, ward_code, description, complainant, created_at, last_status_changed_at]
+      properties:
+        id: { type: string, format: uuid }
+        ref_code: { type: string }
+        status: { $ref: "#/components/schemas/ComplaintStatus" }
+        issue_type: { $ref: "#/components/schemas/IssueType" }
+        ward_code: { type: string }
+        description: { type: string }
+        complainant: { $ref: "#/components/schemas/UserReference" }
+        aging: { type: boolean, description: "True when unresolved past the aging threshold (Story 2.2 AC2)." }
+        created_at: { type: string, format: date-time }
+        resolution_notes: { type: string, nullable: true }
+        resolved_by: { $ref: "#/components/schemas/UserReference" }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        last_status_changed_at: { type: string, format: date-time }
+        last_status_changed_by: { $ref: "#/components/schemas/UserReference" }
+        status_history:
+          type: array
+          items: { $ref: "#/components/schemas/ComplaintStatusEvent" }
+
+    ComplaintPage:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Complaint" }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
