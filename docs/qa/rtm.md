@@ -2,226 +2,225 @@
 
 **137 acceptance criteria across 25 stories.** Two parts: a **Master RTM** with a
 lifecycle status per criterion, and a **Sprint 1 test matrix** with execution
-detail. Coverage is reported as criteria-with-a-passing-test.
+detail for the first contract slice.
 
-## Decisions recorded 
+## Sprint terminology
 
-- **Vocabulary:** external API `/complaints`; internal table `tickets`.
-- **Enums:** `IssueType` and `ComplaintStatus` match the authoritative DBML
-  exactly — `MISSED_PICKUP, OVERFLOW, MIXED_WASTE, DELAY, OTHER` and
-  `OPEN, IN_PROGRESS, RESOLVED, REOPENED, CLOSED`.
-- **Story 5.1:** REMOVED from the Sprint 1 contract. Its ACs are admin user
-  provisioning (create/disable/re-enable/lockout), not login. Only `/auth/login`
-  ships in Sprint 1, mapped as a **platform authentication requirement**, not a
-  5.1 AC. Full 5.1 is Deferred.
-- **Mappings:** every Sprint 1 row is taken verbatim from the user-story
-  document. Generic auth/security behaviour is labelled a platform requirement,
-  never falsely attached to an unrelated AC.
+The backend stage has exactly two sprints: **Sprint 1 = Milestone 3** and
+**Sprint 2 = Milestone 4**. Milestone 5 is the final submission stage, not a
+backend sprint.
+
+## Allocation
+
+- Stories 1.1–1.5, all of Epic 2, all of Epic 3, Story 5.1 → **Sprint 1**.
+- Story 1.6, all of Epics 4, 6, 7, 8 → **Sprint 2**.
+- Totals: Sprint 1 = 11 stories / 57 ACs; Sprint 2 = 14 stories / 80 ACs.
+
+## Decisions carried from team review
+
+External API `/complaints` + `ward_code`; internal table `tickets`, key
+`zone_id`. Enums match the DBML. Reopen returns to `OPEN`. Endpoints below use the
+canonical inventory (`endpoint-inventory.md`). Route optimisation is
+`POST /api/v1/routes/me/optimize` (OpenRouteService is backend-only).
 
 ## Status legend
-Planned · Implemented · Tested · Deferred
+
+`Planned — Sprint 1` · `Planned — Sprint 2` · `Implemented` · `Tested`.
 
 ---
 
 ## Part A — Master RTM (all 137 criteria)
 
-| Story | AC | Kind (from source) | Component | Endpoint (external) | Type | Sprint | Status |
-|---|---|---|---|---|---|---|---|
-| 1.1 | AC1 | Happy path | C1.1 | getSchedule (GET /api/v1/schedules) | Positive | 1 | Planned |
-| 1.1 | AC2 | Invalid input | C1.1 | getSchedule (GET /api/v1/schedules) | Negative | 1 | Planned |
-| 1.1 | AC3 | No selection | C1.1 | getSchedule (GET /api/v1/schedules) | Negative | 1 | Planned |
-| 1.1 | AC4 | Empty state | C1.1 | getSchedule (GET /api/v1/schedules) | Negative | 1 | Planned |
-| 1.1 | AC5 | Input normalization | C1.1 | getSchedule (GET /api/v1/schedules) | Boundary | 1 | Planned |
-| 1.2 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.2 | AC2 | No false positive | — | (later sprint) | Negative | 3–5 | Deferred |
-| 1.2 | AC3 | Resolution | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.2 | AC4 | Channel scope, explicit | — | (later sprint) | Security | 3–5 | Deferred |
-| 1.3 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.3 | AC2 | Lead time validation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.3 | AC3 | Status lifecycle | — | (later sprint) | Lifecycle | 3–5 | Deferred |
-| 1.3 | AC4 | Cancellation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.3 | AC5 | Visibility for manual conflict management | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.3 | AC6 | Officer ward authorization | — | (later sprint) | Security | 3–5 | Deferred |
-| 1.3 | AC7 | Stale request handling | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.4 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.4 | AC2 | Audit trail | — | (later sprint) | Audit | 3–5 | Deferred |
-| 1.4 | AC3 | Correction path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.4 | AC4 | Citizen-facing reflection | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.4 | AC5 | Empty/no-assignment state | — | (later sprint) | Negative | 3–5 | Deferred |
-| 1.4 | AC6 | Authorization | — | (later sprint) | Security | 3–5 | Deferred |
-| 1.5 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.5 | AC2 | Validation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.5 | AC3 | Traceability | — | (later sprint) | Audit | 3–5 | Deferred |
-| 1.5 | AC4 | "Other" enforcement | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.5 | AC5 | Own-route scope | — | (later sprint) | Security | 3–5 | Deferred |
-| 1.6 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 1.6 | AC2 | Empty state | — | (later sprint) | Negative | 3–5 | Deferred |
-| 1.6 | AC3 | Honest labeling | — | (later sprint) | Negative | 3–5 | Deferred |
-| 2.1 | AC1 | Happy path | C1.5 | createComplaint (POST /api/v1/complaints) | Positive | 1 | Planned |
-| 2.1 | AC2 | Required field validation | C1.5 | createComplaint (POST /api/v1/complaints) | Negative | 1 | Planned |
-| 2.1 | AC3 | Description length validation | C1.5 | createComplaint (POST /api/v1/complaints) | Boundary | 1 | Planned |
-| 2.1 | AC4 | Duplicate visibility, not auto-merge | C1.5 | createComplaint (POST /api/v1/complaints) | Negative | 1 | Planned |
-| 2.1 | AC5 | Ownership and valid ward | C1.5 | createComplaint (POST /api/v1/complaints) | Security | 1 | Planned |
-| 2.2 | AC1 | Happy path | C3.1 | listComplaints (GET /api/v1/complaints) | Positive | 1 | Planned |
-| 2.2 | AC2 | Aging flag | C3.1 | listComplaints (GET /api/v1/complaints) | Boundary | 1 | Planned |
-| 2.2 | AC3 | Empty state | C3.1 | listComplaints (GET /api/v1/complaints) | Negative | 1 | Planned |
-| 2.2 | AC4 | Scale handling | C3.1 | listComplaints (GET /api/v1/complaints) | Boundary | 1 | Planned |
-| 2.3 | AC1 | Happy path | C3.2 | resolveComplaint / reopenComplaint | Positive | 1 | Planned |
-| 2.3 | AC2 | Reopen path | C3.2 | resolveComplaint / reopenComplaint | Lifecycle | 1 | Planned |
-| 2.3 | AC3 | Ward authorization | C3.2 | resolveComplaint / reopenComplaint | Security | 1 | Planned |
-| 2.3 | AC4 | Audit trail | C3.2 | resolveComplaint / reopenComplaint | Audit | 1 | Planned |
-| 2.3 | AC5 | Reopen boundary and ownership | C3.2 | resolveComplaint / reopenComplaint | Boundary | 1 | Planned |
-| 3.1 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.1 | AC2 | Editability | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.1 | AC3 | Performance on low-end devices | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.2 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.2 | AC2 | Severity tiering | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.2 | AC3 | Escalation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.2 | AC4 | Default-state clarity | — | (later sprint) | Positive | 3–5 | Deferred |
-| 3.2 | AC5 | Own-route scope | — | (later sprint) | Security | 3–5 | Deferred |
-| 4.1 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.1 | AC2 | Concurrency | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.1 | AC3 | Honest labeling | — | (later sprint) | Negative | 3–5 | Deferred |
-| 4.1 | AC4 | Empty state | — | (later sprint) | Negative | 3–5 | Deferred |
-| 4.2 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.2 | AC2 | Visual distinction | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.2 | AC3 | Mandatory context for unsafe tags | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.2 | AC4 | Note rule for other statuses | — | (later sprint) | Lifecycle | 3–5 | Deferred |
-| 4.3 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.3 | AC2 | Auto-release timeout | — | (later sprint) | Positive | 3–5 | Deferred |
-| 4.3 | AC3 | Authorization | — | (later sprint) | Security | 3–5 | Deferred |
-| 4.3 | AC4 | Transition guard | — | (later sprint) | Positive | 3–5 | Deferred |
-| 5.1 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 5.1 | AC2 | Immediate effect of disabling | — | (later sprint) | Lifecycle | 3–5 | Deferred |
-| 5.1 | AC3 | Duplicate prevention | — | (later sprint) | Negative | 3–5 | Deferred |
-| 5.1 | AC4 | URL-bypass protection | — | (later sprint) | Security | 3–5 | Deferred |
-| 5.1 | AC5 | Explicit scope flag | — | (later sprint) | Security | 3–5 | Deferred |
-| 5.1 | AC6 | Role change takes effect | — | (later sprint) | Lifecycle | 3–5 | Deferred |
-| 5.1 | AC7 | Re-enable | — | (later sprint) | Positive | 3–5 | Deferred |
-| 5.1 | AC8 | Lockout guard | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.1 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.1 | AC2 | Photo file-type validation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.1 | AC3 | Photo size validation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.1 | AC4 | Required field validation | — | (later sprint) | Negative | 3–5 | Deferred |
-| 6.1 | AC5 | Withdrawal before approval | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.2 | AC1 | Approve | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.2 | AC2 | Reject with note | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.2 | AC3 | Rejection without note blocked | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.2 | AC4 | Ward scoping | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.2 | AC5 | Audit trail | — | (later sprint) | Audit | 3–5 | Deferred |
-| 6.2 | AC6 | Moderatable state only | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.3 | AC1 | Public browse | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.3 | AC2 | Login required to claim | — | (later sprint) | Negative | 3–5 | Deferred |
-| 6.3 | AC3 | Claim | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.3 | AC4 | Cannot claim own listing | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.3 | AC5 | One pending claim per listing | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.3 | AC6 | Claimable state only | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.4 | AC1 | Approve | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.4 | AC2 | Reject with note | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.4 | AC3 | Rejection without note blocked | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.4 | AC4 | Audit trail | — | (later sprint) | Audit | 3–5 | Deferred |
-| 6.4 | AC5 | Ward scoping | — | (later sprint) | Positive | 3–5 | Deferred |
-| 6.4 | AC6 | Actionable state and first decision wins | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC2 | Save confirmation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC3 | Update existing location | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC4 | Location prompt | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC5 | No location = excluded from worker map | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.1 | AC6 | Coordinate validation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.2 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.2 | AC2 | Marker popup detail | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.2 | AC3 | Empty map state | — | (later sprint) | Negative | 3–5 | Deferred |
-| 7.2 | AC4 | Own route only | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.3 | AC1 | Happy path — full pipeline | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.3 | AC2 | Minimum point guard | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.3 | AC3 | OSRM fallback | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.3 | AC4 | Loading state | — | (later sprint) | Positive | 3–5 | Deferred |
-| 7.3 | AC5 | Upper-bound guard | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC1 | Happy path — deterministic formula | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC2 | Configured factors, no hardcoding | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC3 | Factor bound at completion | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC4 | CO2 travels with the credit | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC5 | Credit subject is the resident | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC6 | Idempotency — no double credit | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC7 | Actual weight required | — | (later sprint) | Negative | 3–5 | Deferred |
-| 8.1 | AC8 | Non-positive weight boundary | — | (later sprint) | Boundary | 3–5 | Deferred |
-| 8.1 | AC9 | Missing factor | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC10 | Contamination = held, then released once | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC11 | Reversal on un-completion | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.1 | AC12 | Re-completion restores, never duplicates | — | (later sprint) | Negative | 3–5 | Deferred |
-| 8.1 | AC13 | Authoritative balance | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC1 | Happy path — deterministic trigger | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC2 | Idempotency — one badge per resident | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC3 | Milestone metric defined | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC4 | Multiple thresholds crossed at once | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC5 | Categories | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC6 | Display metadata | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC7 | No revocation | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.2 | AC8 | Thresholds are configuration | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.3 | AC1 | Happy path | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.3 | AC2 | Validation — enumerated | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.3 | AC3 | Precision and reference set | — | (later sprint) | Positive | 3–5 | Deferred |
-| 8.3 | AC4 | Audit trail | — | (later sprint) | Audit | 3–5 | Deferred |
-| 8.3 | AC5 | Bounded effect, consistent with holds | — | (later sprint) | Lifecycle | 3–5 | Deferred |
-| 8.3 | AC6 | Concurrent edit | — | (later sprint) | Positive | 3–5 | Deferred |
+| Story | AC | Kind (from source) | Endpoint (canonical) | Type | Sprint | Status |
+|---|---|---|---|---|---|---|
+| 1.1 | AC1 | Happy path | GET /api/v1/schedules | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.1 | AC2 | Invalid input | GET /api/v1/schedules | Negative | Sprint 1 | Planned — Sprint 1 |
+| 1.1 | AC3 | No selection | GET /api/v1/schedules | Negative | Sprint 1 | Planned — Sprint 1 |
+| 1.1 | AC4 | Empty state | GET /api/v1/schedules | Negative | Sprint 1 | Planned — Sprint 1 |
+| 1.1 | AC5 | Input normalization | GET /api/v1/schedules | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 1.2 | AC1 | Happy path | GET /api/v1/notifications/me | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.2 | AC2 | No false positive | GET /api/v1/notifications/me | Negative | Sprint 1 | Planned — Sprint 1 |
+| 1.2 | AC3 | Resolution | GET /api/v1/notifications/me | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.2 | AC4 | Channel scope, explicit | GET /api/v1/notifications/me | Security | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC1 | Happy path | POST /api/v1/bulk-pickups | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC2 | Lead time validation | POST /api/v1/bulk-pickups | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC3 | Status lifecycle | PATCH /api/v1/bulk-pickups/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC4 | Cancellation | PATCH /api/v1/bulk-pickups/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC5 | Visibility for manual conflict management | GET /api/v1/bulk-pickups | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC6 | Officer ward authorization | PATCH /api/v1/bulk-pickups/{id} | Security | Sprint 1 | Planned — Sprint 1 |
+| 1.3 | AC7 | Stale request handling | Internal expiry; GET /api/v1/bulk-pickups | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC1 | Happy path | GET /api/v1/routes/me | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC2 | Audit trail | PATCH /api/v1/route-stops/{id}/progress | Audit | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC3 | Correction path | PATCH /api/v1/route-stops/{id}/progress | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC4 | Citizen-facing reflection | PATCH /api/v1/route-stops/{id}/progress; GET /api/v1/schedules | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC5 | Empty/no-assignment state | GET /api/v1/routes/me | Negative | Sprint 1 | Planned — Sprint 1 |
+| 1.4 | AC6 | Authorization | PATCH /api/v1/route-stops/{id}/progress | Security | Sprint 1 | Planned — Sprint 1 |
+| 1.5 | AC1 | Happy path | POST /api/v1/route-stops/{id}/delays | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.5 | AC2 | Validation | POST /api/v1/route-stops/{id}/delays | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.5 | AC3 | Traceability | POST /api/v1/route-stops/{id}/delays | Audit | Sprint 1 | Planned — Sprint 1 |
+| 1.5 | AC4 | "Other" enforcement | POST /api/v1/route-stops/{id}/delays | Positive | Sprint 1 | Planned — Sprint 1 |
+| 1.5 | AC5 | Own-route scope | POST /api/v1/route-stops/{id}/delays | Security | Sprint 1 | Planned — Sprint 1 |
+| 1.6 | AC1 | Happy path | GET /api/v1/recycling-summary | Positive | Sprint 2 | Planned — Sprint 2 (dep: Epic 4) |
+| 1.6 | AC2 | Empty state | GET /api/v1/recycling-summary | Negative | Sprint 2 | Planned — Sprint 2 (dep: Epic 4) |
+| 1.6 | AC3 | Honest labeling | GET /api/v1/recycling-summary | Negative | Sprint 2 | Planned — Sprint 2 (dep: Epic 4) |
+| 2.1 | AC1 | Happy path | POST /api/v1/complaints | Positive | Sprint 1 | Planned — Sprint 1 |
+| 2.1 | AC2 | Required field validation | POST /api/v1/complaints | Negative | Sprint 1 | Planned — Sprint 1 |
+| 2.1 | AC3 | Description length validation | POST /api/v1/complaints | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 2.1 | AC4 | Duplicate visibility, not auto-merge | POST /api/v1/complaints | Negative | Sprint 1 | Planned — Sprint 1 |
+| 2.1 | AC5 | Ownership and valid ward | POST /api/v1/complaints | Security | Sprint 1 | Planned — Sprint 1 |
+| 2.2 | AC1 | Happy path | GET /api/v1/complaints | Positive | Sprint 1 | Planned — Sprint 1 |
+| 2.2 | AC2 | Aging flag | GET /api/v1/complaints | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 2.2 | AC3 | Empty state | GET /api/v1/complaints | Negative | Sprint 1 | Planned — Sprint 1 |
+| 2.2 | AC4 | Scale handling | GET /api/v1/complaints | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 2.3 | AC1 | Happy path | PATCH /api/v1/complaints/{id}/resolution | Positive | Sprint 1 | Planned — Sprint 1 |
+| 2.3 | AC2 | Reopen path | POST /api/v1/complaints/{id}/reopen | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 2.3 | AC3 | Ward authorization | PATCH /api/v1/complaints/{id}/resolution | Security | Sprint 1 | Planned — Sprint 1 |
+| 2.3 | AC4 | Audit trail | PATCH /api/v1/complaints/{id}/resolution | Audit | Sprint 1 | Planned — Sprint 1 |
+| 2.3 | AC5 | Reopen boundary and ownership | POST /api/v1/complaints/{id}/reopen | Boundary | Sprint 1 | Planned — Sprint 1 |
+| 3.1 | AC1 | Happy path | GET /api/v1/sorting-guide | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.1 | AC2 | Editability | PUT /api/v1/admin/sorting-guide | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.1 | AC3 | Performance on low-end devices | GET /api/v1/sorting-guide | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.2 | AC1 | Happy path | POST /api/v1/route-stops/{id}/waste-issues | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.2 | AC2 | Severity tiering | POST /api/v1/route-stops/{id}/waste-issues | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.2 | AC3 | Escalation | POST /api/v1/route-stops/{id}/waste-issues; GET /api/v1/waste-issues | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.2 | AC4 | Default-state clarity | GET /api/v1/waste-issues | Positive | Sprint 1 | Planned — Sprint 1 |
+| 3.2 | AC5 | Own-route scope | POST /api/v1/route-stops/{id}/waste-issues | Security | Sprint 1 | Planned — Sprint 1 |
+| 4.1 | AC1 | Happy path | GET /api/v1/material-batches | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.1 | AC2 | Concurrency | POST /api/v1/material-batches/{id}/claim | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.1 | AC3 | Honest labeling | GET /api/v1/material-batches | Negative | Sprint 2 | Planned — Sprint 2 |
+| 4.1 | AC4 | Empty state | GET /api/v1/material-batches | Negative | Sprint 2 | Planned — Sprint 2 |
+| 4.2 | AC1 | Happy path | PATCH /api/v1/material-batches/{id}/quality | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.2 | AC2 | Visual distinction | PATCH /api/v1/material-batches/{id}/quality | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.2 | AC3 | Mandatory context for unsafe tags | PATCH /api/v1/material-batches/{id}/quality | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.2 | AC4 | Note rule for other statuses | PATCH /api/v1/material-batches/{id}/quality | Lifecycle | Sprint 2 | Planned — Sprint 2 |
+| 4.3 | AC1 | Happy path | PATCH /api/v1/material-batches/{id}/pickup-status | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.3 | AC2 | Auto-release timeout | PATCH /api/v1/material-batches/{id}/pickup-status | Positive | Sprint 2 | Planned — Sprint 2 |
+| 4.3 | AC3 | Authorization | PATCH /api/v1/material-batches/{id}/pickup-status | Security | Sprint 2 | Planned — Sprint 2 |
+| 4.3 | AC4 | Transition guard | PATCH /api/v1/material-batches/{id}/pickup-status | Positive | Sprint 2 | Planned — Sprint 2 |
+| 5.1 | AC1 | Happy path | POST /api/v1/admin/users | Positive | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC2 | Immediate effect of disabling | PATCH /api/v1/admin/users/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC3 | Duplicate prevention | POST /api/v1/admin/users | Negative | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC4 | URL-bypass protection | POST /api/v1/admin/users | Security | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC5 | Explicit scope flag | Documentation / MVP scope declaration | Security | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC6 | Role change takes effect | PATCH /api/v1/admin/users/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC7 | Re-enable | PATCH /api/v1/admin/users/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 5.1 | AC8 | Lockout guard | PATCH /api/v1/admin/users/{id} | Lifecycle | Sprint 1 | Planned — Sprint 1 |
+| 6.1 | AC1 | Happy path | POST /api/v1/reuse-listings | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.1 | AC2 | Photo file-type validation | POST /api/v1/reuse-listings | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.1 | AC3 | Photo size validation | POST /api/v1/reuse-listings | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.1 | AC4 | Required field validation | POST /api/v1/reuse-listings | Negative | Sprint 2 | Planned — Sprint 2 |
+| 6.1 | AC5 | Withdrawal before approval | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC1 | Approve | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC2 | Reject with note | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC3 | Rejection without note blocked | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC4 | Ward scoping | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC5 | Audit trail | PATCH /api/v1/reuse-listings/{id} | Audit | Sprint 2 | Planned — Sprint 2 |
+| 6.2 | AC6 | Moderatable state only | PATCH /api/v1/reuse-listings/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC1 | Public browse | GET /api/v1/reuse-listings | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC2 | Login required to claim | POST /api/v1/reuse-listings/{id}/claims | Negative | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC3 | Claim | POST /api/v1/reuse-listings/{id}/claims | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC4 | Cannot claim own listing | POST /api/v1/reuse-listings/{id}/claims | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC5 | One pending claim per listing | POST /api/v1/reuse-listings/{id}/claims | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.3 | AC6 | Claimable state only | POST /api/v1/reuse-listings/{id}/claims | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC1 | Approve | PATCH /api/v1/reuse-claims/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC2 | Reject with note | PATCH /api/v1/reuse-claims/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC3 | Rejection without note blocked | PATCH /api/v1/reuse-claims/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC4 | Audit trail | PATCH /api/v1/reuse-claims/{id} | Audit | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC5 | Ward scoping | PATCH /api/v1/reuse-claims/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 6.4 | AC6 | Actionable state and first decision wins | PATCH /api/v1/reuse-claims/{id} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC1 | Happy path | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC2 | Save confirmation | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC3 | Update existing location | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC4 | Location prompt | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC5 | No location = excluded from worker map | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.1 | AC6 | Coordinate validation | PUT /api/v1/users/me/location | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.2 | AC1 | Happy path | GET /api/v1/routes/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.2 | AC2 | Marker popup detail | GET /api/v1/routes/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.2 | AC3 | Empty map state | GET /api/v1/routes/me | Negative | Sprint 2 | Planned — Sprint 2 |
+| 7.2 | AC4 | Own route only | GET /api/v1/routes/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.3 | AC1 | Happy path — full pipeline | POST /api/v1/routes/me/optimize | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.3 | AC2 | Minimum point guard | POST /api/v1/routes/me/optimize | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.3 | AC3 | OSRM fallback | POST /api/v1/routes/me/optimize | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.3 | AC4 | Loading state | POST /api/v1/routes/me/optimize | Positive | Sprint 2 | Planned — Sprint 2 |
+| 7.3 | AC5 | Upper-bound guard | POST /api/v1/routes/me/optimize | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC1 | Happy path — deterministic formula | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC2 | Configured factors, no hardcoding | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC3 | Factor bound at completion | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC4 | CO2 travels with the credit | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC5 | Credit subject is the resident | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC6 | Idempotency — no double credit | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC7 | Actual weight required | Internal pickup-completion credit event; GET /api/v1/credits/me | Negative | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC8 | Non-positive weight boundary | Internal pickup-completion credit event; GET /api/v1/credits/me | Boundary | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC9 | Missing factor | Internal pickup-completion credit event; GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC10 | Contamination = held, then released once | PATCH /api/v1/pickups/{id}/verification; internal event | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC11 | Reversal on un-completion | PATCH /api/v1/route-stops/{id}/progress; internal event | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC12 | Re-completion restores, never duplicates | PATCH /api/v1/route-stops/{id}/progress; internal event | Negative | Sprint 2 | Planned — Sprint 2 |
+| 8.1 | AC13 | Authoritative balance | GET /api/v1/credits/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC1 | Happy path — deterministic trigger | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC2 | Idempotency — one badge per resident | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC3 | Milestone metric defined | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC4 | Multiple thresholds crossed at once | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC5 | Categories | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC6 | Display metadata | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC7 | No revocation | Internal badge evaluation; GET /api/v1/badges/me | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.2 | AC8 | Thresholds are configuration | Stored badge config; GET /api/v1/badges | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC1 | Happy path | GET + PUT /api/v1/admin/credit-factors/{category} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC2 | Validation — enumerated | PUT /api/v1/admin/credit-factors/{category} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC3 | Precision and reference set | PUT /api/v1/admin/credit-factors/{category} | Positive | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC4 | Audit trail | PUT /api/v1/admin/credit-factors/{category} | Audit | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC5 | Bounded effect, consistent with holds | PUT /api/v1/admin/credit-factors/{category} | Lifecycle | Sprint 2 | Planned — Sprint 2 |
+| 8.3 | AC6 | Concurrent edit | PUT /api/v1/admin/credit-factors/{category} | Positive | Sprint 2 | Planned — Sprint 2 |
 ---
 
-## Part B — Sprint 1 test matrix
+## Part B — Initial Sprint 1 contract test matrix
 
-Sprint 1 stories: **1.1, 2.1, 2.2, 2.3** (19 criteria; Story 5.1 Deferred).
-Columns follow: API, inputs, expected output, actual
-output, result, pytest evidence. Actual/Result/Defect stay blank until the test
-runs. Compound criteria carry multiple test IDs (A/B/C).
+This initial execution matrix covers the stories and endpoints included in the
+first API-contract PR (schedule, grievance, auth). The remaining Sprint 1 stories
+are planned for Sprint 1 and receive detailed executable test rows through their
+feature PRs. **Story 5.1 is not deferred** — it is Planned — Sprint 1. Story 1.6
+is Planned — Sprint 2 because it depends on Epic 4 material-batch and dispatch
+data.
 
-| Test ID | Story/AC | API (operationId) | Preconditions | Input | Expected status | Expected body | Actual status | Actual body | Result | Pytest path | Defect |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| TC-010 | 1.1 AC1 | getSchedule | ward WARD-01 has a published schedule | ward_code=WARD-01 | 200 | published=true, windows[] with morning/evening | | | | tests/api/test_schedules.py | |
-| TC-011 | 1.1 AC2 | getSchedule | no such ward | ward_code=ZZZ-99 | 404 | RESOURCE_NOT_FOUND envelope | | | | tests/api/test_schedules.py | |
-| TC-012 | 1.1 AC3 | getSchedule | — | (ward_code omitted) | 422 | VALIDATION_ERROR envelope | | | | tests/api/test_schedules.py | |
-| TC-013 | 1.1 AC4 | getSchedule | ward exists, no schedule published | ward_code=WARD-03 | 200 | published=false, windows=[] | | | | tests/api/test_schedules.py | |
-| TC-014 | 1.1 AC5 | getSchedule | ward WARD-01 exists | ward_code=" ward-01 " | 200 | resolves to WARD-01 | | | | tests/api/test_schedules.py | |
-| TC-015 | 2.1 AC1 | createComplaint | citizen authed | valid issue_type+ward_code+description | 201 | Complaint with id, ref_code, status=OPEN | | | | tests/api/test_complaints.py | |
-| TC-016A | 2.1 AC2 | createComplaint | citizen authed | missing issue_type | 422 | VALIDATION_ERROR | | | | tests/api/test_complaints.py | |
-| TC-016B | 2.1 AC2 | createComplaint | citizen authed | missing ward_code | 422 | VALIDATION_ERROR | | | | tests/api/test_complaints.py | |
-| TC-016C | 2.1 AC2 | createComplaint | citizen authed | missing description | 422 | VALIDATION_ERROR | | | | tests/api/test_complaints.py | |
-| TC-017A | 2.1 AC3 | createComplaint | citizen authed | description length 9 | 422 | below-min rejected | | | | tests/api/test_complaints.py | |
-| TC-017B | 2.1 AC3 | createComplaint | citizen authed | description length 501 | 422 | above-max rejected | | | | tests/api/test_complaints.py | |
-| TC-017C | 2.1 AC3 | createComplaint | citizen authed | description length 10 and 500 | 201 | exact boundaries accepted | | | | tests/api/test_complaints.py | |
-| TC-018A | 2.1 AC5 | createComplaint | citizen authed | ward_code that does not exist | 422 | invalid ward rejected | | | | tests/api/test_complaints.py | |
-| TC-018B | 2.1 AC5 | createComplaint | citizen authed | valid body | 201 | complaint bound to caller id | | | | tests/api/test_complaints.py | |
-| TC-019 | 2.1 AC4 | listComplaints | 3 same-ward/date/type complaints exist | officer lists | 200 | all 3 present as separate rows (not merged) | | | | tests/api/test_complaints.py | |
-| TC-020 | 2.2 AC1 | listComplaints | open complaints exist | officer, sort=ward_code | 200 | sorted list | | | | tests/api/test_complaints.py | |
-| TC-021 | 2.2 AC2 | listComplaints | a complaint open > threshold | officer lists | 200 | that item has aging=true | | | | tests/api/test_complaints.py | |
-| TC-022 | 2.2 AC3 | listComplaints | no complaints match | filter matches nothing | 200 | items=[], total=0 | | | | tests/api/test_complaints.py | |
-| TC-023 | 2.2 AC4 | listComplaints | volume exceeds one page | page=2, page_size=20 | 200 | stable pagination, no dup/skip | | | | tests/api/test_complaints.py | |
-| TC-024 | 2.3 AC1 | resolveComplaint | officer, own ward, OPEN complaint | resolution_notes present | 200 | status=RESOLVED, note stored | | | | tests/api/test_complaints.py | |
-| TC-024N | 2.3 AC1 | resolveComplaint | officer, own ward, OPEN complaint | resolution_notes missing | 422 | mandatory note enforced | | | | tests/api/test_complaints.py | |
-| TC-025 | 2.3 AC2 | reopenComplaint | RESOLVED, original complainant, within window | reopen | 200 | status returns to OPEN | | | | tests/api/test_complaints.py | |
-| TC-026 | 2.3 AC3 | resolveComplaint | officer ward A, complaint ward B | resolve | 403 | FORBIDDEN (ward scope) | | | | tests/api/test_complaints.py | |
-| TC-027A | 2.3 AC4 | resolveComplaint | resolution occurs | resolve | 200 | audit records actor+timestamp | | | | tests/api/test_complaints.py | |
-| TC-027B | Platform auditability | reopenComplaint | reopen occurs | reopen | 200 | audit records REOPENED event (citizen actor+timestamp) | | | | tests/api/test_complaints.py | |
-| TC-028A | 2.3 AC5 | reopenComplaint | window expired | reopen | 409 | REOPEN_WINDOW_EXPIRED | | | | tests/api/test_complaints.py | |
-| TC-028B | 2.3 AC5 | reopenComplaint | non-complainant, within window | reopen | 403 | ownership enforced | | | | tests/api/test_complaints.py | |
+Cells for actual status, actual output, result, and defect stay blank until the
+API is implemented and actually tested — no results are entered in advance.
 
-### Platform requirements 
+| Test ID | Story/AC | Requirement (from source) | operationId | Expected | Type | Test path | Result |
+|---|---|---|---|---|---|---|---|
+| TC-010 | 1.1 AC1 | Happy path: Given a citizen has a valid ward code, when they… | getSchedule | per AC | Positive | tests/api/ |  |
+| TC-011 | 1.1 AC2 | Invalid input: Given a citizen enters a ward code that does… | getSchedule | per AC | Negative | tests/api/ |  |
+| TC-012 | 1.1 AC3 | No selection: Given a citizen has not entered a ward code,… | getSchedule | per AC | Negative | tests/api/ |  |
+| TC-013 | 1.1 AC4 | Empty state: Given a valid ward code has no schedule data… | getSchedule | per AC | Negative | tests/api/ |  |
+| TC-014 | 1.1 AC5 | Input normalization: Given a ward code entered with… | getSchedule | per AC | Boundary | tests/api/ |  |
+| TC-015 | 2.1 AC1 | Happy path: Given a citizen completes the form with issue… | createComplaint | per AC | Positive | tests/api/ |  |
+| TC-016 | 2.1 AC2 | Required field validation: Given any of issue type, ward, or… | createComplaint | per AC | Negative | tests/api/ |  |
+| TC-017 | 2.1 AC3 | Description length validation: Given the description is… | createComplaint | per AC | Boundary | tests/api/ |  |
+| TC-018 | 2.1 AC4 | Duplicate visibility, not auto-merge: Given multiple… | createComplaint | per AC | Negative | tests/api/ |  |
+| TC-019 | 2.1 AC5 | Ownership and valid ward: Given a complaint is submitted,… | createComplaint | per AC | Security | tests/api/ |  |
+| TC-020 | 2.2 AC1 | Happy path: Given open complaints exist, when an officer… | listComplaints | per AC | Positive | tests/api/ |  |
+| TC-021 | 2.2 AC2 | Aging flag: Given a complaint is unresolved past a threshold… | listComplaints | per AC | Boundary | tests/api/ |  |
+| TC-022 | 2.2 AC3 | Empty state: Given no complaints match the filter, when… | listComplaints | per AC | Negative | tests/api/ |  |
+| TC-023 | 2.2 AC4 | Scale handling: Given complaint volume exceeds a single… | listComplaints | per AC | Boundary | tests/api/ |  |
+| TC-024 | 2.3 AC1 | Happy path: Given an officer updates a complaint to… | resolveComplaint | per AC | Positive | tests/api/ |  |
+| TC-025 | 2.3 AC2 | Reopen path: Given a complaint is "Resolved", when the… | reopenComplaint | per AC | Lifecycle | tests/api/ |  |
+| TC-026 | 2.3 AC3 | Ward authorization: Given an officer attempts to close a… | resolveComplaint | per AC | Security | tests/api/ |  |
+| TC-027 | 2.3 AC4 | Audit trail: Given any status change occurs, when it… | resolveComplaint | per AC | Audit | tests/api/ |  |
+| TC-028 | 2.3 AC5 | Reopen boundary and ownership: Given the reopen window has… | reopenComplaint | per AC | Boundary | tests/api/ |  |
+### Platform requirements (not story ACs)
 
-| Test ID | Requirement | operationId | Input | Expected | Pytest path |
-|---|---|---|---|---|---|
-| TC-P01 | Auth: valid credentials yield token+user+role | login | valid email/password | 200 + token + user.role | tests/api/test_auth.py |
-| TC-P02 | Auth: wrong password rejected | login | bad password | 401 AUTHENTICATION_REQUIRED | tests/api/test_auth.py |
-| TC-P03 | Liveness independent of DB | health | — | 200, no DB call | tests/test_health.py |
-| TC-P04 | Readiness reflects DB availability | ready | DB up / down | 200 / 503 | tests/test_health.py |
-| TC-P05 | Error envelope on unknown route | — | GET /nope | 404 envelope + request_id | tests/test_health.py |
-| TC-P06 | Citizen sees only own complaints | listMyComplaints | citizen A authed | 200, only A's complaints | tests/api/test_my_complaints.py |
-| TC-P07 | Another citizen's complaint never returned | listMyComplaints | A authed, B owns X | X absent from A's list | tests/api/test_my_complaints.py |
-| TC-P08 | Resolved complaint appears and is reopenable | listMyComplaints + reopen | A has a RESOLVED complaint | visible, then reopen -> OPEN | tests/api/test_my_complaints.py |
-| TC-P09 | My-complaints pagination | listMyComplaints | A has > page_size | stable pages | tests/api/test_my_complaints.py |
-| TC-W01 | Whitespace-only description rejected | createComplaint | description = 10 spaces | 422 | tests/api/test_complaints.py |
-| TC-W02 | Whitespace-only resolution note rejected | resolveComplaint | resolution_notes = spaces | 422 | tests/api/test_complaints.py |
-| TC-W03 | Leading/trailing whitespace trimmed and stored | createComplaint | padded description | 201, stored trimmed | tests/api/test_complaints.py |
+These are planned platform/non-functional requirements and do not map to
+individual story acceptance criteria. Their results will be recorded only after
+the corresponding tests are implemented and executed.
+
+| Test ID | Requirement | operationId | Expected | Test path |
+|---|---|---|---|---|
+| TC-P01 | Authentication: valid credentials yield a token | login | 200 + token | tests/api/test_auth.py |
+| TC-P02 | Authentication: wrong password rejected | login | 401 envelope | tests/api/test_auth.py |
+| TC-P03 | Liveness independent of DB | health | 200 no-DB | tests/test_health.py |
+| TC-P04 | Readiness reflects DB availability | ready | 200 / 503 | tests/test_health.py |
+| TC-P05 | Error envelope on unknown route | — | 404 envelope | tests/test_health.py |
 
 ## Coverage report format
 ```
-Sprint 1: 19 story criteria (approx 30 parametrised cases) + 5 platform reqs
-Master:  137 criteria | Planned 19 | Deferred 118
+Sprint 1: 19 story criteria + 5 platform reqs | authored: 0 | passing: 0
+Master: 137 criteria | Planned — Sprint 1: 57 | Planned — Sprint 2: 80
 ```
