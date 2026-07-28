@@ -8,15 +8,18 @@ detail for the first contract slice.
 
 The backend stage has exactly two sprints: **Sprint 1 = Milestone 3** and
 **Sprint 2 = Milestone 4**. Milestone 5 is the final submission stage, not a
-backend sprint.
+backend sprint. No requirement is deferred out of the project; every story is
+committed to Sprint 1 or Sprint 2.
 
 ## Allocation
 
 - Stories 1.1–1.5, all of Epic 2, all of Epic 3, Story 5.1 → **Sprint 1**.
 - Story 1.6, all of Epics 4, 6, 7, 8 → **Sprint 2**.
+- Story 1.6 stays in Epic 1 but is Sprint 2: it depends on Epic 4 material-batch
+  and dispatch data.
 - Totals: Sprint 1 = 11 stories / 57 ACs; Sprint 2 = 14 stories / 80 ACs.
 
-## Decisions carried from team review
+## Decisions carried from PR 1 and team review
 
 External API `/complaints` + `ward_code`; internal table `tickets`, key
 `zone_id`. Enums match the DBML. Reopen returns to `OPEN`. Endpoints below use the
@@ -207,20 +210,32 @@ API is implemented and actually tested — no results are entered in advance.
 | TC-028 | 2.3 AC5 | Reopen boundary and ownership: Given the reopen window has… | reopenComplaint | per AC | Boundary | tests/api/ |  |
 ### Platform requirements (not story ACs)
 
-These are planned platform/non-functional requirements and do not map to
-individual story acceptance criteria. Their results will be recorded only after
-the corresponding tests are implemented and executed.
+These are platform/non-functional requirements and do not map to individual
+story acceptance criteria. Rows marked ✓ PR 2 are implemented and tested in the
+backend skeleton PR; auth rows arrive with the Sprint 1 auth feature. Results
+for unexecuted rows are recorded only after the tests run.
 
 | Test ID | Requirement | operationId | Expected | Test path |
 |---|---|---|---|---|
-| TC-P01 | Authentication: valid credentials yield a token | login | 200 + token | tests/api/test_auth.py |
-| TC-P02 | Authentication: wrong password rejected | login | 401 envelope | tests/api/test_auth.py |
-| TC-P03 | Liveness independent of DB | health | 200 no-DB | tests/test_health.py |
-| TC-P04 | Readiness reflects DB availability | ready | 200 / 503 | tests/test_health.py |
-| TC-P05 | Error envelope on unknown route | — | 404 envelope | tests/test_health.py |
+| TC-P01 | Authentication: valid credentials yield a token | login | 200 + token | tests/api/test_auth.py (Sprint 1 feature) |
+| TC-P02 | Authentication: wrong password rejected | login | 401 envelope | tests/api/test_auth.py (Sprint 1 feature) |
+| TC-P03 | Liveness independent of DB | health | 200, no DB call | tests/test_health.py ✓ |
+| TC-P04 | Readiness OK when DB available | ready | 200 ready | tests/test_health.py ✓ |
+| TC-P05 | Readiness 503 when DB unavailable | ready | 503 DATABASE_UNAVAILABLE | tests/test_health.py ✓ |
+| TC-P06 | Validation error envelope | — | 422 VALIDATION_ERROR, details[] | tests/test_error_handling.py ✓ |
+| TC-P07 | Unknown route envelope | — | 404 RESOURCE_NOT_FOUND | tests/test_error_handling.py ✓ |
+| TC-P08 | Integrity conflict envelope | — | 409 DUPLICATE_RESOURCE, no SQL leak | tests/test_error_handling.py ✓ |
+| TC-P09 | Unexpected error envelope | — | 500 INTERNAL_ERROR, no stack leak | tests/test_error_handling.py ✓ |
+| TC-P10 | Request-ID: absent → generated UUID | — | X-Request-ID header + body | tests/test_error_handling.py ✓ |
+| TC-P11 | Request-ID: valid incoming echoed | — | same UUID in header + body | tests/test_error_handling.py ✓ |
+| TC-P12 | Request-ID: invalid incoming replaced | — | new UUID, not the bad value | tests/test_error_handling.py ✓ |
 
 ## Coverage report format
 ```
-Sprint 1: 19 story criteria + 5 platform reqs | authored: 0 | passing: 0
+Initial story matrix: 19 story criteria (detailed contract slice)
+Platform matrix: 12 requirements
+  - Platform requirements: 10 (TC-P03..TC-P12) — implemented and tested in the backend skeleton PR
+  - Authentication feature requirements: 2 (TC-P01, TC-P02) — arrive with the Sprint 1 auth feature
+Record the final test count and coverage from your own local PostgreSQL run.
 Master: 137 criteria | Planned — Sprint 1: 57 | Planned — Sprint 2: 80
 ```
