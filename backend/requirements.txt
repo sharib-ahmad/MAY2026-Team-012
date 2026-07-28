@@ -1,9 +1,6 @@
-# Runtime dependencies. Pinned exact; Dependabot proposes upgrades as PRs.
-# Pinned set actually tested by the team. Upgrades are handled in another PR via a
-# lockfile + pip-audit through CI, not opportunistically here.
-# Auth/upload libraries are intentionally NOT here yet — they are added in the
-# authentication feature PR that first needs them, to keep the skeleton minimal
-# and its attack surface small.
+# Runtime dependencies tested by the team.
+# Dependency upgrades must be reviewed through pull requests.
+
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
@@ -11,7 +8,3 @@ alembic==1.14.0
 psycopg[binary]==3.2.3
 pydantic==2.10.4
 pydantic-settings==2.7.0
-
-# For a hardened build, generate a hashed lockfile before the demo:
-#   pip install pip-tools && pip-compile --generate-hashes -o requirements.lock requirements.txt
-# and install from requirements.lock in CI. Deferred as a tracked chore.

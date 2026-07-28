@@ -8,9 +8,10 @@ is a valid UUID, otherwise generates one; stores it on request.state.request_id;
 adds it to every response header; exception handlers and logs use the stored
 value.
 
-Error envelope: one shape everywhere —
-{"error": {"code","message","details?","request_id"}} — with UPPER_SNAKE codes
-matching api-doc.yaml. Internal details (SQL, stack traces) are never exposed.
+Error envelope:
+{"error": {"code","message","details?","request_id"}} with UPPER_SNAKE codes
+matching api-doc.yaml. Internal details such as SQL and stack traces are never
+exposed.
 """
 
 import logging
@@ -23,30 +24,59 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
+from app.core.db_errors import (
+    classify_integrity_error,
+    extract_constraint_name,
+    extract_sqlstate,
+)
 from app.db.session import make_engine, make_session_factory
 
 logger = logging.getLogger("verdeza")
 
 
-def error_response(status_code: int, code: str, message: str, request_id: str, details=None):
-    body = {"error": {"code": code, "message": message, "request_id": request_id}}
+def error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    request_id: str,
+    details=None,
+) -> JSONResponse:
+    """Return the standard public API error envelope."""
+
+    body = {
+        "error": {
+            "code": code,
+            "message": message,
+            "request_id": request_id,
+        }
+    }
+
     if details is not None:
         body["error"]["details"] = details
-    return JSONResponse(status_code=status_code, content=body, headers={"X-Request-ID": request_id})
+
+    return JSONResponse(
+        status_code=status_code,
+        content=body,
+        headers={"X-Request-ID": request_id},
+    )
 
 
 def _request_id(request: Request) -> str:
-    # Set by middleware; fall back to a fresh UUID if middleware was bypassed.
+    """Return the middleware request ID or generate a safe fallback."""
+
     return getattr(request.state, "request_id", None) or str(uuid.uuid4())
 
 
 def _valid_uuid(value: str | None) -> str | None:
+    """Return a normalised UUID or None when the value is invalid."""
+
     if not value:
         return None
+
     try:
         return str(uuid.UUID(value))
     except (ValueError, AttributeError, TypeError):
@@ -54,39 +84,56 @@ def _valid_uuid(value: str | None) -> str | None:
 
 
 def register_middleware(app: FastAPI) -> None:
+    """Register application-wide middleware."""
+
     @app.middleware("http")
     async def request_id_mw(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        rid = _valid_uuid(request.headers.get("x-request-id")) or str(uuid.uuid4())
-        request.state.request_id = rid
+        request_id = _valid_uuid(request.headers.get("x-request-id")) or str(uuid.uuid4())
+
+        request.state.request_id = request_id
+
         response = await call_next(request)
-        response.headers["X-Request-ID"] = rid
+        response.headers["X-Request-ID"] = request_id
+
         return response
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    """Register application-wide exception handlers."""
+
     @app.exception_handler(RequestValidationError)
-    async def _validation(request: Request, exc: RequestValidationError):
-        # Expose only which field failed (loc) and the error category (type) —
-        # never msg/ctx/url, which can carry a raw validator exception string
-        # (no internal leak).
-        safe = jsonable_encoder(
+    async def _validation(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        # Expose only which field failed and the error category.
+        # Validator messages and contexts may contain internal details.
+        safe_details = jsonable_encoder(
             [
-                {"loc": list(e.get("loc", [])), "type": e.get("type", "value_error")}
-                for e in exc.errors()
+                {
+                    "loc": list(error.get("loc", [])),
+                    "type": error.get("type", "value_error"),
+                }
+                for error in exc.errors()
             ]
         )
+
         return error_response(
             422,
             "VALIDATION_ERROR",
             "The request contains invalid data.",
             _request_id(request),
-            details=safe,
+            details=safe_details,
         )
 
     @app.exception_handler(StarletteHTTPException)
-    async def _http(request: Request, exc: StarletteHTTPException):
+    async def _http(
+        request: Request,
+        exc: StarletteHTTPException,
+    ) -> JSONResponse:
         code_map = {
             400: "BAD_REQUEST",
             401: "AUTHENTICATION_REQUIRED",
@@ -95,42 +142,87 @@ def register_exception_handlers(app: FastAPI) -> None:
             409: "CONFLICT",
             503: "DATABASE_UNAVAILABLE",
         }
+
         code = code_map.get(exc.status_code, "ERROR")
+
         message = exc.detail if isinstance(exc.detail, str) else code.replace("_", " ").title()
-        return error_response(exc.status_code, code, message, _request_id(request))
+
+        return error_response(
+            exc.status_code,
+            code,
+            message,
+            _request_id(request),
+        )
 
     @app.exception_handler(IntegrityError)
-    async def _integrity(request: Request, exc: IntegrityError):
-        rid = _request_id(request)
-        logger.warning("integrity_error request_id=%s", rid)
+    async def _integrity(
+        request: Request,
+        exc: IntegrityError,
+    ) -> JSONResponse:
+        request_id = _request_id(request)
+        result = classify_integrity_error(exc)
+        sqlstate = extract_sqlstate(exc)
+        constraint_name = extract_constraint_name(exc)
+
+        original = getattr(exc, "orig", None)
+        exception_type = type(original).__name__ if original is not None else type(exc).__name__
+
+        log_method = logger.error if result.status_code >= 500 else logger.warning
+
+        log_method(
+            "integrity_error request_id=%s exception_type=%s "
+            "sqlstate=%s constraint=%s response_code=%s",
+            request_id,
+            exception_type,
+            sqlstate,
+            constraint_name,
+            result.code,
+        )
+
         return error_response(
-            409,
-            "DUPLICATE_RESOURCE",
-            "A resource with the same unique value already exists.",
-            rid,
+            result.status_code,
+            result.code,
+            result.message,
+            request_id,
         )
 
     @app.exception_handler(Exception)
-    async def _unexpected(request: Request, exc: Exception):
-        rid = _request_id(request)
-        # Log the detail server-side; never send it to the client.
-        logger.exception("unhandled_exception request_id=%s", rid)
-        return error_response(500, "INTERNAL_ERROR", "An unexpected error occurred.", rid)
+    async def _unexpected(
+        request: Request,
+        exc: Exception,
+    ) -> JSONResponse:
+        request_id = _request_id(request)
+
+        # Keep the cause in protected server logs, never in the response.
+        logger.exception(
+            "unhandled_exception request_id=%s",
+            request_id,
+        )
+
+        return error_response(
+            500,
+            "INTERNAL_ERROR",
+            "An unexpected error occurred.",
+            request_id,
+        )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create and configure one FastAPI application instance."""
+
     current = settings or get_settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         yield
-        # Dispose the engine's connection pool on shutdown.
+
+        # Dispose the application-owned connection pool on shutdown.
         app.state.engine.dispose()
 
     app = FastAPI(
         title="Verdeza API",
         version="0.1.0",
-        description="Sustainable Waste Management & Recycling Platform — MAY2026-Team-012.",
+        description=("Sustainable Waste Management & Recycling Platform " "- MAY2026-Team-012."),
         openapi_url="/api/v1/openapi.json",
         docs_url="/docs",
         lifespan=lifespan,
@@ -146,25 +238,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
         """Liveness only. Never touches the database."""
-        return {"status": "ok", "env": current.APP_ENV}
+
+        return {
+            "status": "ok",
+            "env": current.APP_ENV,
+        }
 
     @app.get("/ready", tags=["system"])
     def ready(request: Request) -> JSONResponse:
-        """Readiness: verifies the database answers a trivial query."""
-        session = app.state.session_factory()
+        """Verify that the running application's database accepts a query."""
+
+        request_id = _request_id(request)
+
         try:
-            session.execute(text("SELECT 1"))
-        except Exception:
-            logger.warning("readiness_failed request_id=%s", _request_id(request))
-            return error_response(
-                503, "DATABASE_UNAVAILABLE", "database unavailable", _request_id(request)
+            with request.app.state.session_factory() as session:
+                session.execute(text("SELECT 1")).scalar_one()
+        except SQLAlchemyError as exc:
+            # The traceback is retained only in protected server logs.
+            # The client receives no SQL, connection or driver details.
+            logger.warning(
+                "readiness_failed request_id=%s error_type=%s",
+                request_id,
+                type(exc).__name__,
+                exc_info=True,
             )
-        finally:
-            session.close()
+
+            return error_response(
+                503,
+                "DATABASE_UNAVAILABLE",
+                "The service is temporarily unavailable.",
+                request_id,
+            )
+
         return JSONResponse(
             status_code=200,
             content={"status": "ready"},
-            headers={"X-Request-ID": _request_id(request)},
+            headers={"X-Request-ID": request_id},
         )
 
     return app

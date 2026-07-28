@@ -1,5 +1,9 @@
-"""Integration tests for the Zone model -- proves the DB chain and the
-ward-code canonicalisation invariant."""
+"""PostgreSQL integration tests for the shared Zone reference model.
+
+These tests verify persistence, ward-code canonicalisation, and the exact
+PostgreSQL SQLSTATE and constraint metadata used by the public integrity-error
+classifier.
+"""
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -10,42 +14,87 @@ from app.models.zone import Zone
 @pytest.mark.integration
 def test_zone_persists_and_reads_back(db, ward_a):
     fetched = db.get(Zone, ward_a.id)
+
     assert fetched is not None
     assert fetched.code == "W-04"
 
 
 @pytest.mark.integration
 def test_code_is_canonicalised_on_write(db):
-    """lowercase and surrounding whitespace are normalised on write."""
-    z = Zone(name="  Spaced Name  ", code="  w-09  ")
-    db.add(z)
+    """Lowercase values and surrounding whitespace are normalised."""
+
+    zone = Zone(
+        name="  Spaced Name  ",
+        code="  w-09  ",
+    )
+
+    db.add(zone)
     db.flush()
-    assert z.code == "W-09"
-    assert z.name == "Spaced Name"
+
+    assert zone.code == "W-09"
+    assert zone.name == "Spaced Name"
 
 
 @pytest.mark.integration
 @pytest.mark.boundary
-@pytest.mark.parametrize("dupe_code", ["W-04", "w-04", " W-04 ", "w-04 "])
-def test_logical_duplicate_ward_is_rejected(db, ward_a, dupe_code):
-    """W-04, w-04 and ' W-04 ' are the SAME ward.
+@pytest.mark.parametrize(
+    "duplicate_code",
+    [
+        "W-04",
+        "w-04",
+        " W-04 ",
+        "w-04 ",
+    ],
+)
+def test_duplicate_canonical_ward_reports_unique_violation(
+    db,
+    ward_a,
+    duplicate_code,
+):
+    """Equivalent ward codes must trigger the canonical unique index."""
 
-    A plain unique constraint on the raw string would let these through; the
-    canonical index must reject all of them.
-    """
-    db.add(Zone(name="Duplicate", code=dupe_code))
-    with pytest.raises(IntegrityError) as exc, db.begin_nested():
+    db.add(
+        Zone(
+            name="Duplicate",
+            code=duplicate_code,
+        )
+    )
+
+    with pytest.raises(IntegrityError) as captured, db.begin_nested():
         db.flush()
-    # assert it is the canonical uniqueness that fired, not some other
-    # integrity error.
-    assert "uq_zones_code_canonical" in str(exc.value).lower() or "unique" in str(exc.value).lower()
+
+    original = captured.value.orig
+
+    assert original.sqlstate == "23505"
+    assert original.diag.constraint_name == "uq_zones_code_canonical"
 
 
 @pytest.mark.integration
 @pytest.mark.boundary
-@pytest.mark.parametrize("bad", ["", "   "])
-def test_blank_code_is_rejected(db, bad):
-    """blank or whitespace-only code violates the not-blank check."""
-    db.add(Zone(name="Has name", code=bad))
-    with pytest.raises(IntegrityError), db.begin_nested():
+@pytest.mark.parametrize(
+    "blank_code",
+    [
+        "",
+        "   ",
+    ],
+)
+def test_blank_code_reports_named_check_violation(
+    db,
+    blank_code,
+):
+    """Blank ward codes must trigger the public not-blank constraint."""
+
+    db.add(
+        Zone(
+            name="Has name",
+            code=blank_code,
+        )
+    )
+
+    with pytest.raises(IntegrityError) as captured, db.begin_nested():
         db.flush()
+
+    original = captured.value.orig
+
+    assert original.sqlstate == "23514"
+    assert original.diag.constraint_name == "ck_zones_code_not_blank"
