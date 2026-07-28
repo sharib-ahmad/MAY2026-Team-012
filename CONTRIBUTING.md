@@ -238,9 +238,34 @@ Run all pre-commit checks manually when needed:
 pre-commit run --all-files
 ```
 
-Backend linting and backend tests will be added later during the backend/API implementation sprint.
+---
 
-Important: backend Ruff, backend pytest, backend CI, database migration checks, and API tests are not part of this Milestone 2 frontend quality setup PR.
+## Backend Development
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env
+# Set a 32+ character SECRET_KEY.
+# Use APP_ENV=local for normal local development.
+# Before running tests, use APP_ENV=test and a DATABASE_URL whose
+# database name ends in _test.
+ruff check .
+ruff format --check .
+alembic upgrade head
+alembic check
+pytest                               # coverage gate (80%) runs automatically
+```
+
+A single `pytest` enforces the coverage gate — no extra flags needed. The test
+suite refuses to run unless `APP_ENV=test` and the database name ends in `_test`
+(a safety guard against pointing it at a real database).
+
+Pre-commit runs Ruff against backend Python files. If the repo's
+`.pre-commit-config.yaml` does not already cover `backend/`, add the Ruff hook
+there rather than duplicating it.
 
 ---
 
@@ -260,8 +285,10 @@ For backend changes, run:
 ```bash
 cd backend
 source .venv/bin/activate
-pytest
 ruff check .
+ruff format --check .
+alembic check
+pytest
 ```
 
 For frontend changes, run:
@@ -273,25 +300,6 @@ npm run build
 ```
 
 If a command fails, fix the issue before opening or updating the PR.
-
----
-
-## Backend Virtual Environment Rule
-
-Python virtual environments are local developer files.
-
-Create the backend virtual environment inside the `backend/` folder:
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Do not commit `.venv/`.
-
-The virtual environment is only for local backend development and testing.
 
 ---
 

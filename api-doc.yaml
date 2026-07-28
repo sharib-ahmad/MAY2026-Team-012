@@ -69,8 +69,9 @@ paths:
       description: >
         Platform authentication requirement (NOT a Story 5.1 AC). Returns the
         authenticated user and canonical role so the frontend routes to the
-        correct dashboard. Sprint 1: no refresh endpoint, no self-registration,
-        no admin provisioning.
+        correct dashboard. Refresh and self-registration are outside the current
+        contract slice. Story 5.1 admin provisioning will be documented with its
+        feature PR.
       x-requirement: platform-authentication
       security: []
       requestBody:
@@ -299,7 +300,10 @@ paths:
 components:
   headers:
     XRequestID:
-      description: The request correlation ID (same UUID as error.request_id).
+      description: >
+        Correlation ID for the request. Returned on every response and equal to
+        error.request_id in error bodies. A valid incoming UUID is reused;
+        otherwise the server generates one.
       schema: { type: string, format: uuid }
 
   securitySchemes:
@@ -322,7 +326,9 @@ components:
         X-Request-ID: { $ref: "#/components/headers/XRequestID" }
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: RESOURCE_NOT_FOUND, message: "The requested resource was not found.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
     Conflict:
-      description: Duplicate or illegal transition (DUPLICATE_RESOURCE / ILLEGAL_STATUS_TRANSITION / REOPEN_WINDOW_EXPIRED)
+      description: >
+        Generic or domain-specific conflict (CONFLICT / DUPLICATE_RESOURCE /
+        ILLEGAL_STATUS_TRANSITION / REOPEN_WINDOW_EXPIRED)
       headers:
         X-Request-ID: { $ref: "#/components/headers/XRequestID" }
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, example: { error: { code: ILLEGAL_STATUS_TRANSITION, message: "That status change is not allowed.", request_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" } } } }
@@ -346,10 +352,9 @@ components:
     ComplaintStatus:
       type: string
       description: >
-        Matches DBML Enum ticketstatus. Sprint 1 transitions use only OPEN and
-        RESOLVED; IN_PROGRESS, REOPENED and CLOSED are reserved for later
-        workflow expansion (no Sprint 1 endpoint transitions into them).
-      enum: [OPEN, IN_PROGRESS, RESOLVED, REOPENED, CLOSED]
+        Canonical stored complaint statuses. Reopening transitions RESOLVED to
+        OPEN; REOPENED is an audit event, not a stored complaint status.
+      enum: [OPEN, IN_PROGRESS, RESOLVED, CLOSED]
     IssueType:
       type: string
       description: Matches DBML Enum tickettype exactly.
