@@ -23,7 +23,8 @@ export default function Login() {
       const data = await login(form.email, form.password);
       navigate(data.homePath, { replace: true });
     } catch (error) {
-      setErr(error?.response?.data?.detail || "Login failed");
+      const resp = error?.response;
+      setErr(resp?.data?.error?.message || resp?.data?.detail || "Login failed");
     }
 
     setLoading(false);

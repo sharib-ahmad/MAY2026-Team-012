@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import { homePathForRole } from "./roles";
-import * as auth from "../lib/mockAuth";
+import API from "../lib/api";
 import { usePolling } from "../hooks/usePolling";
 
 const AuthContext = createContext(null);
@@ -10,13 +10,8 @@ export function AuthProvider({ children }) {
     const raw = localStorage.getItem("gc_token");
     if (!raw) return null;
     try {
-      const { access_token } = JSON.parse(raw);
-      const sessionUser = auth.getSessionUser(access_token);
-      if (!sessionUser) {
-        localStorage.removeItem("gc_token");
-        return null;
-      }
-      return sessionUser;
+      const { user } = JSON.parse(raw);
+      return user || null;
     } catch {
       localStorage.removeItem("gc_token");
       return null;
@@ -25,14 +20,16 @@ export function AuthProvider({ children }) {
   const [loading] = useState(false);
 
   const login = async (email, password) => {
-    const data = await auth.login(email, password);
+    const res = await API.post("/v1/login", { email, password });
+    const data = res.data;
     localStorage.setItem("gc_token", JSON.stringify(data));
     setUser(data.user);
     return { ...data, homePath: homePathForRole(data.user.role) };
   };
 
   const register = async (payload) => {
-    const data = await auth.register(payload);
+    const res = await API.post("/v1/register", payload);
+    const data = res.data;
     localStorage.setItem("gc_token", JSON.stringify(data));
     setUser(data.user);
     return { ...data, homePath: homePathForRole(data.user.role) };
@@ -46,13 +43,15 @@ export function AuthProvider({ children }) {
   // Story 5.1-AC2: re-checks the session every few seconds so suspending
   // an account takes effect right away for anyone already logged in,
   // rather than only on their next login.
-  usePolling(() => {
+  usePolling(async () => {
     if (!user) return;
     const raw = localStorage.getItem("gc_token");
     if (!raw) return;
     try {
-      const { access_token } = JSON.parse(raw);
-      if (!auth.getSessionUser(access_token)) logout();
+      const res = await API.get("/v1/me");
+      setUser(res.data);
+      const stored = JSON.parse(raw);
+      localStorage.setItem("gc_token", JSON.stringify({ ...stored, user: res.data }));
     } catch {
       logout();
     }

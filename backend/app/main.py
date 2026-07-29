@@ -207,6 +207,88 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
 
+def seed_database(session_factory) -> None:
+    """Seed default waste categories, zones, and demo accounts on startup."""
+    from sqlalchemy import select
+
+    from app.core.security import get_password_hash
+    from app.models.enums import Role, UserStatus
+    from app.models.user import User
+    from app.models.waste_category import WasteCategory
+    from app.models.zone import Zone
+
+    with session_factory() as db:
+        # 1. Seed Waste Categories if none exist
+        if db.scalar(select(WasteCategory)) is None:
+            categories = [
+                WasteCategory(code="WET", label="Wet Waste", sort_order=1, is_active=True),
+                WasteCategory(code="DRY", label="Dry Waste", sort_order=2, is_active=True),
+                WasteCategory(
+                    code="HAZARDOUS", label="Hazardous Waste", sort_order=3, is_active=True
+                ),
+            ]
+            db.add_all(categories)
+            db.flush()
+
+        # 2. Seed Zones if they don't exist
+        default_zones = [
+            ("Gomti Nagar", "W-01", "Sector 1, Sector 2"),
+            ("Hazratganj", "W-02", "Sector 3, Sector 4"),
+            ("Alambagh", "W-03", "Sector 5"),
+            ("Indira Nagar", "W-04", "Sector 6"),
+            ("Chowk", "W-05", "Sector 7"),
+        ]
+        for name, code, sectors in default_zones:
+            zone = db.scalar(select(Zone).where(Zone.code == code))
+            if not zone:
+                new_zone = Zone(name=name, code=code, sectors=sectors)
+                db.add(new_zone)
+        db.flush()
+
+        # Get W-01 zone for linking users
+        zone_w01 = db.scalar(select(Zone).where(Zone.code == "W-01"))
+        zone_id = zone_w01.id if zone_w01 else None
+
+        # 3. Seed Users if email doesn't exist
+        password_hash = get_password_hash("password123")
+
+        seeds = [
+            ("Demo Admin", "admin@verdeza.test", "+919999999999", Role.SYSTEM_ADMIN, None),
+            (
+                "Demo Manager",
+                "manager@verdeza.test",
+                "+919876543213",
+                Role.MUNICIPAL_OFFICER,
+                zone_id,
+            ),
+            ("Demo Resident", "resident@verdeza.test", "+919876543214", Role.CITIZEN, zone_id),
+            (
+                "Demo Collector",
+                "collector@verdeza.test",
+                "+919876543215",
+                Role.COLLECTION_WORKER,
+                zone_id,
+            ),
+            ("Demo Recycler", "recycler@verdeza.test", "+919876543216", Role.RECYCLER, None),
+        ]
+
+        for name, email, phone, role, z_id in seeds:
+            user = db.scalar(select(User).where(User.email == email))
+            if not user:
+                new_user = User(
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    password_hash=password_hash,
+                    role=role,
+                    zone_id=z_id,
+                    status=UserStatus.ACTIVE,
+                )
+                db.add(new_user)
+
+        db.commit()
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Create and configure one FastAPI application instance."""
 
@@ -214,6 +296,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if current.APP_ENV != "test":
+            try:
+                seed_database(app.state.session_factory)
+            except Exception as exc:
+                logger.exception("database_seeding_failed: %s", exc)
         yield
 
         # Dispose the application-owned connection pool on shutdown.
@@ -234,6 +321,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_middleware(app)
     register_exception_handlers(app)
+
+    from app.api.v1.auth import router as auth_router
+
+    app.include_router(auth_router, prefix="/api/v1")
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
