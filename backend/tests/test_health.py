@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError
 from app.core.config import Settings
 from app.main import create_app
 
-TEST_DATABASE_URL = "postgresql+psycopg://unused:unused@localhost:5432/" "verdeza_readiness_test"
+TEST_DATABASE_URL = "postgresql+psycopg://unused:unused@localhost:5432/verdeza_readiness_test"
 
 
 class FakeResult:

@@ -54,4 +54,4 @@ def test_alembic_check_does_not_require_secret_key(engine):
         if part
     )
 
-    assert result.returncode == 0, "Alembic check failed while SECRET_KEY was empty.\n" f"{output}"
+    assert result.returncode == 0, f"Alembic check failed while SECRET_KEY was empty.\n{output}"

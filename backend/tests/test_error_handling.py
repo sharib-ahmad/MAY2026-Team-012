@@ -39,7 +39,7 @@ def make_integrity_error(
     constraint_name: str | None,
 ) -> IntegrityError:
     return IntegrityError(
-        ("INSERT INTO private_table(secret_col) " "VALUES (%(value)s)"),
+        ("INSERT INTO private_table(secret_col) VALUES (%(value)s)"),
         {"value": "private-value"},
         FakeDriverError(
             sqlstate=sqlstate,
