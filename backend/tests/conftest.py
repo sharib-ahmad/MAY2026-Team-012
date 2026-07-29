@@ -13,12 +13,12 @@ owns its engine and session factory.
 import re
 
 import pytest
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, make_url
 from sqlalchemy.orm import sessionmaker
 
 from alembic import command
-from alembic.config import Config
 from app.core.config import (
     DatabaseSettings,
     Settings,
@@ -36,14 +36,14 @@ def _assert_safe_test_database(
 
     if not database_settings.is_test:
         raise RuntimeError(
-            "Refusing test DB setup: " f"APP_ENV is {database_settings.APP_ENV!r}, not 'test'."
+            f"Refusing test DB setup: APP_ENV is {database_settings.APP_ENV!r}, not 'test'."
         )
 
     database_name = make_url(database_settings.DATABASE_URL).database or ""
 
     if not re.search(r"_test$", database_name):
         raise RuntimeError(
-            "Refusing test DB setup: " f"database {database_name!r} does not end in '_test'."
+            f"Refusing test DB setup: database {database_name!r} does not end in '_test'."
         )
 
 

@@ -141,7 +141,7 @@ class Settings(DatabaseSettings):
             ZoneInfo(self.PILOT_TIMEZONE)
         except ZoneInfoNotFoundError as exc:
             raise ValueError(
-                f"PILOT_TIMEZONE {self.PILOT_TIMEZONE!r} " "is not a valid timezone."
+                f"PILOT_TIMEZONE {self.PILOT_TIMEZONE!r} is not a valid timezone."
             ) from exc
 
         return self

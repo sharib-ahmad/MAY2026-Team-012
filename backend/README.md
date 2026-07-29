@@ -7,7 +7,9 @@ FastAPI + SQLAlchemy + Alembic + PostgreSQL. Part of MAY2026-Team-012.
 Run these commands from the `backend/` directory.
 
 ```bash
-uv sync --python 3.12
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env
 ```
 
@@ -36,13 +38,19 @@ still requires a valid `SECRET_KEY`.
 Start the backend:
 
 ```bash
-uv run uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 Local API documentation:
 
 ```text
 http://localhost:8000/docs
+```
+
+Windows PowerShell activation:
+
+```powershell
+.venv\Scripts\Activate.ps1
 ```
 
 ## Current Layout
@@ -70,13 +78,15 @@ tests/
 Run these before pushing:
 
 ```bash
-uv run ruff check .
-uv run ruff format --check .
+python -m pip check
 
-uv run alembic upgrade head
-uv run alembic check
+ruff check .
+ruff format --check .
 
-uv run pytest
+alembic upgrade head
+alembic check
+
+python -m pytest
 ```
 
 The backend CI job also verifies migration downgrade and re-upgrade
