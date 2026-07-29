@@ -244,19 +244,17 @@ pre-commit run --all-files
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements.txt -r requirements-dev.txt
+uv sync --python 3.12
 cp .env.example .env
 # Set a 32+ character SECRET_KEY.
 # Use APP_ENV=local for normal local development.
 # Before running tests, use APP_ENV=test and a DATABASE_URL whose
 # database name ends in _test.
-ruff check .
-ruff format --check .
-alembic upgrade head
-alembic check
-pytest                               # coverage gate (80%) runs automatically
+uv run ruff check .
+uv run ruff format --check .
+uv run alembic upgrade head
+uv run alembic check
+uv run pytest                               # coverage gate (80%) runs automatically
 ```
 
 A single `pytest` enforces the coverage gate — no extra flags needed. The test

@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: verdeza-postgres
+    environment:
+      POSTGRES_USER: verdeza
+      POSTGRES_PASSWORD: verdeza
+      POSTGRES_DB: verdeza
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verdeza -d verdeza"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

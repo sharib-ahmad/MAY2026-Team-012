@@ -1,6 +1,0 @@
-# Dev/CI only. Never imported by the running app.
-pytest==8.3.4
-pytest-cov==6.0.0
-ruff==0.8.4
-httpx==0.28.1
-freezegun==1.5.1
