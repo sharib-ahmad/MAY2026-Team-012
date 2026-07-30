@@ -1,16 +1,33 @@
+import re
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
+
+def validate_email_format(v: str) -> str:
+    if not isinstance(v, str):
+        return v
+    v = v.strip()
+    if not EMAIL_REGEX.match(v):
+        raise ValueError("value is not a valid email address")
+    return v
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def check_email(cls, v: str) -> str:
+        return validate_email_format(v)
 
 
 class UserRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
-    email: EmailStr
+    email: str
     password: str = Field(..., min_length=8, max_length=128)
     phone: str = Field(..., min_length=5, max_length=20)
     address: str | None = Field(default=None, max_length=500)
@@ -18,6 +35,11 @@ class UserRegisterRequest(BaseModel):
     role: str = Field(..., min_length=3, max_length=50)
     latitude: float | None = Field(default=None)
     longitude: float | None = Field(default=None)
+
+    @field_validator("email")
+    @classmethod
+    def check_email(cls, v: str) -> str:
+        return validate_email_format(v)
 
     @field_validator("name", "email", "phone")
     @classmethod

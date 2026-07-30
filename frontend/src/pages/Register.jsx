@@ -52,6 +52,12 @@ const isValidEmail = (email) => {
   return at > 0 && dot > at + 1 && dot < value.length - 1;
 };
 
+const isValidUUID = (id) => {
+  if (!id) return false;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return regex.test(id);
+};
+
 // className helper: swaps border color to red when a field has an error
 function inputClass(hasError) {
   return `w-full border rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${
@@ -174,7 +180,7 @@ export default function Register() {
         password: form.password,
         phone: form.phone || undefined,
         address: form.address || undefined,
-        zone_id: form.zone_id || undefined,
+        zone_id: form.zone_id && isValidUUID(form.zone_id) ? form.zone_id : undefined,
         role: form.role,
         latitude: form.latitude !== null ? form.latitude : undefined,
         longitude: form.longitude !== null ? form.longitude : undefined,
