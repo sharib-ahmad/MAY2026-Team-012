@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Ban,
   CheckCircle2,
@@ -7,44 +7,49 @@ import {
   MapPin,
   AlertTriangle,
   Activity,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { StatusPill } from "../../../components/UI";
-import { listUsers } from "../../../lib/mockAuth";
-import { listZones } from "../../../lib/mockZones";
-import { listStatusOverrides, setUserStatus } from "../../../lib/mockUserStatus";
-import DATA from "../../../data/admin_portal_data.json";
+import API, { getAdminDashboard } from "../../../lib/api";
 import { Section, PaginatedTable, SearchInput, FilterSelect } from "./shared";
 import { formatDate } from "./format";
 
 const ROLE_OPTIONS = [
   { value: "ALL", label: "All roles" },
-  ...DATA.roles.map((r) => ({ value: r.key, label: r.label })),
+  { value: "RESIDENT", label: "Resident" },
+  { value: "COLLECTOR", label: "Collector" },
+  { value: "RECYCLER", label: "Recycler" },
+  { value: "MANAGER", label: "Manager" },
+  { value: "ADMIN", label: "Admin" },
 ];
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All statuses" },
   { value: "ACTIVE", label: "Active" },
-  { value: "SUSPENDED", label: "Suspended" },
-  { value: "PENDING", label: "Pending" },
+  { value: "DISABLED", label: "Suspended" },
 ];
 
-const roleLabel = (key) => DATA.roles.find((r) => r.key === key)?.label || key;
-const zoneName = (id) => listZones().find((z) => z.id === id)?.name || "—";
+const roleLabel = (key) => {
+  const labels = {
+    RESIDENT: "Resident",
+    COLLECTOR: "Collector",
+    RECYCLER: "Recycler",
+    MANAGER: "Manager",
+    ADMIN: "Admin",
+  };
+  return labels[key] || key;
+};
 
 // One admin action per status: suspend an active account, reactivate a
-// suspended one, approve a pending one.
+// suspended one.
 const STATUS_ACTIONS = {
-  ACTIVE: { next: "SUSPENDED", label: "Suspend", icon: Ban, tone: "text-red-700 hover:bg-red-50" },
-  SUSPENDED: {
+  ACTIVE: { next: "DISABLED", label: "Suspend", icon: Ban, tone: "text-red-700 hover:bg-red-50" },
+  DISABLED: {
     next: "ACTIVE",
     label: "Activate",
-    icon: CheckCircle2,
-    tone: "text-emerald-700 hover:bg-emerald-50",
-  },
-  PENDING: {
-    next: "ACTIVE",
-    label: "Approve",
     icon: CheckCircle2,
     tone: "text-emerald-700 hover:bg-emerald-50",
   },
@@ -66,20 +71,10 @@ function PlatformHealthHero({ name, stats }) {
       </div>
       <div className="bg-[#0B4F4A] px-5 sm:px-8 pb-7 grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/15">
         {[
-          [Users, stats.total_users, "registered users", `${stats.active_users} active`],
-          [
-            MapPin,
-            stats.total_zones,
-            "wards configured",
-            `${stats.pending_users} pending accounts`,
-          ],
-          [
-            AlertTriangle,
-            stats.errors_last_24h,
-            "errors in 24h",
-            `${stats.open_complaints} open complaints`,
-          ],
-          [Activity, `${stats.system_uptime_pct}%`, "system uptime", "last 30 days"],
+          [Users, stats.registered_users, "registered users", "All users"],
+          [MapPin, stats.wards_configured, "wards configured", "System zones"],
+          [AlertTriangle, stats.errors_in_24h, "errors in 24h", "System errors"],
+          [Activity, `${stats.system_uptime_hours}h`, "system uptime", "Hours running"],
         ].map(([Icon, value, label, sub]) => (
           <div key={label} className="px-3 sm:px-5 py-1">
             <Icon size={15} className="text-amber-300" />
@@ -100,43 +95,142 @@ export default function Accounts() {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [query, setQuery] = useState("");
-  const [statusOverrides, setStatusOverrides] = useState(listStatusOverrides);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", role: "" });
 
-  // Demo users from the JSON fixture plus every account actually
-  // registered in localStorage (citizens via /register, officers and
-  // admins via the Create Account tab). The seeded demo logins exist in
-  // both places, so drop localStorage entries whose email the fixture
-  // already covers.
-  const users = useMemo(() => {
-    const fixtureEmails = new Set(DATA.users.map((u) => u.email));
-    const registered = listUsers()
-      .filter((u) => !fixtureEmails.has(u.email))
-      .map((u) => ({
-        ...u,
-        status: "ACTIVE",
-        created_at: u.createdAt,
-        last_login_at: null,
-      }));
-    return [...registered, ...DATA.users];
+  const handleSuspendUser = async (userId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === "ACTIVE" ? "DISABLED" : "ACTIVE";
+      await API.patch(`/v1/admin/user/${userId}/status`, { status: newStatus });
+      // Refresh dashboard data
+      const data = await getAdminDashboard();
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Failed to update user status:", err);
+      alert(
+        "Failed to update user status: " +
+          (err.response?.data?.error?.message || err.response?.data?.detail || err.message)
+      );
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await API.delete(`/v1/admin/user/${userId}`);
+      // Refresh dashboard data
+      const data = await getAdminDashboard();
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      alert(
+        "Failed to delete user: " +
+          (err.response?.data?.error?.message || err.response?.data?.detail || err.message)
+      );
+    }
+  };
+
+  const handleEditUser = (userId) => {
+    const userToEdit = dashboardData.users.find((u) => String(u.id) === String(userId));
+    if (userToEdit) {
+      setEditingUser(userToEdit);
+      setEditForm({
+        name: userToEdit.name,
+        email: userToEdit.email,
+        phone: userToEdit.phone,
+        role: userToEdit.role,
+      });
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name || !editForm.name.trim()) {
+      alert("Name cannot be empty.");
+      return;
+    }
+    if (!editForm.email || !editForm.email.trim()) {
+      alert("Email cannot be empty.");
+      return;
+    }
+    const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    if (!emailRegex.test(editForm.email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    if (!editForm.phone || !editForm.phone.trim()) {
+      alert("Phone number cannot be empty.");
+      return;
+    }
+
+    try {
+      await API.patch(`/v1/admin/user/${editingUser.id}`, editForm);
+      // Refresh dashboard data
+      const data = await getAdminDashboard();
+      setDashboardData(data);
+      setEditingUser(null);
+    } catch (err) {
+      console.error("Failed to update user:", err);
+      alert(
+        "Failed to update user: " +
+          (err.response?.data?.error?.message || err.response?.data?.detail || err.message)
+      );
+    }
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const data = await getAdminDashboard();
+        setDashboardData(data);
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
-  // Layer persisted admin status changes over the read-only sources.
-  const withStatus = users.map((u) => ({ ...u, status: statusOverrides[u.id] ?? u.status }));
+  const filtered = useMemo(() => {
+    if (!dashboardData?.users) return [];
 
-  const q = query.trim().toLowerCase();
-  const filtered = withStatus.filter(
-    (u) =>
-      (roleFilter === "ALL" || u.role === roleFilter) &&
-      (statusFilter === "ALL" || u.status === statusFilter) &&
-      (!q ||
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        zoneName(u.zone_id).toLowerCase().includes(q))
-  );
+    const q = query.trim().toLowerCase();
+
+    return dashboardData.users.filter(
+      (u) =>
+        (roleFilter === "ALL" || u.role === roleFilter) &&
+        (statusFilter === "ALL" || u.status === statusFilter) &&
+        (!q ||
+          u.name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.zone_name && u.zone_name.toLowerCase().includes(q)))
+    );
+  }, [dashboardData, roleFilter, statusFilter, query]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-gray-500">Loading dashboard data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <PlatformHealthHero name={user?.name} stats={DATA.stats} />
+      <PlatformHealthHero name={user?.name} stats={dashboardData?.stats || {}} />
 
       <Section
         eyebrow="Identity provisioning"
@@ -162,7 +256,7 @@ export default function Accounts() {
             { key: "name", label: "Name" },
             { key: "email", label: "Email" },
             { key: "role", label: "Role", render: (v) => roleLabel(v) },
-            { key: "zone_id", label: "Zone", render: (v) => zoneName(v) },
+            { key: "zone_code", label: "Zone", render: (v) => v || "—" },
             { key: "last_login_at", label: "Last login", render: (v) => formatDate(v) },
             { key: "status", label: "Status", render: (v) => <StatusPill status={v} /> },
             {
@@ -173,13 +267,32 @@ export default function Accounts() {
                 if (!action) return null;
                 const Icon = action.icon;
                 return (
-                  <button
-                    type="button"
-                    onClick={() => setStatusOverrides(setUserStatus(row.id, action.next))}
-                    className={`inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold transition ${action.tone}`}
-                  >
-                    <Icon size={13} /> {action.label}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditUser(row.id)}
+                      className="inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
+                      title="Edit user"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(row.id)}
+                      className="inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 transition"
+                      title="Delete user"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSuspendUser(row.id, row.status)}
+                      className={`inline-flex items-center gap-1.5 rounded-input border border-gray-200 px-2.5 py-1 text-xs font-semibold transition ${action.tone}`}
+                      title={action.label}
+                    >
+                      <Icon size={13} /> {action.label}
+                    </button>
+                  </div>
                 );
               },
             },
@@ -187,6 +300,83 @@ export default function Accounts() {
           rows={filtered}
         />
       </Section>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-lg w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">Edit User</h3>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="RESIDENT">Resident</option>
+                  <option value="COLLECTOR">Collector</option>
+                  <option value="RECYCLER">Recycler</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t">
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -47,3 +47,33 @@ API.interceptors.response.use(
 );
 
 export default API;
+
+export const getAdminDashboard = async () => {
+  const { data } = await API.get("/v1/admin/dashboard");
+  return data;
+};
+
+export const getWards = async () => {
+  const { data } = await API.get("/v1/admin/ward");
+  return data;
+};
+
+export const createWard = async (wardData) => {
+  const { data } = await API.post("/v1/admin/ward", wardData);
+  return data;
+};
+
+export const getLogs = async (limit = 100) => {
+  const { data } = await API.get("/v1/admin/logs", { params: { limit } });
+  return data;
+};
+
+export const createAccount = async (accountData) => {
+  const { data } = await API.post("/v1/admin/account", accountData);
+  return data;
+};
+
+export const getZones = async () => {
+  const { data } = await API.get("/v1/zones");
+  return data;
+};

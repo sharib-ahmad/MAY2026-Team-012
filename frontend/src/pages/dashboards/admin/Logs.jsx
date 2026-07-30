@@ -1,75 +1,77 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollText } from "lucide-react";
-import DATA from "../../../data/admin_portal_data.json";
-import { Section, PaginatedTable, SearchInput, FilterSelect } from "./shared";
+import { getLogs } from "../../../lib/api";
+import { Section, SearchInput } from "./shared";
 import { formatDate } from "./format";
 
-const LEVEL_CLASS = {
-  ERROR: "pill pill-danger",
-  WARN: "pill pill-warn",
-  INFO: "pill pill-info",
+const ACTION_CLASS = {
+  WARD_CREATED: "pill pill-info",
+  WARD_UPDATED: "pill pill-warn",
+  WARD_DELETED: "pill pill-danger",
+  USER_CREATED: "pill pill-info",
+  LOGIN_SUCCESS: "pill pill-info",
+  LOGIN_FAILED: "pill pill-danger",
 };
 
-const LEVEL_OPTIONS = [
-  { value: "ALL", label: "All levels" },
-  { value: "ERROR", label: "Error" },
-  { value: "WARN", label: "Warning" },
-  { value: "INFO", label: "Info" },
-];
-
 export default function Logs() {
-  const [errorQuery, setErrorQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState("ALL");
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [auditQuery, setAuditQuery] = useState("");
 
-  const eq = errorQuery.trim().toLowerCase();
-  const errors = DATA.error_logs.filter(
-    (log) =>
-      (levelFilter === "ALL" || log.level === levelFilter) &&
-      (!eq || log.source.toLowerCase().includes(eq) || log.message.toLowerCase().includes(eq))
-  );
+  // Fetch logs on component mount
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setLoading(true);
+        const data = await getLogs();
+        setLogs(data.logs || []);
+      } catch (err) {
+        setError(err.message || "Failed to load logs");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Section eyebrow="Accountability" title="Audit log">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-gray-500">Loading logs...</div>
+          </div>
+        </Section>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Section eyebrow="Accountability" title="Audit log">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-red-500">Error: {error}</div>
+          </div>
+        </Section>
+      </div>
+    );
+  }
 
   const aq = auditQuery.trim().toLowerCase();
-  const audits = DATA.audit_log.filter(
-    (entry) =>
+  const filteredLogs = logs.filter(
+    (log) =>
       !aq ||
-      entry.actor.toLowerCase().includes(aq) ||
-      entry.action.replace(/_/g, " ").toLowerCase().includes(aq) ||
-      entry.target.toLowerCase().includes(aq) ||
-      entry.note.toLowerCase().includes(aq)
+      (log.user_name && log.user_name.toLowerCase().includes(aq)) ||
+      log.action.toLowerCase().includes(aq) ||
+      (log.entity_id && log.entity_id.toLowerCase().includes(aq)) ||
+      log.description.toLowerCase().includes(aq)
   );
 
   return (
     <div className="space-y-6">
-      <Section
-        eyebrow="Diagnostics"
-        title="Server error log"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              value={errorQuery}
-              onChange={setErrorQuery}
-              placeholder="Search source, message…"
-            />
-            <FilterSelect value={levelFilter} onChange={setLevelFilter} options={LEVEL_OPTIONS} />
-          </div>
-        }
-      >
-        <PaginatedTable
-          columns={[
-            {
-              key: "level",
-              label: "Level",
-              render: (v) => <span className={LEVEL_CLASS[v] || "pill pill-slate"}>{v}</span>,
-            },
-            { key: "source", label: "Source" },
-            { key: "message", label: "Message" },
-            { key: "timestamp", label: "Time", render: (v) => formatDate(v) },
-          ]}
-          rows={errors}
-        />
-      </Section>
-
       <Section
         eyebrow="Accountability"
         title="Audit log"
@@ -77,34 +79,43 @@ export default function Logs() {
           <SearchInput
             value={auditQuery}
             onChange={setAuditQuery}
-            placeholder="Search actor, action…"
+            placeholder="Search user, action, entity…"
           />
         }
       >
-        {audits.length === 0 && (
+        {filteredLogs.length === 0 && (
           <p className="text-center text-sm text-gray-400 py-8">No records found.</p>
         )}
         <ul className="space-y-4">
-          {audits.map((entry, i) => (
-            <li key={entry.id} className="flex items-start gap-4 text-sm">
+          {filteredLogs.map((log, i) => (
+            <li key={log.id} className="flex items-start gap-4 text-sm">
               <span className="font-mono-civic text-[11px] text-gray-300 mt-0.5">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B4F4A] text-white">
                 <ScrollText size={14} />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-[#14171F]">
-                  <span className="font-semibold">{entry.actor}</span>{" "}
+                  <span className="font-semibold">{log.user_name || "System"}</span>{" "}
                   <span className="text-gray-500">
-                    {entry.action.replace(/_/g, " ").toLowerCase()}
+                    {log.action.replace(/_/g, " ").toLowerCase()}
                   </span>{" "}
-                  &mdash; {entry.target}
+                  &mdash; {log.entity_type}{" "}
+                  {log.entity_id && (
+                    <span className="font-mono-civic text-xs">({log.entity_id})</span>
+                  )}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {entry.note} &middot;{" "}
-                  <span className="font-mono-civic">{formatDate(entry.timestamp)}</span>
+                  {log.description} &middot;{" "}
+                  <span className="font-mono-civic">{formatDate(log.timestamp)}</span>
+                  {log.ip_address && <span> &middot; IP: {log.ip_address}</span>}
                 </p>
+              </div>
+              <div>
+                <span className={ACTION_CLASS[log.action] || "pill pill-slate"}>
+                  {log.action.replace(/_/g, " ")}
+                </span>
               </div>
             </li>
           ))}

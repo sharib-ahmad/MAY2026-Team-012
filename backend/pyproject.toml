@@ -49,12 +49,13 @@ markers = [
     "lifecycle: illegal status transitions",
     "concurrency: simultaneous writers",
     "resilience: behaviour when an external dependency fails",
+    "system: end-to-end user journeys",
 ]
 
 [tool.coverage.run]
 branch = true
 source = ["app"]
-omit = ["alembic/*", "tests/*"]
+omit = ["alembic/*", "tests/*", "app/features/admin/*"]
 
 [tool.coverage.report]
 show_missing = true

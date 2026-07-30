@@ -10,9 +10,12 @@ migration bug, and importing here is how we prevent it.
 """
 
 from app.db.base import Base
+from app.models.audit import AuditLog, TraceEvent
 from app.models.zone import Zone
 
 __all__ = [
     "Base",
+    "AuditLog",
+    "TraceEvent",
     "Zone",
 ]
