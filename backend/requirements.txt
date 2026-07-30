@@ -8,6 +8,6 @@ alembic==1.14.0
 psycopg[binary]==3.3.4
 pydantic==2.10.4
 pydantic-settings==2.7.0
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
 bcrypt==4.1.2
 pydantic[email]
