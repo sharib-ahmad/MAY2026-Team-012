@@ -19,6 +19,8 @@ ignore = ["B008"]  # FastAPI's Depends() in argument defaults is the documented 
 # Alembic autogenerates these; allow its conventional unused-import and
 # long-line style, but everything else (real syntax/logic issues) still fails.
 "alembic/versions/*" = ["E501", "F401", "I001"]
+"app/db/registry.py" = ["F401"]
+"app/models/__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

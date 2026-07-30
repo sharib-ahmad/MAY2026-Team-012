@@ -5,6 +5,30 @@ import { useAuth } from "../context/AuthContext";
 import { UserPlus, CheckCircle2, Landmark, Eye, EyeOff } from "lucide-react";
 import API from "../lib/api";
 
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+function LocationPicker({ onChange }) {
+  useMapEvents({
+    click(e) {
+      onChange(e.latlng);
+    },
+  });
+  return null;
+}
+
 const ROLES = [
   { value: "RESIDENT", label: "Resident", desc: "Schedule pickups and track your impact" },
   { value: "COLLECTOR", label: "Collector", desc: "Collect and weigh dry waste on routes" },
@@ -28,6 +52,12 @@ const isValidEmail = (email) => {
   return at > 0 && dot > at + 1 && dot < value.length - 1;
 };
 
+const isValidUUID = (id) => {
+  if (!id) return false;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return regex.test(id);
+};
+
 // className helper: swaps border color to red when a field has an error
 function inputClass(hasError) {
   return `w-full border rounded-input px-3 py-3 sm:py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${
@@ -48,6 +78,8 @@ export default function Register() {
     zone_id: "",
     role: "RESIDENT",
     address: "",
+    latitude: null,
+    longitude: null,
   });
   const [err, setErr] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -57,7 +89,7 @@ export default function Register() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    API.get("/zones")
+    API.get("/v1/zones")
       .then((r) => {
         if (Array.isArray(r.data) && r.data.length > 0) {
           setZones(r.data);
@@ -84,6 +116,19 @@ export default function Register() {
     }
   };
 
+  const handleMapClick = (latlng) => {
+    setForm((f) => ({
+      ...f,
+      latitude: latlng.lat,
+      longitude: latlng.lng,
+    }));
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.location;
+      return next;
+    });
+  };
+
   const validate = () => {
     const errors = {};
 
@@ -103,6 +148,12 @@ export default function Register() {
     }
     if (needsZone && !form.zone_id) {
       errors.zone_id = "Please select your zone.";
+    }
+    if (!form.phone || !form.phone.trim() || form.phone.trim().length < 5) {
+      errors.phone = "Please enter your phone number (at least 5 characters).";
+    }
+    if (form.role === "RESIDENT" && (!form.latitude || !form.longitude)) {
+      errors.location = "Please select your location on the map.";
     }
     if (showAddress && !form.address.trim()) {
       errors.address = "Please enter your home address.";
@@ -129,15 +180,29 @@ export default function Register() {
         password: form.password,
         phone: form.phone || undefined,
         address: form.address || undefined,
-        zone_id: form.zone_id || undefined,
+        zone_id: form.zone_id && isValidUUID(form.zone_id) ? form.zone_id : undefined,
         role: form.role,
+        latitude: form.latitude !== null ? form.latitude : undefined,
+        longitude: form.longitude !== null ? form.longitude : undefined,
       });
       setDone(true);
       setTimeout(() => navigate(data.homePath, { replace: true }), 1200);
     } catch ({ response }) {
-      setErr(
-        typeof response?.data?.detail === "string" ? response.data.detail : "Registration failed"
-      );
+      const errorMsg = response?.data?.error?.message;
+      const details = response?.data?.error?.details;
+      if (details && Array.isArray(details)) {
+        const fieldErrorsStr = details
+          .map((d) => `${d.loc.slice(1).join(".")}: ${d.type}`)
+          .join(", ");
+        setErr(`${errorMsg} (${fieldErrorsStr})`);
+      } else {
+        setErr(
+          errorMsg ||
+            (typeof response?.data?.detail === "string"
+              ? response.data.detail
+              : "Registration failed")
+        );
+      }
     }
     setLoading(false);
   };
@@ -351,16 +416,21 @@ export default function Register() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Phone *</label>
                     <input
                       type="tel"
+                      required
                       autoComplete="tel"
                       inputMode="tel"
-                      placeholder="Optional"
-                      className={inputClass(false)}
+                      placeholder="e.g. +919876543210"
+                      aria-invalid={Boolean(fieldErrors.phone)}
+                      className={inputClass(fieldErrors.phone)}
                       value={form.phone}
                       onChange={(e) => updateField("phone", e.target.value)}
                     />
+                    {fieldErrors.phone && (
+                      <p className="text-red-600 text-xs mt-1">{fieldErrors.phone}</p>
+                    )}
                   </div>
                   {showAddress && (
                     <div>
@@ -379,6 +449,51 @@ export default function Register() {
                       />
                       {fieldErrors.address && (
                         <p className="text-red-600 text-xs mt-1">{fieldErrors.address}</p>
+                      )}
+                    </div>
+                  )}
+                  {needsZone && (
+                    <div className="space-y-1 mt-2">
+                      <label className="block text-xs font-medium text-gray-600">
+                        Select Your Location on the Map *
+                      </label>
+                      <div
+                        style={{
+                          height: "240px",
+                          width: "100%",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                        }}
+                        className="border border-gray-200 shadow-sm"
+                      >
+                        <MapContainer
+                          center={[26.8467, 80.9462]}
+                          zoom={12}
+                          scrollWheelZoom={false}
+                          style={{ height: "100%", width: "100%" }}
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <LocationPicker onChange={handleMapClick} />
+                          {form.latitude && form.longitude && (
+                            <Marker position={[form.latitude, form.longitude]} />
+                          )}
+                        </MapContainer>
+                      </div>
+                      {form.latitude && form.longitude ? (
+                        <p className="text-xs text-green-600 font-medium">
+                          Selected coordinates: {form.latitude.toFixed(6)},{" "}
+                          {form.longitude.toFixed(6)}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">
+                          Click on the map to set your location coordinates.
+                        </p>
+                      )}
+                      {fieldErrors.location && (
+                        <p className="text-red-600 text-xs mt-1">{fieldErrors.location}</p>
                       )}
                     </div>
                   )}

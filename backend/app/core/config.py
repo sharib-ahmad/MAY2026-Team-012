@@ -8,6 +8,7 @@ Application startup remains fail-closed outside APP_ENV=test when SECRET_KEY is
 missing, weak, or a known placeholder.
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -21,7 +22,11 @@ from sqlalchemy.exc import ArgumentError
 Environment = Literal["local", "test", "staging", "production"]
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-ENV_FILE = BACKEND_ROOT / ".env"
+
+
+APP_ENV = os.getenv("APP_ENV", "local")
+
+ENV_FILE = BACKEND_ROOT / ".env.test" if APP_ENV == "test" else BACKEND_ROOT / ".env"
 
 SETTINGS_CONFIG = SettingsConfigDict(
     env_file=ENV_FILE,

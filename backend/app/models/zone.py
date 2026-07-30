@@ -22,10 +22,16 @@ a Jira item rather than solved speculatively now.
 admin assignment story lands; tracked in Jira.
 """
 
-from sqlalchemy import CheckConstraint, Index, String, func, text
-from sqlalchemy.orm import Mapped, mapped_column, validates
+import uuid
+from typing import TYPE_CHECKING
+
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, func, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
+
+if TYPE_CHECKING:
+    from app.features.users.models import User
 
 
 class Zone(Base, UUIDPrimaryKey, Timestamps):
@@ -36,6 +42,22 @@ class Zone(Base, UUIDPrimaryKey, Timestamps):
     # the functional unique index in the migration.
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     sectors: Mapped[str | None] = mapped_column(String(500))
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", name="fk_zones_manager_id_users"),
+        nullable=True,
+    )
+
+    # Relationships
+    manager: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[manager_id],
+        back_populates="managed_zones",
+    )
+    members: Mapped[list["User"]] = relationship(
+        "User",
+        foreign_keys="[User.zone_id]",
+        back_populates="zone",
+    )
 
     __table_args__ = (
         CheckConstraint("length(btrim(name)) > 0", name="name_not_blank"),

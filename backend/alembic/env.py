@@ -13,7 +13,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from app.core.config import get_database_settings
-from app.models import Base  # imports models for autogenerate
+from app.db.registry import Base  # imports models for autogenerate
 
 config = context.config
 
