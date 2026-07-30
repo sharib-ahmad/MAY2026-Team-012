@@ -11,7 +11,7 @@ from app.db.base import Base, CreatedAt, UUIDPrimaryKey
 from app.models.enums import ExportJobStatus, ExportJobType
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.features.users.models import User
 
 
 class ExportJob(Base, UUIDPrimaryKey, CreatedAt):

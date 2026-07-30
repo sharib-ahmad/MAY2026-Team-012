@@ -1,10 +1,15 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.features.collection_ops.models import (
+    DailyPickupSchedule,
+    DailyPickupStop,
+    DelayLog,
+    Pickup,
+)
+from app.features.sorting_guide.models import WasteCategory
+from app.features.users.models import User
 from app.models.enums import DelayReason, Role, UserStatus
-from app.models.pickup import DelayLog, Pickup
-from app.models.user import User
-from app.models.waste_category import WasteCategory
 
 
 @pytest.mark.integration
@@ -64,9 +69,6 @@ def test_delay_log_check_constraint(db, ward_a):
     )
     db.add(pickup)
     db.flush()
-
-    # Now create daily schedule & stop
-    from app.models.pickup import DailyPickupSchedule, DailyPickupStop
 
     schedule = DailyPickupSchedule(
         collector_id=user.id,

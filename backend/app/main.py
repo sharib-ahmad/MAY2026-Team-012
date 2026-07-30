@@ -212,9 +212,9 @@ def seed_database(session_factory) -> None:
     from sqlalchemy import select
 
     from app.core.security import get_password_hash
+    from app.features.sorting_guide.models import WasteCategory
+    from app.features.users.models import User
     from app.models.enums import Role, UserStatus
-    from app.models.user import User
-    from app.models.waste_category import WasteCategory
     from app.models.zone import Zone
 
     with session_factory() as db:
@@ -322,9 +322,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_middleware(app)
     register_exception_handlers(app)
 
-    from app.api.v1.auth import router as auth_router
+    from app.api.v1.router import router as v1_router
 
-    app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(v1_router, prefix="/api/v1")
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:

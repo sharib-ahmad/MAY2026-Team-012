@@ -31,7 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.features.users.models import User
 
 
 class Zone(Base, UUIDPrimaryKey, Timestamps):

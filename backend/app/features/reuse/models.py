@@ -20,7 +20,7 @@ from app.db.base import Base, CreatedAt, Timestamps, UUIDPrimaryKey
 from app.models.enums import ReuseCategory, ReuseClaimStatus, ReuseCondition, ReuseStatus
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.features.users.models import User
     from app.models.zone import Zone
 
 

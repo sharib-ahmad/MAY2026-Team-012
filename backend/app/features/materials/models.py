@@ -20,9 +20,9 @@ from app.db.base import Base, Timestamps, UUIDPrimaryKey
 from app.models.enums import BatchQuality, BatchStatus
 
 if TYPE_CHECKING:
-    from app.models.pickup import Pickup
-    from app.models.user import User
-    from app.models.waste_category import WasteCategory
+    from app.features.collection_ops.models import Pickup
+    from app.features.sorting_guide.models import WasteCategory
+    from app.features.users.models import User
     from app.models.zone import Zone
 
 
@@ -112,8 +112,8 @@ class Batch(Base, UUIDPrimaryKey, Timestamps):
         Index("ix_batches_waste_category", "waste_category"),
         CheckConstraint(
             (
-                "quality != 'UNSAFE' OR "
-                "(quality = 'UNSAFE' "
+                "quality_status != 'UNSAFE' OR "
+                "(quality_status = 'UNSAFE' "
                 "AND contamination_note IS NOT NULL "
                 "AND length(btrim(contamination_note)) > 0)"
             ),

@@ -11,7 +11,7 @@ from app.db.base import Base, CreatedAt, UUIDPrimaryKey
 from app.models.enums import EntityType, Role, TraceEventType
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.features.users.models import User
 
 
 class AuditLog(Base, UUIDPrimaryKey, CreatedAt):

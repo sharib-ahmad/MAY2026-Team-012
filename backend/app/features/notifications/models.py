@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, CreatedAt, UUIDPrimaryKey
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.features.users.models import User
 
 
 class Notification(Base, UUIDPrimaryKey, CreatedAt):

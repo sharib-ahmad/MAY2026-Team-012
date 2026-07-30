@@ -22,9 +22,9 @@ from app.db.base import Base, CreatedAt, Timestamps, UUIDPrimaryKey
 from app.models.enums import BadgeCategory, CreditReason, CreditStatus
 
 if TYPE_CHECKING:
-    from app.models.pickup import Pickup
-    from app.models.user import User
-    from app.models.waste_category import WasteCategory
+    from app.features.collection_ops.models import Pickup
+    from app.features.sorting_guide.models import WasteCategory
+    from app.features.users.models import User
 
 
 class CreditFactor(Base, UUIDPrimaryKey, Timestamps):

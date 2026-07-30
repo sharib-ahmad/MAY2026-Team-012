@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.auth import UserRegisterRequest
+from app.features.auth.schemas import UserRegisterRequest
 
 
 @pytest.mark.unit

@@ -5,8 +5,8 @@ from fastapi import status
 from sqlalchemy import select
 
 from app.core.security import get_password_hash
+from app.features.users.models import User
 from app.models.enums import Role, UserStatus
-from app.models.user import User
 from app.models.zone import Zone
 
 

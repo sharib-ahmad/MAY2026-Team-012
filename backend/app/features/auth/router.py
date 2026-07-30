@@ -1,23 +1,28 @@
-import uuid
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.db.session import get_db
+from app.features.auth.dependencies import (
+    ROLE_MAP_DB_TO_FRONTEND,
+    get_current_user,
+)
+from app.features.auth.schemas import (
+    AuthenticatedUser,
+    LoginRequest,
+    TokenResponse,
+    UserRegisterRequest,
+)
+from app.features.users.models import User
 from app.models.enums import Role, UserStatus
-from app.models.user import User
 from app.models.zone import Zone
-from app.schemas.auth import AuthenticatedUser, LoginRequest, TokenResponse, UserRegisterRequest
 
-router = APIRouter()
-security_bearer = HTTPBearer()
+router = APIRouter(tags=["Authentication"])
 
 # Map frontend roles to database Role enums
 ROLE_MAP_FRONTEND_TO_DB = {
@@ -27,64 +32,6 @@ ROLE_MAP_FRONTEND_TO_DB = {
     "MANAGER": Role.MUNICIPAL_OFFICER,
     "ADMIN": Role.SYSTEM_ADMIN,
 }
-
-# Map database Role enums back to frontend role strings
-ROLE_MAP_DB_TO_FRONTEND = {
-    Role.CITIZEN: "RESIDENT",
-    Role.COLLECTION_WORKER: "COLLECTOR",
-    Role.RECYCLER: "RECYCLER",
-    Role.MUNICIPAL_OFFICER: "MANAGER",
-    Role.SYSTEM_ADMIN: "ADMIN",
-}
-
-
-def get_current_user(
-    db: Session = Depends(get_db),
-    token: HTTPAuthorizationCredentials = Depends(security_bearer),
-) -> User:
-    """FastAPI dependency to extract and authenticate the current user using JWT."""
-    settings = get_settings()
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = jwt.decode(
-            token.credentials,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM],
-        )
-        user_id: str | None = payload.get("sub")
-        token_version: int | None = payload.get("token_version")
-        if user_id is None:
-            raise credentials_exception
-    except JWTError as err:
-        raise credentials_exception from err
-
-    # Query user from database
-    user = db.scalar(
-        select(User).where(
-            User.id == uuid.UUID(user_id),
-            User.deleted_at.is_(None),
-        )
-    )
-    if user is None:
-        raise credentials_exception
-
-    # Check status
-    if user.status == UserStatus.DISABLED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account has been suspended by an administrator.",
-        )
-
-    # Check token version
-    if token_version is not None and token_version != user.token_version:
-        raise credentials_exception
-
-    return user
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -127,8 +74,6 @@ def register(request: UserRegisterRequest, db: Session = Depends(get_db)) -> Any
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Selected ward does not exist.",
             )
-
-    from datetime import datetime
 
     # Hash the password and create the user
     hashed_password = get_password_hash(request.password)
@@ -206,8 +151,6 @@ def login(request: LoginRequest, db: Session = Depends(get_db)) -> Any:
             detail="This account has been suspended by an administrator.",
         )
 
-    from datetime import datetime
-
     # Update last login timestamp
     user.last_login_at = datetime.now(UTC)
     db.commit()
@@ -256,10 +199,3 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         role=ROLE_MAP_DB_TO_FRONTEND.get(current_user.role, current_user.role.name),
         ward_code=ward_code,
     )
-
-
-@router.get("/zones")
-def list_zones(db: Session = Depends(get_db)) -> Any:
-    """Return a list of all active zones for reference."""
-    zones = db.scalars(select(Zone).order_by(Zone.name)).all()
-    return [{"id": str(z.id), "name": f"{z.code} - {z.name}"} for z in zones]

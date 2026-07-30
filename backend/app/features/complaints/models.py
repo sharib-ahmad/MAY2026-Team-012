@@ -10,8 +10,8 @@ from app.db.base import Base, Timestamps, UUIDPrimaryKey
 from app.models.enums import TicketStatus, TicketType
 
 if TYPE_CHECKING:
-    from app.models.pickup import Pickup
-    from app.models.user import User
+    from app.features.collection_ops.models import Pickup
+    from app.features.users.models import User
     from app.models.zone import Zone
 
 
