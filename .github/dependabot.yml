@@ -27,6 +27,32 @@ updates:
         update-types:
           - "version-update:semver-major"
 
+  # Backend dependencies: FastAPI/SQLAlchemy/Alembic/Psycopg/testing tools
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:15"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(backend)"
+    groups:
+      backend-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
   # GitHub Actions updates: checkout/setup-node etc.
   - package-ecosystem: "github-actions"
     directory: "/"
