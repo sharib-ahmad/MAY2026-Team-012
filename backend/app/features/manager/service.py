@@ -27,7 +27,6 @@ from app.features.collection_ops.models import (
     DailyPickupStop,
     DelayLog,
     MixedWasteTag,
-    RouteHistory,
 )
 from app.features.complaints.models import Ticket
 from app.features.manager.schemas import (
@@ -108,9 +107,7 @@ def _complaint_out(ticket: Ticket) -> ComplaintOut:
 def get_overview(db: Session, zone_ids: list[uuid.UUID] | None) -> ManagerOverviewResponse:
     """Assemble everything the Overview tab needs in one pass."""
 
-    zones = db.scalars(
-        select(Zone).where(*_scoped(_zone_scope_filter(Zone.id, zone_ids)))
-    ).all()
+    zones = db.scalars(select(Zone).where(*_scoped(_zone_scope_filter(Zone.id, zone_ids)))).all()
 
     today = datetime.now(UTC).date()
 
@@ -122,22 +119,28 @@ def get_overview(db: Session, zone_ids: list[uuid.UUID] | None) -> ManagerOvervi
     active_workers_total = 0
 
     for zone in zones:
-        residents_count = db.scalar(
-            select(func.count(User.id)).where(
-                User.zone_id == zone.id,
-                User.role == Role.CITIZEN,
-                User.deleted_at.is_(None),
+        residents_count = (
+            db.scalar(
+                select(func.count(User.id)).where(
+                    User.zone_id == zone.id,
+                    User.role == Role.CITIZEN,
+                    User.deleted_at.is_(None),
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        active_workers = db.scalar(
-            select(func.count(User.id)).where(
-                User.zone_id == zone.id,
-                User.role == Role.COLLECTION_WORKER,
-                User.status == UserStatus.ACTIVE,
-                User.deleted_at.is_(None),
+        active_workers = (
+            db.scalar(
+                select(func.count(User.id)).where(
+                    User.zone_id == zone.id,
+                    User.role == Role.COLLECTION_WORKER,
+                    User.status == UserStatus.ACTIVE,
+                    User.deleted_at.is_(None),
+                )
             )
-        ) or 0
+            or 0
+        )
 
         todays_schedules = db.scalars(
             select(DailyPickupSchedule).where(
@@ -176,16 +179,22 @@ def get_overview(db: Session, zone_ids: list[uuid.UUID] | None) -> ManagerOvervi
     zone_id_list = [z.id for z in zones] if zone_ids is not None else None
 
     ticket_zone_filter = _zone_scope_filter(Ticket.zone_id, zone_id_list)
-    open_complaints = db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.status == TicketStatus.OPEN, *_scoped(ticket_zone_filter)
+    open_complaints = (
+        db.scalar(
+            select(func.count(Ticket.id)).where(
+                Ticket.status == TicketStatus.OPEN, *_scoped(ticket_zone_filter)
+            )
         )
-    ) or 0
-    needs_attention_count = db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.status.in_(NEEDS_ATTENTION_STATUSES), *_scoped(ticket_zone_filter)
+        or 0
+    )
+    needs_attention_count = (
+        db.scalar(
+            select(func.count(Ticket.id)).where(
+                Ticket.status.in_(NEEDS_ATTENTION_STATUSES), *_scoped(ticket_zone_filter)
+            )
         )
-    ) or 0
+        or 0
+    )
 
     week_ago = datetime.now(UTC) - timedelta(days=7)
     resolved_this_week_tickets = db.scalars(
@@ -370,9 +379,7 @@ def list_complaints(
         count_query = count_query.where(clause)
 
     total = db.scalar(count_query) or 0
-    tickets = db.scalars(
-        query.order_by(Ticket.created_at.desc()).offset(skip).limit(limit)
-    ).all()
+    tickets = db.scalars(query.order_by(Ticket.created_at.desc()).offset(skip).limit(limit)).all()
 
     return ComplaintListResponse(complaints=[_complaint_out(t) for t in tickets], total=total)
 
@@ -443,11 +450,14 @@ def _route_status(schedule: DailyPickupSchedule, has_delay: bool) -> str:
 
 
 def _route_out(db: Session, schedule: DailyPickupSchedule) -> RouteOut:
-    has_delay = db.scalar(
-        select(func.count(DelayLog.id))
-        .join(DailyPickupStop, DelayLog.stop_id == DailyPickupStop.id)
-        .where(DailyPickupStop.schedule_id == schedule.id)
-    ) or 0
+    has_delay = (
+        db.scalar(
+            select(func.count(DelayLog.id))
+            .join(DailyPickupStop, DelayLog.stop_id == DailyPickupStop.id)
+            .where(DailyPickupStop.schedule_id == schedule.id)
+        )
+        or 0
+    )
     history = schedule.routes[-1] if schedule.routes else None
     zone = schedule.zone
     last_update = max(
@@ -501,7 +511,7 @@ def list_routes(
         routes = [r for r in routes if r.status == status.upper()]
 
     if zone_ids is not None:
-        zone_id_list = [z for z in zone_ids]
+        zone_id_list = list(zone_ids)
 
     delay_logs = _delay_logs(db, zone_id_list)
     mixed_waste_flags = _mixed_waste_flags(db, zone_id_list)
@@ -595,7 +605,9 @@ def _worker_out(db: Session, worker: User) -> WorkerOut:
     zone = worker.zone
     active_route = db.scalar(
         select(DailyPickupSchedule)
-        .where(DailyPickupSchedule.collector_id == worker.id, DailyPickupSchedule.is_active.is_(True))
+        .where(
+            DailyPickupSchedule.collector_id == worker.id, DailyPickupSchedule.is_active.is_(True)
+        )
         .order_by(DailyPickupSchedule.schedule_date.desc())
     )
     return WorkerOut(
@@ -617,8 +629,10 @@ def list_workers(
     availability: str | None = None,
     search: str | None = None,
 ) -> WorkerListResponse:
-    query = select(User).options(selectinload(User.zone)).where(
-        User.role == Role.COLLECTION_WORKER, User.deleted_at.is_(None)
+    query = (
+        select(User)
+        .options(selectinload(User.zone))
+        .where(User.role == Role.COLLECTION_WORKER, User.deleted_at.is_(None))
     )
 
     scope_filter = _zone_scope_filter(User.zone_id, zone_ids)
@@ -640,9 +654,7 @@ def list_workers(
         query = query.where(User.name.ilike(needle))
 
     workers = db.scalars(query.order_by(User.name)).all()
-    return WorkerListResponse(
-        workers=[_worker_out(db, w) for w in workers], total=len(workers)
-    )
+    return WorkerListResponse(workers=[_worker_out(db, w) for w in workers], total=len(workers))
 
 
 def reassign_worker(

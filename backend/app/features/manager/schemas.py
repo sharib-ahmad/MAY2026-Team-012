@@ -3,7 +3,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Overview
 # ---------------------------------------------------------------------------
@@ -187,9 +186,7 @@ class WorkerReassignRequest(BaseModel):
     """Move a worker to another ward and/or availability state."""
 
     zone_id: uuid.UUID | None = None
-    availability: str | None = Field(
-        None, description="One of AVAILABLE, UNAVAILABLE, ON_ROUTE"
-    )
+    availability: str | None = Field(None, description="One of AVAILABLE, UNAVAILABLE, ON_ROUTE")
 
 
 ManagerOverviewResponse.model_rebuild()

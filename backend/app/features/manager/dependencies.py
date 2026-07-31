@@ -4,7 +4,6 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
 from app.features.auth.dependencies import get_current_user
 from app.features.users.models import User
 from app.models.enums import Role
