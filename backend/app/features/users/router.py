@@ -173,15 +173,42 @@ def get_dashboard(
             Credit.user_id == current_user.id, Credit.status == CreditStatus.CONFIRMED
         )
     ).all()
-    today = datetime.now(UTC).date()
-    queue = next(
-        (
-            serialize_request(request).model_dump()
-            for request in requests
-            if request.requested_date.date() == today
-            and request.status == BulkRequestStatus.APPROVED
-        ),
-        None,
+    completed_pickups = db.scalars(
+        select(Pickup).where(
+            Pickup.resident_id == current_user.id, Pickup.status == PickupStatus.COMPLETED
+        )
+    )
+    total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)
+
+    now = datetime.now(UTC)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    today_stops = (
+        db.scalars(
+            select(DailyPickupStop)
+            .join(DailyPickupStop.schedule)
+            .where(
+                DailyPickupSchedule.schedule_date >= today_start,
+                DailyPickupSchedule.schedule_date < tomorrow_start,
+                DailyPickupSchedule.zone_id == current_user.zone_id,
+            )
+            .options(joinedload(DailyPickupStop.resident), joinedload(DailyPickupStop.schedule))
+            .order_by(DailyPickupStop.pickup_order)
+        )
+        .unique()
+        .all()
+    )
+    resident_stop = next(
+        (stop for stop in today_stops if stop.resident_id == current_user.id), None
+    )
+    queue = (
+        {
+            "pickup_number": resident_stop.pickup_order,
+            "status": resident_stop.status.value,
+            "ref_code": resident_stop.pickup.ref_code,
+        }
+        if resident_stop
+        else None
     )
     badges = (
         db.scalars(
@@ -196,16 +223,34 @@ def get_dashboard(
         "pickups": [serialize_request(request).model_dump() for request in requests[:5]],
         "impact": {
             "total_pickups": len(requests),
-            "total_kg_diverted": 0,
+            "total_kg_diverted": total_kg_diverted,
             "credits_balance": sum(float(credit.amount) for credit in credits),
             "co2_saved_kg": sum(float(credit.co2_saved) for credit in credits),
             "badges": [
-                {"code": entry.badge.code, "name": entry.badge.name, "icon": "🏅", "earned": True}
+                {
+                    "code": entry.badge.code,
+                    "name": entry.badge.name,
+                    "icon": entry.badge.icon_key or "",
+                    "earned": True,
+                }
                 for entry in badges
             ],
         },
         "queue": queue,
-        "flow": {"stops": []},
+        "flow": {
+            "stops": [
+                {
+                    "id": str(stop.id),
+                    "pickup_order": stop.pickup_order,
+                    "status": stop.status.value,
+                    "resident_name": (
+                        "You" if stop.resident_id == current_user.id else stop.resident.name
+                    ),
+                    "address": "Scheduled collection",
+                }
+                for stop in today_stops
+            ]
+        },
     }
 
 

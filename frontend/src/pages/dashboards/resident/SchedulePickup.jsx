@@ -16,7 +16,12 @@ function localISODate(date) {
 // same-day window. The earliest selectable date is therefore tomorrow.
 const MIN_LEAD_HOURS = 24;
 function minLeadDate() {
-  return localISODate(new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000));
+  const minimum = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
+  const earliest = new Date();
+  earliest.setDate(earliest.getDate() + 1);
+  earliest.setHours(9, 0, 0, 0);
+  if (earliest < minimum) earliest.setDate(earliest.getDate() + 1);
+  return localISODate(earliest);
 }
 
 export default function SchedulePickup({ onNavigate }) {

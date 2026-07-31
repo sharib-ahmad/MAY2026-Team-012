@@ -12,6 +12,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Lock,
+  Route,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Empty, CountUp } from "../../../components/UI";
@@ -280,32 +281,40 @@ export default function Home({ onNavigate }) {
           }
           className="hover-lift"
         >
-          <div className="space-y-3">
-            {flow.stops.slice(0, 5).map((stop) => (
-              <div key={stop.id} className="flex items-center gap-3">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                    stop.status === "COLLECTED"
-                      ? "bg-success text-white"
-                      : stop.resident_name === "You"
-                        ? "bg-primary text-white"
-                        : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  {stop.status === "COLLECTED" ? <CheckCircle2 size={13} /> : stop.pickup_order}
+          {flow.stops.length === 0 ? (
+            <Empty
+              icon={Route}
+              title="No collection scheduled today"
+              description="Your collection flow will appear here when a daily schedule is published."
+            />
+          ) : (
+            <div className="space-y-3">
+              {flow.stops.slice(0, 5).map((stop) => (
+                <div key={stop.id} className="flex items-center gap-3">
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
+                      stop.status === "COLLECTED"
+                        ? "bg-success text-white"
+                        : stop.resident_name === "You"
+                          ? "bg-primary text-white"
+                          : "bg-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {stop.status === "COLLECTED" ? <CheckCircle2 size={13} /> : stop.pickup_order}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {stop.resident_name}
+                      {stop.resident_name === "You" && (
+                        <span className="text-primary text-xs ml-1">(you)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">{stop.address}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {stop.resident_name}
-                    {stop.resident_name === "You" && (
-                      <span className="text-primary text-xs ml-1">(you)</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">{stop.address}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Recent activity */}
@@ -472,7 +481,7 @@ function HeroCarousel({ children }) {
       <div className="absolute bottom-4 right-6 sm:right-10 flex items-center gap-1.5">
         {HERO_SLIDES.map((slide, i) => (
           <button
-            key={slide.image}
+            key={slide}
             type="button"
             onClick={() => goTo(i)}
             aria-label={`Go to slide ${i + 1}`}
