@@ -294,6 +294,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     current = settings or get_settings()
 
+    # Register every SQLAlchemy model before request handlers configure their
+    # relationships. Resident pickup endpoints reference models outside the
+    # authentication feature, so lazy partial registration breaks login.
+    from app.db import registry as _model_registry  # noqa: F401
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if current.APP_ENV != "test":

@@ -1,29 +1,36 @@
-import { useMemo, useState } from "react";
-import { useAuth } from "../../../context/AuthContext";
+import { useEffect, useMemo, useState } from "react";
 import { Card, StatusPill, Empty, Table, Modal } from "../../../components/UI";
 import { MapPin, Search, CheckCircle2, Clock, XCircle, AlertTriangle } from "lucide-react";
-import { listMyPickups, getPickupTracking, cancelPickup } from "../../../lib/mockResidentData";
+import {
+  cancelUserPickup,
+  getUserPickupTracking,
+  listUserDailyPickupSchedules,
+  listUserPickups,
+} from "../../../lib/api";
 
-const TRACKABLE = new Set(["ASSIGNED", "IN_PROGRESS", "SCHEDULED", "REQUESTED"]);
+const TRACKABLE = new Set(["PENDING", "APPROVED"]);
 // Once a collector is on the way (or the job is done/already cancelled), it's too late to cancel.
-const CANCELLABLE = new Set(["REQUESTED", "SCHEDULED", "ASSIGNED"]);
+const CANCELLABLE = new Set(["PENDING", "APPROVED"]);
 
 export default function MyPickups() {
-  const { user } = useAuth();
   const [selected, setSelected] = useState(null);
   const [showTracking, setShowTracking] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState(null);
   const [search, setSearch] = useState("");
+  const [tracking, setTracking] = useState(null);
+  const [pickups, setPickups] = useState([]);
+  const [dailySchedules, setDailySchedules] = useState([]);
 
-  const initialPickups = useMemo(() => listMyPickups(user.id), [user.id]);
-  const [pickups, setPickups] = useState(initialPickups);
-
-  const tracking = useMemo(
-    () => (selected && showTracking ? getPickupTracking(selected) : null),
-    [selected, showTracking]
-  );
+  useEffect(() => {
+    listUserPickups()
+      .then(({ pickups: items }) => setPickups(items))
+      .catch(() => setPickups([]));
+    listUserDailyPickupSchedules()
+      .then(setDailySchedules)
+      .catch(() => setDailySchedules([]));
+  }, []);
 
   const filteredPickups = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -55,12 +62,14 @@ export default function MyPickups() {
     setShowTracking(false);
     setConfirmingCancel(false);
     setCancelError(null);
+    setTracking(null);
   };
 
   const closeModal = () => {
     setSelected(null);
     setConfirmingCancel(false);
     setCancelError(null);
+    setTracking(null);
   };
 
   const handleConfirmCancel = async () => {
@@ -68,7 +77,7 @@ export default function MyPickups() {
     setCancelling(true);
     setCancelError(null);
     try {
-      const updated = await cancelPickup(selected.id);
+      const updated = await cancelUserPickup(selected.id);
       const nextStatus = updated?.status || "CANCELLED";
       setPickups((prev) =>
         prev.map((p) => (p.id === selected.id ? { ...p, status: nextStatus } : p))
@@ -76,9 +85,24 @@ export default function MyPickups() {
       setSelected((prev) => (prev ? { ...prev, status: nextStatus } : prev));
       setConfirmingCancel(false);
     } catch (err) {
-      setCancelError(err?.message || "Could not cancel this pickup. Please try again.");
+      setCancelError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.detail ||
+          err?.message ||
+          "Could not cancel this pickup. Please try again."
+      );
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const showPickupTracking = async () => {
+    if (!selected) return;
+    try {
+      setTracking(await getUserPickupTracking(selected.id));
+      setShowTracking(true);
+    } catch (err) {
+      setCancelError(err.response?.data?.error?.message || "Unable to load pickup tracking.");
     }
   };
 
@@ -106,6 +130,34 @@ export default function MyPickups() {
           />
         ) : (
           <Table columns={cols} rows={filteredPickups} onRowClick={openPickup} />
+        )}
+      </Card>
+
+      <Card title="My daily pickup schedules">
+        {dailySchedules.length === 0 ? (
+          <p className="py-3 text-sm text-gray-500">
+            No daily pickup schedule has been assigned yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {dailySchedules.map((schedule) => (
+              <div
+                key={schedule.schedule_id}
+                className="flex items-center justify-between rounded-input bg-gray-50 p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium">
+                    {new Date(schedule.schedule_date).toLocaleDateString()}
+                  </p>
+                  <p className="text-gray-500">
+                    Collector: {schedule.collector_name || "To be assigned"} · Stop #
+                    {schedule.pickup_order}
+                  </p>
+                </div>
+                <StatusPill status={schedule.stop_status} />
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 
@@ -159,7 +211,7 @@ export default function MyPickups() {
             {TRACKABLE.has(selected.status) && !confirmingCancel && (
               <button
                 type="button"
-                onClick={() => setShowTracking(true)}
+                onClick={showPickupTracking}
                 className="block w-full text-center bg-primary text-white rounded-input py-2.5 text-sm font-medium hover:bg-primary/90 flex items-center justify-center gap-2"
               >
                 <MapPin size={16} /> Track Live Pickup

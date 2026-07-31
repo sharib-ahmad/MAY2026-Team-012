@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
     } catch {
       logout();
     }
-  }, 5000);
+  }, 45000);
 
   const homePath = user ? homePathForRole(user.role) : "/login";
 
