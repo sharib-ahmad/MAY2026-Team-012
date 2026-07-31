@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from app.features.auth.schemas import (
     UserRegisterRequest,
 )
 from app.features.users.models import User
+from app.models.audit import create_audit_log
 from app.models.enums import Role, UserStatus
 from app.models.zone import Zone
 
@@ -35,7 +36,7 @@ ROLE_MAP_FRONTEND_TO_DB = {
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(request: UserRegisterRequest, db: Session = Depends(get_db)) -> Any:
+def register(request: UserRegisterRequest, req: Request, db: Session = Depends(get_db)) -> Any:
     """Register a new user account on the platform."""
     # Check if email is already registered
     existing_user_email = db.scalar(select(User).where(User.email == request.email.lower()))
@@ -98,6 +99,25 @@ def register(request: UserRegisterRequest, db: Session = Depends(get_db)) -> Any
     token_lifetime = get_settings().ACCESS_TOKEN_EXPIRE_MINUTES * 60
     access_token = create_access_token(user.id, token_version=user.token_version)
 
+    # Log user registration (non-blocking, independent connection)
+    try:
+        client_ip = req.client.host if req.client else None
+        create_audit_log(
+            db,
+            actor_id=str(user.id),
+            actor_name=user.name,
+            actor_role=user.role.name,
+            action="USER_CREATED",
+            entity_type="User",
+            entity_id=str(user.id),
+            module="auth",
+            description=f"New user registered: {user.email} with role {user.role.name}",
+            ip_address=client_ip,
+        )
+    except Exception:
+        # Completely ignore audit logging errors - don't affect registration
+        pass
+
     # Find ward code if user is associated with a zone
     ward_code = None
     if user.zone_id:
@@ -122,7 +142,7 @@ def register(request: UserRegisterRequest, db: Session = Depends(get_db)) -> Any
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)) -> Any:
+def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) -> Any:
     """Authenticate credentials and return session tokens."""
     # Find user by email, ignoring soft-deleted accounts
     user = db.scalar(
@@ -159,6 +179,25 @@ def login(request: LoginRequest, db: Session = Depends(get_db)) -> Any:
     # Generate token
     token_lifetime = get_settings().ACCESS_TOKEN_EXPIRE_MINUTES * 60
     access_token = create_access_token(user.id, token_version=user.token_version)
+
+    # Log successful login (non-blocking, separate transaction)
+    try:
+        client_ip = req.client.host if req.client else None
+        create_audit_log(
+            db,
+            actor_id=str(user.id),
+            actor_name=user.name,
+            actor_role=user.role.name,
+            action="LOGIN_SUCCESS",
+            entity_type="User",
+            entity_id=str(user.id),
+            module="auth",
+            description=f"User login successful: {user.email}",
+            ip_address=client_ip,
+        )
+    except Exception:
+        # Completely ignore audit logging errors - don't affect login
+        pass
 
     # Find ward code
     ward_code = None

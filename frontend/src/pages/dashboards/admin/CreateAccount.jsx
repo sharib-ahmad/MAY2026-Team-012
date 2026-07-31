@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserPlus, CheckCircle2, Eye, EyeOff } from "lucide-react";
-import { register } from "../../../lib/mockAuth";
-import { listZones } from "../../../lib/mockZones";
+import { createAccount, getZones } from "../../../lib/api";
 import { Section } from "./shared";
 
 const EMPTY_FORM = {
@@ -35,6 +34,24 @@ export default function CreateAccount() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(true);
+
+  // Fetch zones on component mount
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const data = await getZones();
+        setZones(data);
+      } catch {
+        setZonesLoading(false);
+      } finally {
+        setZonesLoading(false);
+      }
+    };
+
+    fetchZones();
+  }, []);
 
   const updateField = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -59,9 +76,7 @@ export default function CreateAccount() {
 
     setLoading(true);
     try {
-      // Same localStorage-backed store the public /register page writes
-      // to, so the new officer/admin can immediately sign in at /login.
-      const { user } = await register({
+      const { user } = await createAccount({
         name: form.name,
         email: form.email,
         password: form.password,
@@ -72,7 +87,11 @@ export default function CreateAccount() {
       setCreated(user);
       setForm(EMPTY_FORM);
     } catch (ex) {
-      setErr(ex?.response?.data?.detail || "Could not create the account. Try again.");
+      setErr(
+        ex?.response?.data?.error?.message ||
+          ex?.response?.data?.detail ||
+          "Could not create the account. Try again."
+      );
     }
     setLoading(false);
   };
@@ -149,10 +168,10 @@ export default function CreateAccount() {
             className={inputClass(fieldErrors.zone_id)}
             value={form.zone_id}
             onChange={(e) => updateField("zone_id", e.target.value)}
-            disabled={form.role === "ADMIN"}
+            disabled={form.role === "ADMIN" || zonesLoading}
           >
             <option value="">Select a zone…</option>
-            {listZones().map((z) => (
+            {zones.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}
               </option>
