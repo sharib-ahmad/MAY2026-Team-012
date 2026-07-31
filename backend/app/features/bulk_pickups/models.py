@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Numeric,
     String,
 )
 from sqlalchemy import (
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 class BulkPickupRequest(Base, UUIDPrimaryKey, Timestamps):
     __tablename__ = "bulk_pickup_requests"
 
+    ref_code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     requester_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", name="fk_bulk_pickup_requests_requester_id_users"),
         nullable=False,
@@ -44,7 +46,9 @@ class BulkPickupRequest(Base, UUIDPrimaryKey, Timestamps):
         DateTime(timezone=True),
         nullable=False,
     )
-    approx_volume: Mapped[str] = mapped_column(String(60), nullable=False)
+    estimated_weight: Mapped[float | None] = mapped_column(Numeric(10, 3), nullable=True)
+    time_slot: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[BulkRequestStatus] = mapped_column(
         SQLEnum(BulkRequestStatus, name="bulkrequeststatus"),
         nullable=False,

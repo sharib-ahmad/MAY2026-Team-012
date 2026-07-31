@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatCard, BarChartCard, PieChartCard, LineChartCard } from "../../../components/UI";
 import { Leaf, Award, TrendingUp, Download, Lock } from "lucide-react";
-import { getMyImpact } from "../../../lib/mockResidentData";
+import { getUserImpact } from "../../../lib/api";
 
 function buildReportHtml(user, data) {
   return `<!doctype html>
@@ -155,8 +155,32 @@ function HexBadge({ icon, name, earned, featured }) {
 
 export default function Impact() {
   const { user } = useAuth();
-  const data = useMemo(() => getMyImpact(user.id), [user.id]);
+  const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [exportStatus, setExportStatus] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getUserImpact()
+      .then((impact) => active && setData(impact))
+      .catch(() => active && setLoadError("Unable to load your impact data."));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="space-y-6 fade-in">
+        <h1 className="text-xl font-bold">My Sustainability Impact</h1>
+        <Card>
+          <p className="text-center text-gray-400 py-10 text-sm">
+            {loadError || "Loading your impact data…"}
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   const earnedBadges = data.badges.filter((b) => b.earned);
   const featuredCode = earnedBadges.length ? earnedBadges[earnedBadges.length - 1].code : null;

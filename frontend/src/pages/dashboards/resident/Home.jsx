@@ -15,12 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Empty, CountUp } from "../../../components/UI";
-import {
-  listMyPickups,
-  getMyImpact,
-  getTodayQueue,
-  getZoneFlow,
-} from "../../../lib/mockResidentData";
+import { getUserDashboard } from "../../../lib/api";
 import heroBg from "../../../assets/eco-banner-bg.webp";
 // NOTE: add these two files to the assets folder (any doorstep-pickup /
 // sorting-facility / community-drive photo works). Until then they'll just
@@ -153,15 +148,26 @@ function HexBadge({ icon, name, earned, featured }) {
 
 export default function Home({ onNavigate }) {
   const { user } = useAuth();
+  const [dashboard, setDashboard] = useState({
+    pickups: [],
+    impact: {
+      total_pickups: 0,
+      total_kg_diverted: 0,
+      credits_balance: 0,
+      co2_saved_kg: 0,
+      badges: [],
+    },
+    queue: null,
+    flow: { stops: [] },
+  });
 
-  const { pickups, impact, queue, flow } = useMemo(() => {
-    return {
-      pickups: listMyPickups(user.id),
-      impact: getMyImpact(user.id),
-      queue: getTodayQueue(user.id),
-      flow: getZoneFlow(user.id),
-    };
-  }, [user.id]);
+  useEffect(() => {
+    getUserDashboard()
+      .then(setDashboard)
+      .catch(() => {});
+  }, []);
+
+  const { pickups, impact, queue, flow } = dashboard;
 
   const recent = pickups.slice(0, 5);
   const nextPickup = pickups.find((p) => p.status === "REQUESTED" || p.status === "ASSIGNED");

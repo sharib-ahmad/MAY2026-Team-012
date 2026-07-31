@@ -1,8 +1,6 @@
-import { useState } from "react";
-import { useAuth } from "../../../context/AuthContext";
+import { useEffect, useState } from "react";
 import { Card } from "../../../components/UI";
-import AddressField from "../../../components/AddressField";
-import { createPickup } from "../../../lib/mockResidentData";
+import { getUserPickupOptions, scheduleUserPickup } from "../../../lib/api";
 import { CheckCircle2 } from "lucide-react";
 
 // Local YYYY-MM-DD for a given date, so the date picker's min (and our own
@@ -22,58 +20,71 @@ function minLeadDate() {
 }
 
 export default function SchedulePickup({ onNavigate }) {
-  const { user } = useAuth();
   const minDateStr = minLeadDate();
   const [form, setForm] = useState({
-    category: "Paper",
+    category: "",
     estimated_weight: "",
     scheduled_date: "",
     time_slot: "Morning (8-11)",
     notes: "",
   });
-  const [address, setAddress] = useState(user?.address || "");
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
+  const [reference, setReference] = useState("");
+  const [categories, setCategories] = useState([]);
 
-  const categories = ["Daily Waste", "Paper", "Plastic", "Metal", "Mixed Dry", "E-waste", "Glass"];
   const slots = ["Morning (8-11)", "Midday (11-2)", "Evening (4-7)"];
-  const isDailyWaste = form.category === "Daily Waste";
+  useEffect(() => {
+    getUserPickupOptions()
+      .then(({ categories: availableCategories }) => {
+        setCategories(availableCategories);
+        setForm((current) => ({
+          ...current,
+          category: current.category || availableCategories[0]?.code || "",
+        }));
+      })
+      .catch(() => setErr("Unable to load pickup categories."));
+  }, []);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    if (!address.trim()) {
-      setErr("Please add a pickup address.");
+    if (!form.estimated_weight || Number(form.estimated_weight) <= 0) {
+      setErr("Please enter an estimated weight greater than zero.");
       return;
     }
-    if (!isDailyWaste && !form.scheduled_date) {
+    if (!form.scheduled_date) {
       setErr("Please choose a date.");
       return;
     }
-    if (!isDailyWaste && form.scheduled_date < minDateStr) {
+    if (form.scheduled_date < minDateStr) {
       setErr(
         `Pickup requests need at least ${MIN_LEAD_HOURS} hours' notice — please choose ${minDateStr} or later.`
       );
       return;
     }
-    const scheduled = form.scheduled_date
-      ? new Date(`${form.scheduled_date}T09:00:00`).toISOString()
-      : new Date().toISOString();
+    const scheduled = new Date(`${form.scheduled_date}T09:00:00`).toISOString();
 
-    createPickup(user, {
-      category: form.category,
-      estimated_weight: isDailyWaste
-        ? 5
-        : form.estimated_weight
-          ? parseFloat(form.estimated_weight)
-          : null,
-      scheduled_date: isDailyWaste ? new Date().toISOString() : scheduled,
-      time_slot: isDailyWaste ? "Morning (8-11)" : form.time_slot,
-      notes: form.notes || null,
-      pickup_address: address,
-    });
-    setDone(true);
-    setTimeout(() => onNavigate("pickups"), 900);
+    try {
+      const pickup = await scheduleUserPickup({
+        category: form.category,
+        estimated_weight: parseFloat(form.estimated_weight),
+        scheduled_date: scheduled,
+        time_slot: form.time_slot,
+        notes: form.notes || null,
+      });
+      setReference(pickup.ref_code);
+      window.dispatchEvent(new Event("resident-notifications-updated"));
+      setDone(true);
+      setTimeout(() => onNavigate("pickups"), 2500);
+    } catch (ex) {
+      setErr(
+        ex.response?.data?.error?.message ||
+          ex.response?.data?.detail ||
+          ex.message ||
+          "Unable to schedule pickup."
+      );
+    }
   };
 
   if (done) {
@@ -81,6 +92,10 @@ export default function SchedulePickup({ onNavigate }) {
       <div className="max-w-2xl mx-auto py-16 text-center">
         <CheckCircle2 className="mx-auto text-success mb-3" size={40} />
         <p className="font-medium">Pickup scheduled!</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Your tracking reference is{" "}
+          <span className="font-semibold text-gray-700">{reference}</span>.
+        </p>
         <p className="text-sm text-gray-400 mt-1">Taking you to My Pickups…</p>
       </div>
     );
@@ -99,66 +114,61 @@ export default function SchedulePickup({ onNavigate }) {
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
             >
-              {categories.map((c) => (
-                <option key={c}>{c}</option>
+              {categories.map((category) => (
+                <option key={category.code} value={category.code}>
+                  {category.label}
+                </option>
               ))}
             </select>
           </div>
-          {!isDailyWaste && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Est. Weight (kg)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    className="w-full border border-gray-200 rounded-input px-3 py-2.5 text-sm"
-                    value={form.estimated_weight}
-                    onChange={(e) => setForm({ ...form, estimated_weight: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
-                  <input
-                    type="date"
-                    required
-                    min={minDateStr}
-                    className="w-full border border-gray-200 rounded-input px-3 py-2.5 text-sm"
-                    value={form.scheduled_date}
-                    onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })}
-                  />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Requires at least {MIN_LEAD_HOURS}h notice.
-                  </p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Time Slot</label>
-                <div className="flex gap-2 flex-wrap">
-                  {slots.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setForm({ ...form, time_slot: s })}
-                      className={`px-3 py-2 rounded-input text-xs font-medium border ${
-                        form.time_slot === s
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-gray-200"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Est. Weight (kg) *
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                required
+                className="w-full border border-gray-200 rounded-input px-3 py-2.5 text-sm"
+                value={form.estimated_weight}
+                onChange={(e) => setForm({ ...form, estimated_weight: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+              <input
+                type="date"
+                required
+                min={minDateStr}
+                className="w-full border border-gray-200 rounded-input px-3 py-2.5 text-sm"
+                value={form.scheduled_date}
+                onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })}
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Requires at least {MIN_LEAD_HOURS}h notice.
+              </p>
+            </div>
+          </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Pickup Address *</label>
-            <AddressField address={address} onChange={({ address: a }) => setAddress(a)} />
+            <label className="block text-xs font-medium text-gray-600 mb-1">Time Slot *</label>
+            <div className="flex gap-2 flex-wrap">
+              {slots.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm({ ...form, time_slot: s })}
+                  className={`px-3 py-2 rounded-input text-xs font-medium border ${
+                    form.time_slot === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-gray-200"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>

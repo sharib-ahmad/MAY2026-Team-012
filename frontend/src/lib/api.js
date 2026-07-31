@@ -77,3 +77,63 @@ export const getZones = async () => {
   const { data } = await API.get("/v1/zones");
   return data;
 };
+
+export const getUserDashboard = async () => {
+  const { data } = await API.get("/v1/user/dashboard");
+  return data;
+};
+
+export const getUserImpact = async () => {
+  const { data } = await API.get("/v1/user/impact");
+  return data;
+};
+
+export const getUserPickupOptions = async () => {
+  const { data } = await API.get("/v1/user/pickup-options");
+  return data;
+};
+
+export const listUserPickups = async () => {
+  const { data } = await API.get("/v1/user/pickups");
+  return data;
+};
+
+export const scheduleUserPickup = async (payload) => {
+  const { data } = await API.post("/v1/user/pickups", payload);
+  return data;
+};
+
+export const cancelUserPickup = async (pickupId) => {
+  const { data } = await API.patch(`/v1/user/pickups/${pickupId}/cancel`);
+  return data;
+};
+
+export const getUserPickupTracking = async (pickupId) => {
+  const { data } = await API.get(`/v1/user/pickups/${pickupId}/tracking`);
+  return data;
+};
+
+export const listUserTickets = async () => {
+  const { data } = await API.get("/v1/user/tickets");
+  return data;
+};
+
+export const createUserTicket = async (payload) => {
+  const { data } = await API.post("/v1/user/tickets", payload);
+  return data;
+};
+
+export const listUserDailyPickupSchedules = async () => {
+  const { data } = await API.get("/v1/user/daily-pickup-schedules");
+  return data;
+};
+
+export const listUserNotifications = async () => {
+  const { data } = await API.get("/v1/user/notifications");
+  return data;
+};
+
+export const markUserNotificationRead = async (notificationId) => {
+  const { data } = await API.patch(`/v1/user/notifications/${notificationId}/read`);
+  return data;
+};

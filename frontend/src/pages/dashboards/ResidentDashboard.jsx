@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Home as HomeIcon,
   PackagePlus,
@@ -12,13 +12,13 @@ import {
   Menu,
   ChevronDown,
   Bot,
-  CalendarSearch,
   BookOpen,
   Recycle,
   User,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { ensureResidentSeed, listNotifications } from "../../lib/mockResidentData";
+import { ensureResidentSeed } from "../../lib/mockResidentData";
+import { listUserNotifications, markUserNotificationRead } from "../../lib/api";
 import heroBg from "../../assets/eco-banner-bg.webp";
 import Footer from "../../components/Footer";
 
@@ -33,7 +33,6 @@ import CreateDonation from "./resident/CreateDonation";
 import MyClaims from "./resident/MyClaims";
 import Impact from "./resident/Impact";
 import EcoBotChat from "./resident/EcoBotChat";
-import ScheduleLookup from "./resident/ScheduleLookup";
 import SortingGuide from "./resident/SortingGuide";
 import RecyclingTransparency from "./resident/RecyclingTransparency";
 
@@ -46,7 +45,6 @@ import RecyclingTransparency from "./resident/RecyclingTransparency";
 // sidebar, amber active-state accents — is unchanged.
 const TABS = [
   { key: "home", label: "Home", icon: HomeIcon, component: Home },
-  { key: "lookup", label: "Schedule Look-up", icon: CalendarSearch, component: ScheduleLookup },
   { key: "schedule", label: "Schedule Pickup", icon: PackagePlus, component: SchedulePickup },
   { key: "pickups", label: "My Pickups", icon: Package, component: MyPickups },
   { key: "flow", label: "Today's Collection", icon: Route, component: CollectionFlow },
@@ -72,10 +70,23 @@ export default function ResidentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     ensureResidentSeed(user);
   }, [user]);
+
+  const loadNotifications = useCallback(() => {
+    listUserNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]));
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    window.addEventListener("resident-notifications-updated", loadNotifications);
+    return () => window.removeEventListener("resident-notifications-updated", loadNotifications);
+  }, [loadNotifications]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -85,8 +96,20 @@ export default function ResidentDashboard() {
     () => TABS.find((t) => t.key === activeTab)?.component || Home,
     [activeTab]
   );
-  const notifications = useMemo(() => listNotifications(user.id), [user.id]);
-  const notificationCount = notifications.length;
+  const notificationCount = notifications.filter((notification) => !notification.is_read).length;
+
+  const markAsRead = async (notificationId) => {
+    try {
+      await markUserNotificationRead(notificationId);
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === notificationId ? { ...notification, is_read: true } : notification
+        )
+      );
+    } catch {
+      // Keep the notification unread when the server update fails.
+    }
+  };
 
   const goTo = (key) => {
     setActiveTab(key);
@@ -159,6 +182,15 @@ export default function ResidentDashboard() {
                         <p className="text-[10px] text-slate-400 mt-2">
                           {new Date(n.created_at).toLocaleString()}
                         </p>
+                        {!n.is_read && (
+                          <button
+                            type="button"
+                            onClick={() => markAsRead(n.id)}
+                            className="mt-2 text-xs font-medium text-primary hover:underline"
+                          >
+                            Mark as read
+                          </button>
+                        )}
                       </div>
                     ))
                   )}
