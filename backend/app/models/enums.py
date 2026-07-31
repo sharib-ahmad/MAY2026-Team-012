@@ -40,6 +40,7 @@ class PickupStopStatus(StrEnum):
 class BulkRequestStatus(StrEnum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
+    ASSIGNED = "ASSIGNED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
     EXPIRED = "EXPIRED"

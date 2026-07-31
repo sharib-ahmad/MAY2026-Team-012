@@ -53,6 +53,37 @@ export const getAdminDashboard = async () => {
   return data;
 };
 
+export const getManagerDashboard = async () => {
+  const { data } = await API.get("/v1/manager/dashboard");
+  return data;
+};
+
+export const markManagerNotificationsRead = async () => {
+  const { data } = await API.patch("/v1/manager/notifications/read");
+  return data;
+};
+
+export const updateManagerComplaint = async (ticketId, payload) => {
+  const { data } = await API.patch(`/v1/manager/tickets/${ticketId}`, payload);
+  return data;
+};
+
+export const assignManagerBulkPickup = async (requestId, collectorId) => {
+  const { data } = await API.post(`/v1/manager/bulk-pickups/${requestId}/assign`, {
+    collector_id: collectorId,
+  });
+  return data;
+};
+
+export const updateManagerWorker = async (workerId, payload) => {
+  const { data } = await API.patch(`/v1/manager/workers/${workerId}`, payload);
+  return data;
+};
+
+export const deleteManagerWorker = async (workerId) => {
+  await API.delete(`/v1/manager/workers/${workerId}`);
+};
+
 export const getWards = async () => {
   const { data } = await API.get("/v1/admin/ward");
   return data;

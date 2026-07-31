@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   LayoutDashboard,
@@ -12,12 +12,12 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import DATA from "../../data/municipal_officer_data.json";
 import Footer from "../../components/Footer";
 import Overview from "./manager/Overview";
 import Complaints from "./manager/Complaints";
-import RouteTracking from "./manager/RouteTracking";
-import Crews from "./manager/Crews";
+import BulkCollections from "./manager/BulkCollections";
+import CrewManagement from "./manager/CrewManagement";
+import { getManagerDashboard, markManagerNotificationsRead } from "../../lib/api";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
 // collapsible left nav rail (off-canvas drawer on mobile, width-collapse
@@ -30,9 +30,14 @@ import Crews from "./manager/Crews";
 // a full-bleed band sitting above it.
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard, component: Overview },
+  {
+    key: "bulk-collections",
+    label: "Bulk collections",
+    icon: MapPinned,
+    component: BulkCollections,
+  },
   { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
-  { key: "routes", label: "Route Tracking", icon: MapPinned, component: RouteTracking },
-  { key: "crews", label: "Crew Assignments", icon: Users, component: Crews },
+  { key: "crew-management", label: "Crew management", icon: Users, component: CrewManagement },
 ];
 
 const RAIL = "#14171F"; // single theme color — top bar & sidebar
@@ -45,9 +50,21 @@ export default function ManagerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardError, setDashboardError] = useState("");
+  const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
 
-  const { stats } = DATA;
   const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
+
+  useEffect(() => {
+    let active = true;
+    getManagerDashboard()
+      .then((data) => active && setDashboardData(data))
+      .catch(() => active && setDashboardError("Live dashboard data could not be loaded."));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const goToTab = (tab) => {
     setActiveTab(tab);
@@ -55,31 +72,29 @@ export default function ManagerDashboard() {
     setShowNotifications(false);
   };
 
-  // No separate activity feed in this dataset — the bell surfaces the
-  // same numbers the stat band already shows, each deep-linking to the
-  // tab that explains it.
   const notifications = useMemo(
     () =>
-      [
-        stats.escalated_complaints > 0 && {
-          title: `${stats.escalated_complaints} escalated complaint${stats.escalated_complaints === 1 ? "" : "s"}`,
-          tab: "complaints",
-          icon: AlertCircle,
-          tone: "danger",
-        },
-        {
-          title: `${stats.routes_completed_today}/${stats.routes_today} routes completed today`,
-          tab: "routes",
-          icon: MapPinned,
-        },
-        {
-          title: `${stats.active_workers} workers on duty across ${stats.wards_supervised} wards`,
-          tab: "crews",
-          icon: Users,
-        },
-      ].filter(Boolean),
-    [stats]
+      (dashboardData?.notifications || []).map((notification) => ({
+        ...notification,
+        tab: notification.title.toLowerCase().includes("complaint") ? "complaints" : "overview",
+        icon: notification.title.toLowerCase().includes("complaint") ? AlertCircle : MapPinned,
+      })),
+    [dashboardData]
   );
+
+  const markAllNotificationsRead = async () => {
+    if (!notifications.length || markingNotificationsRead) return;
+    setMarkingNotificationsRead(true);
+    try {
+      await markManagerNotificationsRead();
+      setDashboardData((current) => (current ? { ...current, notifications: [] } : current));
+      setShowNotifications(false);
+    } catch {
+      setDashboardError("Unable to mark notifications as read.");
+    } finally {
+      setMarkingNotificationsRead(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F6F3EA]">
@@ -134,8 +149,18 @@ export default function ManagerDashboard() {
 
             {showNotifications && (
               <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
-                <div className="px-3.5 py-1.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
-                  Ward Status
+                <div className="flex items-center justify-between gap-3 px-3.5 py-1.5">
+                  <span className="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
+                    Ward Status
+                  </span>
+                  <button
+                    type="button"
+                    onClick={markAllNotificationsRead}
+                    disabled={markingNotificationsRead || notifications.length === 0}
+                    className="text-[11px] font-semibold text-[#3F5426] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {markingNotificationsRead ? "Marking…" : "Mark all as read"}
+                  </button>
                 </div>
                 {notifications.map((n, i) => {
                   const Icon = n.icon;
@@ -293,7 +318,17 @@ export default function ManagerDashboard() {
         {/* Main content */}
         <main className="flex-1 min-w-0">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            <ActivePanel />
+            {dashboardError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+                {dashboardError}
+              </div>
+            ) : !dashboardData ? (
+              <div className="rounded-2xl border border-gray-200 bg-white p-8 text-sm text-gray-500">
+                Loading live ward operations data…
+              </div>
+            ) : (
+              <ActivePanel data={dashboardData} />
+            )}
           </div>
           <Footer />
         </main>
