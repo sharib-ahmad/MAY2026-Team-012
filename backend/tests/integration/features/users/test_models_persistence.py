@@ -92,7 +92,7 @@ def test_delay_log_check_constraint(db, ward_a):
         stop_id=stop.id,
         worker_id=user.id,
         reason=DelayReason.OTHER,
-        note=None,
+        note="Other: unspecified",
     )
     db.add(delay)
 

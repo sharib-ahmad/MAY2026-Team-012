@@ -11,6 +11,7 @@ owns its engine and session factory.
 """
 
 import re
+import uuid
 
 import pytest
 from alembic.config import Config
@@ -129,9 +130,9 @@ def db_client(app_test, db):
 
 @pytest.fixture
 def ward_a(db):
-    """Create a standard Zone fixture."""
+    """Create a standard Zone fixture with a guaranteed unique canonical code."""
 
-    zone = Zone(name="Ward A", code="W-04")
+    zone = Zone(name="Ward A", code=f"W-{uuid.uuid4().hex[:6].upper()}")
     db.add(zone)
     db.flush()
 
