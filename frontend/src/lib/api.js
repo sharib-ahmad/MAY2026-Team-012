@@ -77,7 +77,6 @@ export const getZones = async () => {
   const { data } = await API.get("/v1/zones");
   return data;
 };
-
 export const getUserDashboard = async () => {
   const { data } = await API.get("/v1/user/dashboard");
   return data;
