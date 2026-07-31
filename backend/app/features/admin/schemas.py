@@ -81,7 +81,7 @@ class LogEntry(BaseModel):
 
     id: uuid.UUID
     timestamp: datetime
-    actor_id: uuid.UUID
+    actor_id: uuid.UUID | None = None
     actor_role: str
     actor_name: str
     action: str

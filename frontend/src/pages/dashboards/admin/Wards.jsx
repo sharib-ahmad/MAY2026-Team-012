@@ -149,7 +149,12 @@ export default function Wards() {
       setOpen(false);
       refreshWards();
     } catch (ex) {
-      setErr(ex.response?.data?.detail || ex.message || "Failed to save ward");
+      setErr(
+        ex.response?.data?.error?.message ||
+          ex.response?.data?.detail ||
+          ex.message ||
+          "Failed to save ward"
+      );
     }
   };
 

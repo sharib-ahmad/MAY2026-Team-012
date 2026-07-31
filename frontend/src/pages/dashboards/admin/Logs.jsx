@@ -64,10 +64,10 @@ export default function Logs() {
   const filteredLogs = logs.filter(
     (log) =>
       !aq ||
-      (log.user_name && log.user_name.toLowerCase().includes(aq)) ||
+      (log.actor_name && log.actor_name.toLowerCase().includes(aq)) ||
       log.action.toLowerCase().includes(aq) ||
       (log.entity_id && log.entity_id.toLowerCase().includes(aq)) ||
-      log.description.toLowerCase().includes(aq)
+      (log.description && log.description.toLowerCase().includes(aq))
   );
 
   return (
@@ -97,7 +97,7 @@ export default function Logs() {
               </div>
               <div className="flex-1">
                 <p className="text-[#14171F]">
-                  <span className="font-semibold">{log.user_name || "System"}</span>{" "}
+                  <span className="font-semibold">{log.actor_name || "System"}</span>{" "}
                   <span className="text-gray-500">
                     {log.action.replace(/_/g, " ").toLowerCase()}
                   </span>{" "}

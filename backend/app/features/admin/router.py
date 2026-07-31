@@ -469,6 +469,14 @@ def create_user(
                 detail="Selected ward does not exist.",
             )
 
+    # Resolve the frontend role string to the database Role enum.
+    db_role = ROLE_MAP_FRONTEND_TO_DB.get(user_data.role)
+    if not db_role:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported role: {user_data.role}",
+        )
+
     # Hash the password and create the user
     hashed_password = get_password_hash(user_data.password)
     user = User(
@@ -476,7 +484,7 @@ def create_user(
         email=user_data.email.lower(),
         password_hash=hashed_password,
         phone=user_data.phone,
-        role=user_data.role,
+        role=db_role,
         zone_id=zone_uuid,
         status=UserStatus.ACTIVE,
         last_login_at=datetime.now(UTC),
