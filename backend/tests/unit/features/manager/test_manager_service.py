@@ -109,9 +109,7 @@ def test_get_overview_builds_dashboard_summary(manager_session):
 
     manager_session.add(
         RouteHistory(
-            schedule_id=schedule.id, 
-            started_at=now - timedelta(minutes=10), 
-            completed_at=now
+            schedule_id=schedule.id, started_at=now - timedelta(minutes=10), completed_at=now
         )
     )
     manager_session.add(
@@ -193,11 +191,7 @@ def test_complaint_listing_update_and_error_paths(manager_session):
     manager_session.commit()
 
     complaints = list_complaints(
-        manager_session, 
-        None, 
-        zone_code=zone.code, 
-        status="OPEN", 
-        search="chute"
+        manager_session, None, zone_code=zone.code, status="OPEN", search="chute"
     )
     assert complaints.total == 1
     assert complaints.complaints[0].ref_code == "CMP-002"
@@ -213,11 +207,7 @@ def test_complaint_listing_update_and_error_paths(manager_session):
 
     with pytest.raises(ValueError, match="Invalid complaint ID format"):
         update_complaint(
-            manager_session, 
-            "bad-id", 
-            ComplaintUpdate(status="RESOLVED"), 
-            manager, 
-            [zone.id]
+            manager_session, "bad-id", ComplaintUpdate(status="RESOLVED"), manager, [zone.id]
         )
 
     with pytest.raises(ValueError, match="A resolution note is required"):
@@ -297,9 +287,7 @@ def test_routes_workers_and_reassignment_flow(manager_session):
 
     manager_session.add(
         RouteHistory(
-            schedule_id=schedule.id, 
-            started_at=now - timedelta(minutes=15), 
-            notes="Route started"
+            schedule_id=schedule.id, started_at=now - timedelta(minutes=15), notes="Route started"
         )
     )
     manager_session.add(
@@ -337,4 +325,4 @@ def test_routes_workers_and_reassignment_flow(manager_session):
         type("Req", (), {"zone_id": None, "availability": "AVAILABLE"})(),
         [zone.id],
     )
-    assert reassigned.availability == "AVAILABLE"
+    assert reassigned.availability == Availability.AVAILABLE
