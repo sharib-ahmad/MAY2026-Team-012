@@ -25,14 +25,8 @@ from app.models.zone import Zone
 
 router = APIRouter(tags=["Authentication"])
 
-# Map frontend roles to database Role enums
-ROLE_MAP_FRONTEND_TO_DB = {
-    "RESIDENT": Role.CITIZEN,
-    "COLLECTOR": Role.COLLECTION_WORKER,
-    "RECYCLER": Role.RECYCLER,
-    "MANAGER": Role.MUNICIPAL_OFFICER,
-    "ADMIN": Role.SYSTEM_ADMIN,
-}
+# Registration accepts the canonical role names used by the API and database.
+ROLE_MAP_FRONTEND_TO_DB = {role.value: role for role in Role}
 
 
 @router.post("/register", response_model=TokenResponse)

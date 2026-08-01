@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import case, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
@@ -10,6 +10,8 @@ from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
     DailyPickupSchedule,
     DailyPickupStop,
+    DelayLog,
+    MixedWasteTag,
     Pickup,
 )
 from app.features.collection_ops.schemas import (
@@ -24,7 +26,7 @@ from app.features.notifications.models import Notification
 from app.features.notifications.service import list_for_user, mark_read
 from app.features.users.dependencies import require_collector, require_resident
 from app.features.users.models import User
-from app.models.enums import BulkRequestStatus, PickupStatus, PickupStopStatus
+from app.models.enums import BulkRequestStatus, PickupStatus, PickupStopStatus, WasteSeverity
 
 router = APIRouter(tags=["Resident Collection Schedules"])
 collector_router = APIRouter(prefix="/collector", tags=["Collector Operations"])
@@ -60,7 +62,7 @@ def list_daily_pickup_schedules(
 
 
 def _collector_stop(
-    stop: DailyPickupStop, pickup_order: int | None = None, is_flagged: bool = False
+    stop: DailyPickupStop, pickup_order: int | None = None, is_flagged: bool | None = None
 ) -> CollectorStopResponse:
     return CollectorStopResponse(
         id=stop.id,
@@ -76,7 +78,9 @@ def _collector_stop(
         pickup_latitude=stop.latitude,
         pickup_longitude=stop.longitude,
         completed_at=stop.completed_at,
-        is_flagged=is_flagged,
+        is_flagged=bool(getattr(stop, "mixed_waste_tags", []))
+        if is_flagged is None
+        else is_flagged,
     )
 
 
@@ -152,6 +156,48 @@ def _refresh_schedule_completion(schedule: DailyPickupSchedule, db: Session) -> 
     )
 
 
+def _day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    now = now or datetime.now(UTC)
+    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, start + timedelta(days=1)
+
+
+def _ensure_not_collected(stop: DailyPickupStop) -> None:
+    if stop.status == PickupStopStatus.COLLECTED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This pickup is already collected.",
+        )
+
+
+def _sync_source_bulk_pickup(
+    db: Session,
+    stop: DailyPickupStop,
+    status_value: BulkRequestStatus,
+    collected_at: datetime | None,
+    *,
+    is_flagged: bool | None = None,
+    flag_severity: WasteSeverity | None = None,
+    flag_note: str | None = None,
+) -> None:
+    """Reflect route-stop completion in the citizen/manager source request."""
+    prefix = "COL-"
+    if not stop.pickup.ref_code.startswith(prefix):
+        return
+    request = db.scalar(
+        select(BulkPickupRequest).where(
+            BulkPickupRequest.ref_code == stop.pickup.ref_code[len(prefix) :]
+        )
+    )
+    if request:
+        request.status = status_value
+        request.collected_at = collected_at
+        if is_flagged is not None:
+            request.is_flagged = is_flagged
+            request.flag_severity = flag_severity
+            request.flag_note = flag_note
+
+
 def _is_within_undo_window(completed_at: datetime | None) -> bool:
     if not completed_at:
         return False
@@ -161,7 +207,7 @@ def _is_within_undo_window(completed_at: datetime | None) -> bool:
 
 
 def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
-    """Make assignments created before route integration visible to collectors."""
+    """Materialize every outstanding bulk assignment for a collector."""
     requests = db.scalars(
         select(BulkPickupRequest)
         .where(
@@ -169,26 +215,44 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             BulkPickupRequest.status == BulkRequestStatus.ASSIGNED,
         )
         .options(joinedload(BulkPickupRequest.requester))
+        .order_by(BulkPickupRequest.requested_date, BulkPickupRequest.created_at)
     ).all()
     changed = False
     for request in requests:
         ref_code = f"COL-{request.ref_code}"
-        if db.scalar(select(Pickup.id).where(Pickup.ref_code == ref_code)):
+        pickup = db.scalar(select(Pickup).where(Pickup.ref_code == ref_code))
+        if pickup and db.scalar(
+            select(DailyPickupStop.id)
+            .join(DailyPickupStop.schedule)
+            .where(
+                DailyPickupStop.pickup_id == pickup.id,
+                DailyPickupSchedule.collector_id == collector.id,
+                DailyPickupSchedule.schedule_date == request.requested_date,
+                DailyPickupSchedule.is_active.is_(True),
+            )
+        ):
             continue
-        pickup = Pickup(
-            ref_code=ref_code,
-            resident_id=request.requester_id,
-            collector_id=collector.id,
-            zone_id=request.zone_id,
-            category=request.category,
-            estimated_weight=request.estimated_weight or 0,
-            status=PickupStatus.ASSIGNED,
-            scheduled_date=request.requested_date,
-            time_slot=request.time_slot,
-            notes=request.notes,
-        )
-        db.add(pickup)
-        db.flush()
+        if not pickup:
+            pickup = Pickup(
+                ref_code=ref_code,
+                resident_id=request.requester_id,
+                collector_id=collector.id,
+                zone_id=request.zone_id,
+                category=request.category,
+                estimated_weight=request.estimated_weight or 0,
+                status=PickupStatus.ASSIGNED,
+                scheduled_date=request.requested_date,
+                time_slot=request.time_slot,
+                notes=request.notes,
+            )
+            db.add(pickup)
+            db.flush()
+        else:
+            pickup.collector_id = collector.id
+            pickup.status = PickupStatus.ASSIGNED
+            pickup.scheduled_date = request.requested_date
+            pickup.time_slot = request.time_slot
+            pickup.notes = request.notes
         schedule = db.scalar(
             select(DailyPickupSchedule).where(
                 DailyPickupSchedule.collector_id == collector.id,
@@ -226,39 +290,53 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
 def get_collector_route(
     current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorRouteResponse:
-    pickups = (
+    if _materialize_assigned_bulk_stops(db, current_user):
+        # Request sessions disable autoflush. Persist newly created route stops
+        # before querying the route so assignments remain visible on reload.
+        db.commit()
+    today_start, _ = _day_bounds()
+    stops = (
         db.scalars(
-            select(BulkPickupRequest)
-            .where(BulkPickupRequest.assigned_collector_id == current_user.id)
-            .options(joinedload(BulkPickupRequest.requester), joinedload(BulkPickupRequest.zone))
-            .order_by(BulkPickupRequest.requested_date, BulkPickupRequest.created_at)
+            select(DailyPickupStop)
+            .join(DailyPickupStop.schedule)
+            .where(
+                DailyPickupSchedule.collector_id == current_user.id,
+                DailyPickupSchedule.is_active.is_(True),
+                or_(
+                    DailyPickupSchedule.schedule_date >= today_start,
+                    DailyPickupStop.status != PickupStopStatus.COLLECTED,
+                ),
+            )
+            .options(
+                joinedload(DailyPickupStop.pickup),
+                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
+                joinedload(DailyPickupStop.mixed_waste_tags),
+            )
+            .order_by(
+                case((DailyPickupStop.status == PickupStopStatus.COLLECTED, 1), else_=0),
+                DailyPickupSchedule.schedule_date,
+                DailyPickupStop.pickup_order,
+            )
         )
         .unique()
         .all()
     )
-    outstanding = [pickup for pickup in pickups if pickup.status != BulkRequestStatus.COLLECTED]
-    collected = [pickup for pickup in pickups if pickup.status == BulkRequestStatus.COLLECTED]
-    pickups = outstanding + collected
     zone_name = (
-        f"{pickups[0].zone.code} - {pickups[0].zone.name}" if pickups else "No assigned zone"
+        f"{stops[0].schedule.zone.code} - {stops[0].schedule.zone.name}"
+        if stops
+        else "No assigned zone"
     )
     return CollectorRouteResponse(
+        schedule_id=stops[0].schedule_id if stops else None,
         zone_name=zone_name,
-        pickup_count=len(pickups),
-        completed_count=sum(pickup.status == BulkRequestStatus.COLLECTED for pickup in pickups),
-        flagged_count=sum(pickup.is_flagged for pickup in pickups),
+        pickup_count=len(stops),
+        completed_count=sum(stop.status == PickupStopStatus.COLLECTED for stop in stops),
+        flagged_count=sum(bool(stop.mixed_waste_tags) for stop in stops),
         collector_latitude=current_user.latitude,
         collector_longitude=current_user.longitude,
         ordered_pickups=[
-            _bulk_pickup_response(
-                pickup,
-                (
-                    outstanding.index(pickup) + 1
-                    if pickup.status != BulkRequestStatus.COLLECTED
-                    else 0
-                ),
-            )
-            for pickup in pickups
+            _collector_stop(stop, pickup_order=index) for index, stop in enumerate(stops, start=1)
         ],
     )
 
@@ -267,65 +345,83 @@ def get_collector_route(
 def complete_stop(
     stop_id: UUID, current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorStopResponse:
-    pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
+    stop = _owned_stop(db, stop_id, current_user.id)
+    _ensure_not_collected(stop)
     now = datetime.now(UTC)
-    pickup.status = BulkRequestStatus.COLLECTED
-    pickup.collected_at = now
+    stop.status = PickupStopStatus.COLLECTED
+    stop.completed_at = now
+    stop.pickup.status = PickupStatus.COLLECTED
+    stop.pickup.completed_at = now
+    _sync_source_bulk_pickup(db, stop, BulkRequestStatus.COLLECTED, now)
+    _refresh_schedule_completion(stop.schedule, db)
     db.add(
         Notification(
-            user_id=pickup.requester_id,
+            user_id=stop.resident_id,
             title="Pickup collected",
-            body=f"{pickup.ref_code} was collected.",
+            body=f"{stop.pickup.ref_code} was collected.",
         )
     )
     db.commit()
-    db.refresh(pickup)
-    return _bulk_pickup_response(pickup, 0)
+    db.refresh(stop)
+    return _collector_stop(stop)
 
 
 @collector_router.post("/stops/{stop_id}/undo", response_model=CollectorStopResponse)
 def undo_complete_stop(
     stop_id: UUID, current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorStopResponse:
-    pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
-    if pickup.status != BulkRequestStatus.COLLECTED or not pickup.collected_at:
+    stop = _owned_stop(db, stop_id, current_user.id)
+    if stop.status != PickupStopStatus.COLLECTED or not stop.completed_at:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This pickup is not completed.",
         )
-    if not _is_within_undo_window(pickup.collected_at):
+    if not _is_within_undo_window(stop.completed_at):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The one-minute undo window has expired.",
         )
-    pickup.status = BulkRequestStatus.ASSIGNED
-    pickup.collected_at = None
-    pickup.is_flagged = False
-    pickup.flag_severity = None
-    pickup.flag_note = None
+    stop.status = PickupStopStatus.PENDING
+    stop.completed_at = None
+    stop.pickup.status = PickupStatus.ASSIGNED
+    stop.pickup.completed_at = None
+    _sync_source_bulk_pickup(
+        db,
+        stop,
+        BulkRequestStatus.ASSIGNED,
+        None,
+        is_flagged=False,
+    )
+    _refresh_schedule_completion(stop.schedule, db)
     db.commit()
-    db.refresh(pickup)
-    return _bulk_pickup_response(pickup, 0)
+    db.refresh(stop)
+    return _collector_stop(stop)
 
 
 @collector_router.get("/completed-collections", response_model=list[CollectorStopResponse])
 def list_completed_collections(
     current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> list[CollectorStopResponse]:
-    pickups = (
+    stops = (
         db.scalars(
-            select(BulkPickupRequest)
+            select(DailyPickupStop)
+            .join(DailyPickupStop.schedule)
             .where(
-                BulkPickupRequest.assigned_collector_id == current_user.id,
-                BulkPickupRequest.status == BulkRequestStatus.COLLECTED,
+                DailyPickupSchedule.collector_id == current_user.id,
+                DailyPickupStop.status == PickupStopStatus.COLLECTED,
             )
-            .options(joinedload(BulkPickupRequest.requester), joinedload(BulkPickupRequest.zone))
-            .order_by(BulkPickupRequest.collected_at.desc())
+            .options(
+                joinedload(DailyPickupStop.pickup),
+                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
+                joinedload(DailyPickupStop.mixed_waste_tags),
+            )
+            .order_by(DailyPickupStop.completed_at.desc())
         )
         .unique()
         .all()
     )
-    return [_bulk_pickup_response(pickup, index) for index, pickup in enumerate(pickups, start=1)]
+    return [_collector_stop(stop) for stop in stops]
 
 
 @collector_router.post("/stops/{stop_id}/notify")
@@ -335,10 +431,20 @@ def notify_resident_of_delay(
     current_user: User = Depends(require_collector),
     db: Session = Depends(get_db),
 ) -> dict:
-    pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
+    stop = _owned_stop(db, stop_id, current_user.id)
+    _ensure_not_collected(stop)
+    stop.status = PickupStopStatus.DELAYED
+    db.add(
+        DelayLog(
+            stop_id=stop.id,
+            worker_id=current_user.id,
+            reason=payload.reason,
+            note=payload.message.strip(),
+        )
+    )
     db.add(
         Notification(
-            user_id=pickup.requester_id,
+            user_id=stop.resident_id,
             title="Pickup update",
             body=payload.message.strip(),
         )
@@ -354,26 +460,44 @@ def flag_mixed_waste(
     current_user: User = Depends(require_collector),
     db: Session = Depends(get_db),
 ) -> dict:
-    pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
+    stop = _owned_stop(db, stop_id, current_user.id)
+    _ensure_not_collected(stop)
     now = datetime.now(UTC)
-    pickup.status = BulkRequestStatus.COLLECTED
-    pickup.collected_at = now
-    pickup.is_flagged = True
-    pickup.flag_severity = payload.severity
-    pickup.flag_note = payload.description.strip()
+    stop.status = PickupStopStatus.COLLECTED
+    stop.completed_at = now
+    stop.pickup.status = PickupStatus.COLLECTED
+    stop.pickup.completed_at = now
+    _sync_source_bulk_pickup(
+        db,
+        stop,
+        BulkRequestStatus.COLLECTED,
+        now,
+        is_flagged=True,
+        flag_severity=payload.severity,
+        flag_note=payload.description.strip(),
+    )
+    _refresh_schedule_completion(stop.schedule, db)
+    db.add(
+        MixedWasteTag(
+            stop_id=stop.id,
+            worker_id=current_user.id,
+            severity=payload.severity,
+            note=payload.description.strip(),
+        )
+    )
     db.add(
         Notification(
-            user_id=pickup.requester_id,
+            user_id=stop.resident_id,
             title="Pickup completed with a waste-quality flag",
-            body=f"{pickup.ref_code} was collected and needs a waste-quality review.",
+            body=f"{stop.pickup.ref_code} was collected and needs a waste-quality review.",
         )
     )
     notify_zone_managers(
         db,
-        pickup.zone_id,
+        stop.schedule.zone_id,
         "Mixed waste flagged",
         (
-            f"{pickup.ref_code} was flagged as {payload.severity.value.lower()} "
+            f"{stop.pickup.ref_code} was flagged as {payload.severity.value.lower()} "
             f"by {current_user.name}."
         ),
     )

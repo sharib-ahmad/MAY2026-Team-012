@@ -28,6 +28,7 @@ def serialize_ticket(ticket: Ticket) -> TicketResponse:
         issue_type=ticket.issue_type.value,
         status=ticket.status.value,
         description=ticket.description,
+        manager_note=ticket.resolution_notes,
         ward_code=ticket.zone.code if ticket.zone else None,
         ward_name=ticket.zone.name if ticket.zone else None,
         ward_sectors=ticket.zone.sectors if ticket.zone else None,

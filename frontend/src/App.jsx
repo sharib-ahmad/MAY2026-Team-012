@@ -34,7 +34,7 @@ export default function App() {
       <Route
         path="/resident/dashboard"
         element={
-          <ProtectedRoute role="RESIDENT">
+          <ProtectedRoute role="CITIZEN">
             <ResidentDashboard />
           </ProtectedRoute>
         }
@@ -42,7 +42,7 @@ export default function App() {
       <Route
         path="/collector/dashboard"
         element={
-          <ProtectedRoute role="COLLECTOR">
+          <ProtectedRoute role="COLLECTION_WORKER">
             <CollectorDashboard />
           </ProtectedRoute>
         }
@@ -58,7 +58,7 @@ export default function App() {
       <Route
         path="/manager/dashboard"
         element={
-          <ProtectedRoute role="MANAGER">
+          <ProtectedRoute role="MUNICIPAL_OFFICER">
             <ManagerDashboard />
           </ProtectedRoute>
         }
@@ -66,7 +66,7 @@ export default function App() {
       <Route
         path="/admin/dashboard"
         element={
-          <ProtectedRoute role="ADMIN">
+          <ProtectedRoute role="SYSTEM_ADMIN">
             <AdminDashboard />
           </ProtectedRoute>
         }

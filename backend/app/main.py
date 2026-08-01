@@ -264,7 +264,7 @@ def seed_database(session_factory) -> None:
                 Role.MUNICIPAL_OFFICER,
                 zone_id,
             ),
-            ("Demo Resident", "resident@verdeza.test", "+919876543214", Role.CITIZEN, zone_id),
+            ("Demo Citizen", "citizen@verdeza.test", "+919876543214", Role.CITIZEN, zone_id),
             (
                 "Demo Collector",
                 "collector@verdeza.test",

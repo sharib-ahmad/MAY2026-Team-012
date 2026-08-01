@@ -162,10 +162,10 @@ const MANAGER_ASSIGNED_WARDS = ["WARD-01", "WARD-02", "WARD-03"];
 // Browsers seeded before ward authorization existed hold managers without
 // assigned_wards — patch them in place so the rule applies there too.
 function backfillManagerWards(users) {
-  if (!users.some((u) => u.role === "MANAGER" && !u.assigned_wards)) return;
+  if (!users.some((u) => u.role === "MUNICIPAL_OFFICER" && !u.assigned_wards)) return;
   writeUsers(
     users.map((u) =>
-      u.role === "MANAGER" && !u.assigned_wards
+      u.role === "MUNICIPAL_OFFICER" && !u.assigned_wards
         ? { ...u, assigned_wards: MANAGER_ASSIGNED_WARDS }
         : u
     )
@@ -188,10 +188,10 @@ export function seedDemoAccountsOnce() {
     {
       name: "Demo Manager",
       email: "manager@verdeza.test",
-      role: "MANAGER",
+      role: "MUNICIPAL_OFFICER",
       assigned_wards: MANAGER_ASSIGNED_WARDS,
     },
-    { name: "Demo Admin", email: "admin@verdeza.test", role: "ADMIN" },
+    { name: "Demo Admin", email: "admin@verdeza.test", role: "SYSTEM_ADMIN" },
   ];
 
   Promise.all(

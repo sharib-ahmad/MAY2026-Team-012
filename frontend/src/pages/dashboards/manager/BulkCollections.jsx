@@ -78,7 +78,7 @@ export default function BulkCollections({ data }) {
                 return <span className="text-sm">{request.assigned_collector_name}</span>;
               const collectors = data.workers.filter(
                 (worker) =>
-                  worker.role === "COLLECTOR" &&
+                  worker.role === "COLLECTION_WORKER" &&
                   worker.ward_code === request.ward_code &&
                   worker.status === "ACTIVE"
               );

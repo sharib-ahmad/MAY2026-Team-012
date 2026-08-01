@@ -44,15 +44,8 @@ from app.models.zone import Zone
 if TYPE_CHECKING:
     from app.features.users.models import User
 
-# Map frontend role strings to backend Role enums
-ROLE_MAP_FRONTEND_TO_DB = {
-    "RESIDENT": Role.CITIZEN,
-    "COLLECTOR": Role.COLLECTION_WORKER,
-    "RECYCLER": Role.RECYCLER,
-    "MANAGER": Role.MUNICIPAL_OFFICER,
-    "ADMIN": Role.SYSTEM_ADMIN,
-}
-ROLE_MAP_FRONTEND_TO_DB.update({role.value: role for role in Role})
+# Admin requests use the canonical database role names.
+ROLE_MAP_FRONTEND_TO_DB = {role.value: role for role in Role}
 
 
 class CreateAccountRequest(BaseModel):
@@ -199,7 +192,7 @@ def create_account(
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Create a new MANAGER or ADMIN account."""
+    """Create a new MUNICIPAL_OFFICER or SYSTEM_ADMIN account."""
     import uuid
 
     from app.features.users.models import User
@@ -233,11 +226,13 @@ def create_account(
             detail=f"Unsupported role: {account_data.role}",
         )
 
-    # Only allow MANAGER and ADMIN roles
+    # Only allow municipal-officer and system-admin roles.
     if db_role not in [Role.MUNICIPAL_OFFICER, Role.SYSTEM_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only MANAGER and ADMIN accounts can be created by administrators.",
+            detail=(
+                "Only MUNICIPAL_OFFICER and SYSTEM_ADMIN accounts can be created by administrators."
+            ),
         )
 
     # If zone_id is provided, verify it exists
@@ -564,8 +559,6 @@ def update_user(
         user.name = user_update.name
     if user_update.email is not None and user_update.email.lower() != user.email.lower():
         # Check if email is already used by another user
-        from sqlalchemy import select
-
         existing_user = db.scalar(
             select(User).where(
                 User.email == user_update.email.lower(),
@@ -581,8 +574,6 @@ def update_user(
         user.email = user_update.email.lower()
     if user_update.phone is not None and user_update.phone != user.phone:
         # Check if phone is already used by another user
-        from sqlalchemy import select
-
         existing_user = db.scalar(
             select(User).where(
                 User.phone == user_update.phone,

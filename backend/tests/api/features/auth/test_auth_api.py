@@ -20,7 +20,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
         "phone": "+919876543219",
         "address": "123 Green Street",
         "zone_id": str(ward_a.id),
-        "role": "RESIDENT",
+        "role": "CITIZEN",
     }
 
     # 1. Register a new user
@@ -29,7 +29,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
     data = response.json()
     assert "access_token" in data
     assert data["user"]["email"] == "jane.resident@example.com"
-    assert data["user"]["role"] == "RESIDENT"
+    assert data["user"]["role"] == "CITIZEN"
     assert data["user"]["ward_code"] == "W-04"
 
     # Verify user exists in database
@@ -61,7 +61,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
     assert response.status_code == status.HTTP_200_OK
     me_data = response.json()
     assert me_data["email"] == "jane.resident@example.com"
-    assert me_data["role"] == "RESIDENT"
+    assert me_data["role"] == "CITIZEN"
 
     # 5. Access /me with invalid token
     bad_headers = {"Authorization": "Bearer invalidtoken"}
@@ -79,7 +79,7 @@ def test_register_with_location(db_client, db, ward_a):
         "phone": "+919876543233",
         "address": "123 Map Street",
         "zone_id": str(ward_a.id),
-        "role": "RESIDENT",
+        "role": "CITIZEN",
         "latitude": 26.8467,
         "longitude": 80.9462,
     }

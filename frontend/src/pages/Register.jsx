@@ -30,8 +30,12 @@ function LocationPicker({ onChange }) {
 }
 
 const ROLES = [
-  { value: "RESIDENT", label: "Resident", desc: "Schedule pickups and track your impact" },
-  { value: "COLLECTOR", label: "Collector", desc: "Collect and weigh dry waste on routes" },
+  { value: "CITIZEN", label: "Citizen", desc: "Schedule pickups and track your impact" },
+  {
+    value: "COLLECTION_WORKER",
+    label: "Collection Worker",
+    desc: "Collect and weigh dry waste on routes",
+  },
   { value: "RECYCLER", label: "Recycler", desc: "Process incoming batches at your facility" },
 ];
 
@@ -76,7 +80,7 @@ export default function Register() {
     confirm: "",
     phone: "",
     zone_id: "",
-    role: "RESIDENT",
+    role: "CITIZEN",
     address: "",
     latitude: null,
     longitude: null,
@@ -100,8 +104,8 @@ export default function Register() {
       });
   }, []);
 
-  const needsZone = form.role === "RESIDENT" || form.role === "COLLECTOR";
-  const showAddress = form.role === "RESIDENT";
+  const needsZone = form.role === "CITIZEN" || form.role === "COLLECTION_WORKER";
+  const showAddress = form.role === "CITIZEN";
 
   // Clears just one field's error as the user edits it, so the message
   // doesn't stay stuck on screen after they've started fixing it.
@@ -152,7 +156,7 @@ export default function Register() {
     if (!form.phone || !form.phone.trim() || form.phone.trim().length < 5) {
       errors.phone = "Please enter your phone number (at least 5 characters).";
     }
-    if (form.role === "RESIDENT" && (!form.latitude || !form.longitude)) {
+    if (form.role === "CITIZEN" && (!form.latitude || !form.longitude)) {
       errors.location = "Please select your location on the map.";
     }
     if (showAddress && !form.address.trim()) {

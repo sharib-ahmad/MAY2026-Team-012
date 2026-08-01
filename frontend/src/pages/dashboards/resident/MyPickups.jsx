@@ -193,6 +193,17 @@ export default function MyPickups() {
                 <div className="bg-gray-50 rounded-input p-3">{selected.notes}</div>
               </div>
             )}
+            {selected.is_flagged && (
+              <div className="rounded-input border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-medium text-amber-900 mb-1">Waste-quality flag</p>
+                <p className="text-sm text-amber-950">
+                  Sensitivity: {selected.flag_severity?.replace(/_/g, " ") || "Routine"}
+                </p>
+                {selected.flag_note && (
+                  <p className="mt-1 text-sm text-amber-900">{selected.flag_note}</p>
+                )}
+              </div>
+            )}
             {selected.collector_name ? (
               <div className="bg-primary/5 rounded-input p-3">
                 <p className="text-xs font-medium text-gray-600 mb-1">Assigned Collector</p>

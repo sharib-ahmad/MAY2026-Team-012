@@ -13,13 +13,13 @@ from app.models.enums import Role, UserStatus
 
 security_bearer = HTTPBearer(auto_error=True)
 
-# Map database Role enums back to frontend role strings
+# The public API exposes the canonical database role names.
 ROLE_MAP_DB_TO_FRONTEND = {
-    Role.CITIZEN: "RESIDENT",
-    Role.COLLECTION_WORKER: "COLLECTOR",
+    Role.CITIZEN: "CITIZEN",
+    Role.COLLECTION_WORKER: "COLLECTION_WORKER",
     Role.RECYCLER: "RECYCLER",
-    Role.MUNICIPAL_OFFICER: "MANAGER",
-    Role.SYSTEM_ADMIN: "ADMIN",
+    Role.MUNICIPAL_OFFICER: "MUNICIPAL_OFFICER",
+    Role.SYSTEM_ADMIN: "SYSTEM_ADMIN",
 }
 
 

@@ -57,6 +57,13 @@ const DELAY_TYPES = [
 
 const DELAY_MIN_LEN = 5;
 const DELAY_MAX_LEN = 200;
+const ISSUE_MAX_LEN = 250;
+
+const apiErrorMessage = (err, fallback) => {
+  const detail = err.response?.data?.detail;
+  if (Array.isArray(detail)) return detail.map((item) => item.msg || String(item)).join(" ");
+  return typeof detail === "string" ? detail : err.message || fallback;
+};
 
 const ISSUE_TYPES = [
   { value: "CONTAMINATION", label: "Mixed / Contaminated Waste" },
@@ -109,7 +116,7 @@ export default function CollectorRoutes() {
       };
       setRoute(transformedRoute);
     } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to load your assigned collections.");
+      setActionErr(apiErrorMessage(err, "Failed to load your assigned collections."));
     }
     setLoading(false);
   }, [user]);
@@ -134,7 +141,7 @@ export default function CollectorRoutes() {
       await completeCollectorStop(id);
       await load();
     } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to collect stop");
+      setActionErr(apiErrorMessage(err, "Failed to collect stop"));
     }
   };
 
@@ -145,7 +152,7 @@ export default function CollectorRoutes() {
       await undoCollectorStop(id);
       await load();
     } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to undo collection");
+      setActionErr(apiErrorMessage(err, "Failed to undo collection"));
     }
   };
 
@@ -203,7 +210,7 @@ export default function CollectorRoutes() {
       setTimeout(() => setDelayTarget(null), 1200);
       load();
     } catch (err) {
-      setDelayErr(err.response?.data?.detail || err.message || "Failed to send notification");
+      setDelayErr(apiErrorMessage(err, "Failed to send notification"));
     }
     setDelaySending(false);
   };
@@ -231,7 +238,7 @@ export default function CollectorRoutes() {
       setTimeout(() => setIssueTarget(null), 1500);
       load();
     } catch (err) {
-      setIssueErr(err.response?.data?.detail || "Failed to record flag");
+      setIssueErr(apiErrorMessage(err, "Failed to record flag"));
     }
     setIssueSending(false);
   };
@@ -634,6 +641,7 @@ export default function CollectorRoutes() {
             <textarea
               required
               minLength={10}
+              maxLength={ISSUE_MAX_LEN}
               rows={4}
               className="w-full border border-gray-200 rounded-input px-3 py-2 text-sm"
               value={issueForm.description}

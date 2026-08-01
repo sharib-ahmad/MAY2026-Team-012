@@ -7,6 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.features.auth.schemas import validate_email_format
 from app.models.enums import UserStatus
 
+AdminRole = Literal[
+    "CITIZEN",
+    "COLLECTION_WORKER",
+    "MUNICIPAL_OFFICER",
+    "RECYCLER",
+    "SYSTEM_ADMIN",
+]
+
 
 class AdminRequest(BaseModel):
     """Base schema that rejects fields administrators must never set directly."""
@@ -31,7 +39,7 @@ class UserCreate(AdminRequest):
     name: str = Field(..., min_length=1, max_length=120)
     email: str = Field(..., max_length=255)
     phone: str = Field(..., min_length=5, max_length=20)
-    role: Literal["CITIZEN", "COLLECTION_WORKER", "MUNICIPAL_OFFICER", "RECYCLER", "SYSTEM_ADMIN"]
+    role: AdminRole
     zone_id: uuid.UUID | None = None
     password: str = Field(..., min_length=8, max_length=128)
 
@@ -55,10 +63,7 @@ class UserUpdate(AdminRequest):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     email: str | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, min_length=5, max_length=20)
-    role: (
-        Literal["CITIZEN", "COLLECTION_WORKER", "MUNICIPAL_OFFICER", "RECYCLER", "SYSTEM_ADMIN"]
-        | None
-    ) = None
+    role: AdminRole | None = None
 
     @field_validator("name", "phone")
     @classmethod

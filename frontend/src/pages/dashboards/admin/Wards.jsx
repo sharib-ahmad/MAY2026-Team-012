@@ -50,7 +50,7 @@ export default function Wards() {
         ]);
         setWards(wardsData.wards || []);
         // Filter only manager users from dashboard
-        const managerUsers = dashboardData.data.users.filter((u) => u.role === "MANAGER");
+        const managerUsers = dashboardData.data.users.filter((u) => u.role === "MUNICIPAL_OFFICER");
         setManagers(managerUsers);
       } catch (err) {
         setError(err.message || "Failed to load data");

@@ -19,11 +19,11 @@ import { formatDate } from "./format";
 
 const ROLE_OPTIONS = [
   { value: "ALL", label: "All roles" },
-  { value: "RESIDENT", label: "Resident" },
-  { value: "COLLECTOR", label: "Collector" },
+  { value: "CITIZEN", label: "Citizen" },
+  { value: "COLLECTION_WORKER", label: "Collection Worker" },
   { value: "RECYCLER", label: "Recycler" },
-  { value: "MANAGER", label: "Manager" },
-  { value: "ADMIN", label: "Admin" },
+  { value: "MUNICIPAL_OFFICER", label: "Municipal Officer" },
+  { value: "SYSTEM_ADMIN", label: "System Admin" },
 ];
 
 const STATUS_OPTIONS = [
@@ -34,11 +34,11 @@ const STATUS_OPTIONS = [
 
 const roleLabel = (key) => {
   const labels = {
-    RESIDENT: "Resident",
-    COLLECTOR: "Collector",
+    CITIZEN: "Citizen",
+    COLLECTION_WORKER: "Collection Worker",
     RECYCLER: "Recycler",
-    MANAGER: "Manager",
-    ADMIN: "Admin",
+    MUNICIPAL_OFFICER: "Municipal Officer",
+    SYSTEM_ADMIN: "System Admin",
   };
   return labels[key] || key;
 };
@@ -350,11 +350,11 @@ export default function Accounts() {
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="RESIDENT">Resident</option>
-                  <option value="COLLECTOR">Collector</option>
+                  <option value="CITIZEN">Citizen</option>
+                  <option value="COLLECTION_WORKER">Collection Worker</option>
                   <option value="RECYCLER">Recycler</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
+                  <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
+                  <option value="SYSTEM_ADMIN">System Admin</option>
                 </select>
               </div>
             </div>
