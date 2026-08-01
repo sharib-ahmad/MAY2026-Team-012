@@ -27,7 +27,11 @@ def test_admin_can_update_user_details(db_client, db):
     )
     db.add_all([admin, target])
     db.commit()
-    headers = {"Authorization": f"Bearer {create_access_token(admin.id)}"}
+    headers = {
+        "Authorization": (
+            f"Bearer {create_access_token(admin.id, token_version=admin.token_version)}"
+        )
+    }
 
     response = db_client.patch(
         f"/api/v1/admin/users/{target.id}",
