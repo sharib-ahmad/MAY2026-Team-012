@@ -26,7 +26,10 @@ def list_tickets(
         db.scalars(
             select(Ticket)
             .where(Ticket.raised_by_id == current_user.id)
-            .options(joinedload(Ticket.zone).joinedload(Zone.manager))
+            .options(
+                joinedload(Ticket.zone).joinedload(Zone.manager),
+                joinedload(Ticket.zone).joinedload(Zone.members),
+            )
             .order_by(Ticket.created_at.desc())
         )
         .unique()
@@ -74,6 +77,9 @@ def create_ticket(
     ticket = db.scalar(
         select(Ticket)
         .where(Ticket.id == ticket.id)
-        .options(joinedload(Ticket.zone).joinedload(Zone.manager))
+        .options(
+            joinedload(Ticket.zone).joinedload(Zone.manager),
+            joinedload(Ticket.zone).joinedload(Zone.members),
+        )
     )
     return serialize_ticket(ticket)

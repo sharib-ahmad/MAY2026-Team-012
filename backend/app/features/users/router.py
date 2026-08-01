@@ -27,7 +27,10 @@ def get_impact(
     completed_pickups = (
         db.scalars(
             select(Pickup)
-            .where(Pickup.resident_id == current_user.id, Pickup.status == PickupStatus.COMPLETED)
+            .where(
+                Pickup.resident_id == current_user.id,
+                Pickup.status.in_([PickupStatus.COMPLETED, PickupStatus.COLLECTED]),
+            )
             .options(joinedload(Pickup.waste_category))
         )
         .unique()
@@ -121,7 +124,8 @@ def get_dashboard(
     ).all()
     completed_pickups = db.scalars(
         select(Pickup).where(
-            Pickup.resident_id == current_user.id, Pickup.status == PickupStatus.COMPLETED
+            Pickup.resident_id == current_user.id,
+            Pickup.status.in_([PickupStatus.COMPLETED, PickupStatus.COLLECTED]),
         )
     )
     total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)

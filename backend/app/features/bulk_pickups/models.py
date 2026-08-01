@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
 from app.models.enums import BulkRequestStatus
+from app.models.enums import WasteSeverity
 
 if TYPE_CHECKING:
     from app.features.sorting_guide.models import WasteCategory
@@ -67,6 +68,12 @@ class BulkPickupRequest(Base, UUIDPrimaryKey, Timestamps):
         DateTime(timezone=True),
         nullable=True,
     )
+    collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_flagged: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    flag_severity: Mapped[WasteSeverity | None] = mapped_column(
+        SQLEnum(WasteSeverity, name="wasteseverity"), nullable=True
+    )
+    flag_note: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     # Relationships
     requester: Mapped["User"] = relationship(

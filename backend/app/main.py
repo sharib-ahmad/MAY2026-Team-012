@@ -146,6 +146,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         code = code_map.get(exc.status_code, "ERROR")
 
         message = exc.detail if isinstance(exc.detail, str) else code.replace("_", " ").title()
+        if isinstance(exc.detail, dict):
+            code = exc.detail.get("code", code)
+            message = exc.detail.get("message", message)
 
         return error_response(
             exc.status_code,

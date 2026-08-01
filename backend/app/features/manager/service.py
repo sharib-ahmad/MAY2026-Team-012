@@ -202,6 +202,19 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
+    bulk_mixed_waste_rows = [
+        {
+            "id": str(request.id),
+            "route_code": request.ref_code,
+            "ward_code": request.zone.code,
+            "point_label": request.requester.name,
+            "severity": request.flag_severity.value if request.flag_severity else "ROUTINE",
+            "note": request.flag_note,
+            "flagged_at": request.collected_at,
+        }
+        for request in bulk_requests
+        if request.is_flagged
+    ]
     notifications = db.scalars(
         select(Notification)
         .where(Notification.user_id == manager.id, Notification.is_read.is_(False))
@@ -417,7 +430,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "flagged_at": tag.created_at,
             }
             for tag in mixed_waste
-        ],
+        ] + bulk_mixed_waste_rows,
         "bulk_pickups": [
             {
                 "id": str(request.id),

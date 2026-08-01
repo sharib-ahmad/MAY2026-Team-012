@@ -84,6 +84,9 @@ def create_audit_log(
     module: str = "auth",
     description: str = "",
     ip_address: str | None = None,
+    *,
+    commit: bool = True,
+    required: bool = False,
 ) -> AuditLog | None:
     """Create an audit log entry using the existing SQLAlchemy session.
 
@@ -105,12 +108,15 @@ def create_audit_log(
         )
 
         db.add(audit_log)
-        db.commit()
-        db.refresh(audit_log)
+        if commit:
+            db.commit()
+            db.refresh(audit_log)
 
         logger.info(f"Successfully created audit log: {action} on {entity_type}")
         return audit_log
 
     except Exception as e:
         logger.exception(f"Audit log creation failed: {e}")
+        if required:
+            raise
         return None

@@ -112,6 +112,7 @@ def assign_bulk_pickup(
     request.decided_by_id = current_user.id
     request.decided_at = datetime.now(UTC)
     request.status = BulkRequestStatus.ASSIGNED
+
     db.add_all(
         [
             Notification(

@@ -143,6 +143,11 @@ export const getUserPickupTracking = async (pickupId) => {
   return data;
 };
 
+export const getPublicTracking = async (reference) => {
+  const { data } = await API.get(`/v1/track/${encodeURIComponent(reference.trim())}`);
+  return data;
+};
+
 export const listUserTickets = async () => {
   const { data } = await API.get("/v1/user/tickets");
   return data;
@@ -167,3 +172,23 @@ export const markUserNotificationRead = async (notificationId) => {
   const { data } = await API.patch(`/v1/user/notifications/${notificationId}/read`);
   return data;
 };
+
+export const getCollectorRoute = async () => (await API.get("/v1/collector/route")).data;
+export const completeCollectorStop = async (stopId) =>
+  (await API.post(`/v1/collector/stops/${stopId}/complete`)).data;
+export const undoCollectorStop = async (stopId) =>
+  (await API.post(`/v1/collector/stops/${stopId}/undo`)).data;
+export const notifyCollectorStop = async (stopId, payload) =>
+  (await API.post(`/v1/collector/stops/${stopId}/notify`, payload)).data;
+export const flagCollectorStop = async (stopId, payload) =>
+  (await API.post(`/v1/collector/stops/${stopId}/flag`, payload)).data;
+export const markCollectorStopClean = async (stopId) =>
+  (await API.post(`/v1/collector/stops/${stopId}/clean`)).data;
+export const listCollectorNotifications = async () =>
+  (await API.get("/v1/collector/notifications")).data;
+export const markCollectorNotificationRead = async (notificationId) =>
+  (await API.patch(`/v1/collector/notifications/${notificationId}/read`)).data;
+export const markAllCollectorNotificationsRead = async () =>
+  (await API.patch("/v1/collector/notifications/read")).data;
+export const getCompletedCollectorCollections = async () =>
+  (await API.get("/v1/collector/completed-collections")).data;
