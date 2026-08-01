@@ -2,9 +2,20 @@
 
 **Feature:** Story 5.1 role-based user provisioning and PR #64 administrator support APIs
 **Branch under test:** `test/SCRUM-173-admin-qa`
-**Commit tested:** `d65669d`
-**Execution date:** 2026-08-01
-**Execution rule:** Expected results were fixed before execution. Actual Output, Result and Defect below are based only on the recorded pytest execution against the disposable PostgreSQL test database.
+**Initial commit tested:** `d65669d`
+**Initial execution date:** 2026-08-01
+**Latest retest base commit:** `4c56834` with local QA-maintenance corrections
+**Latest retest date:** 2026-08-02
+**Current QA decision:** Failed; Draft PR #80 remains blocked by confirmed product and contract failures
+**Corrective issue:** #70
+**Execution rule:** Expected results were fixed before execution. Actual outputs and results are recorded from pytest execution against the disposable PostgreSQL test database. Historical evidence is preserved, while the latest retest section is the source of truth for the current failure set.
+
+## Evidence history
+
+- **Initial focused execution:** 47 collected, 12 passed, 35 failed, 0 errors, 0 skipped.
+- **Latest QA-maintenance retest:** 82 collected, 71 passed, 11 failed, 0 errors, 0 skipped.
+- The initial tables and defect details are retained for traceability.
+- The latest retest section supersedes any initial defect classification that no longer reproduces.
 
 ## Endpoint coverage
 
@@ -22,7 +33,11 @@
 | `GET` | `/api/v1/admin/logs` | Bounded administrator audit-log view | `test_admin_wards_support.py` |
 | Route inventory | Legacy singular and duplicate paths | Must not be exposed | `test_admin_contract.py` |
 
-## Test cases
+## Initial test cases and execution results
+
+The table below records the first focused execution at commit `d65669d`. It is preserved as
+historical evidence. Use the latest retest section for the current result and open failure groups.
+
 
 | Test ID | Story / Rule | API endpoint | Request input / action | Expected output and database result | Automated pytest node | Actual output | Result | Defect |
 |---|---|---|---|---|---|---|---|---|
@@ -46,7 +61,7 @@
 | ADM-18 | R1, R4 | Dashboard and logs | Admin requests dashboard and logs with `limit=20` | `200`; bounded log list in newest-first order; no passwords, token versions, deletion fields or internal `zone_id` | `tests/api/features/admin/test_admin_wards_support.py::test_dashboard_and_logs_are_admin_only_bounded_and_do_not_leak_internal_fields` | Dashboard and logs returned `200`, dashboard user count was present, and `password_hash`, `token_version` and `deleted_at` were absent. Dashboard user records exposed internal `zone_id`. Log bound/order and final safe-body assertions were not reached. | Fail | ADM-QA-11 |
 | ADM-19 | AC1, AC2, AC7 | Cross-endpoint system journey | Admin creates Citizen → Citizen logs in/me → Admin disables → old session/login denied → Admin re-enables → login restored | Identity, canonical role and ward remain consistent; disable takes immediate effect; re-enable restores access | `tests/api/features/admin/test_admin_system.py::test_admin_provisions_user_user_logs_in_admin_disables_and_reenables` | The first create request returned `200` instead of required `201`. The journey stopped at that assertion; login, profile, disable, revocation, re-enable and restored-login stages were not executed. | Fail | ADM-QA-02 |
 
-## Execution record
+## Initial execution record
 
 ```text
 Commit tested: d65669d
@@ -91,7 +106,12 @@ Classified root causes:
 - 1 shared authentication root cause already tracked under SCRUM-88
 ```
 
-## Defect summary
+## Initial defect summary
+
+This classification reflects the first execution only. Some initial failures were later removed
+after correcting stale test adapters and unnecessarily broad assertions. The current open failure
+groups are listed in the latest retest section.
+
 
 | Defect | Severity | Priority | Summary | Affected evidence |
 |---|---|---|---|---|
@@ -108,13 +128,17 @@ Classified root causes:
 | ADM-QA-10 | High | P0 | Required audit failures are swallowed and the request reports success | ADM-13 |
 | ADM-QA-11 | Medium | P0 | Administrator dashboard exposes internal `zone_id` | ADM-18 |
 
-## Confirmed defects
+## Initial defect details
+
+These defect details are retained for traceability. They describe the initial execution and must not
+be treated as the current defect list when the latest retest no longer reproduces them.
+
 
 ### ADM-QA-01 — Canonical administrator routes and contracts are missing
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -144,7 +168,7 @@ Register the approved canonical routes, remove legacy and duplicate route semant
 
 **Severity:** High
 **Priority:** P0
-**Status:** Existing SCRUM-88 defect
+**Initial status:** Existing SCRUM-88 defect
 **Corrective issue:** Use the existing SCRUM-88 authentication issue
 **Corrective PR:** Pending
 
@@ -172,7 +196,7 @@ Route missing, unsupported and malformed credentials through the shared generic 
 
 **Severity:** Medium
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -201,7 +225,7 @@ Declare and return HTTP `201 Created` for successful administrator provisioning.
 
 **Severity:** Medium
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -229,7 +253,7 @@ Do not set `last_login_at` during provisioning. Update it only after successful 
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -257,7 +281,7 @@ Canonicalise email before lookup and persistence and enforce a concurrency-safe 
 
 **Severity:** Medium
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -290,7 +314,7 @@ Use the standard public error taxonomy consistently without exposing database or
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -320,7 +344,7 @@ Forbid undeclared fields, trim and reject blank text, and enforce the bcrypt UTF
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -349,7 +373,7 @@ Increment `token_version` in the same transaction as every effective role/status
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -377,7 +401,7 @@ Use the authenticated administrator ID for every administrator-triggered user li
 
 **Severity:** Critical
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -406,7 +430,7 @@ Lock and count active system administrators within the update transaction. Rejec
 
 **Severity:** High
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -434,7 +458,7 @@ Create the user and required audit entry in one transaction. Do not catch and ig
 
 **Severity:** Medium
 **Priority:** P0
-**Status:** Open
+**Initial status:** Open
 **Corrective issue:** #70
 **Corrective PR:** Pending
 
@@ -456,9 +480,13 @@ tests/api/features/admin/test_admin_wards_support.py::test_dashboard_and_logs_ar
 
 Map dashboard users through an explicit public response schema that omits internal persistence fields.
 
-## QA coverage gap
+## Initial QA coverage gap
 
 ### QA-GAP-01 — Ward CRUD test does not verify every documented audit/order requirement
+
+This gap was recorded during the initial execution and is retained for traceability. Reassess it
+against the current test implementation before final sign-off.
+
 
 The passing ward CRUD test verifies create, list presence, update, two administrator-attributed audit rows before deletion, successful delete and database removal. It does not explicitly assert:
 
@@ -492,7 +520,7 @@ After the corrective code is merged into `main`:
 5. add the corrective issue/PR references and final retest result;
 6. mark a row Pass only when the expected status, body, headers and database effect have been verified.
 
-Current sign-off status:
+Initial sign-off status at commit `d65669d`:
 
 ```text
 SCRUM-173 Administrator API QA: FAILED
@@ -500,3 +528,221 @@ Focused suite: 12 passed, 35 failed
 Full backend regression: Pending corrections
 Coverage: Pending full backend execution
 ```
+
+## QA-maintenance retest after current-main alignment
+
+The original focused execution is preserved above as historical evidence.
+
+The administrator suite was audited against the current backend routes, schemas and error
+envelopes. Stale route-selection logic, legacy role payloads, overly broad sensitive-field checks,
+unfiltered audit assertions and nonessential whitespace assertions were corrected without weakening
+the approved acceptance criteria.
+
+### Retest execution record
+
+```text
+Repository base commit: 4c56834
+QA state under test: QA-maintenance corrections executed in the working tree before this evidence update was committed
+Branch: test/SCRUM-173-admin-qa
+Execution date: 2026-08-02
+Python: 3.12.3
+PostgreSQL: 16.14
+Database: Disposable PostgreSQL database ending in _test
+
+Command:
+python -m pytest --no-cov -q \
+  tests/api/features/admin \
+  --junitxml=/mnt/c/Users/enish/Downloads/SCRUM173_Admin_Retest/scrum173-admin-junit.xml \
+  2>&1 | tee \
+  /mnt/c/Users/enish/Downloads/SCRUM173_Admin_Retest/scrum173-admin-pytest.txt
+
+Collection: 82
+Passed: 71
+Failed: 11
+Errors: 0
+Skipped: 0
+Duration: 29.04 seconds
+JUnit XML: SCRUM173_Admin_Retest/scrum173-admin-junit.xml
+Pytest output: SCRUM173_Admin_Retest/scrum173-admin-pytest.txt
+Coverage: Not measured because --no-cov was used
+```
+
+### Current failing pytest nodes
+
+```text
+tests/api/features/admin/test_admin_contract.py::test_runtime_exposes_the_approved_admin_contract
+tests/api/features/admin/test_admin_contract.py::test_openapi_publishes_canonical_paths_without_legacy_aliases
+tests/api/features/admin/test_admin_contract.py::test_static_swagger_documents_the_approved_admin_paths
+tests/api/features/admin/test_admin_contract.py::test_missing_credentials_include_the_bearer_challenge
+tests/api/features/admin/test_admin_system.py::test_admin_provisions_user_user_logs_in_admin_disables_and_reenables
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[CITIZEN]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[COLLECTION_WORKER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[MUNICIPAL_OFFICER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[RECYCLER]
+tests/api/features/admin/test_admin_users.py::test_admin_create_rejects_unsafe_or_invalid_input_without_persistence[unknown-ward]
+tests/api/features/admin/test_admin_users.py::test_audit_failure_rolls_back_user_creation
+```
+
+### Remaining confirmed failure groups
+
+#### 1. Administrator runtime contract
+
+**Expected**
+
+The approved canonical administrator user-list route exists:
+
+```text
+GET /api/v1/admin/users
+```
+
+**Actual**
+
+The route is missing from the runtime contract.
+
+**Affected test**
+
+```text
+tests/api/features/admin/test_admin_contract.py::test_runtime_exposes_the_approved_admin_contract
+```
+
+**Current classification:** Product/API-contract defect tracked in issue #70.
+
+#### 2. OpenAPI runtime contract
+
+**Expected**
+
+OpenAPI publishes only the approved canonical administrator paths and does not publish legacy
+singular aliases.
+
+**Actual**
+
+Legacy singular administrator aliases remain published in the generated OpenAPI schema.
+
+**Affected test**
+
+```text
+tests/api/features/admin/test_admin_contract.py::test_openapi_publishes_canonical_paths_without_legacy_aliases
+```
+
+**Current classification:** Product/API-contract defect tracked in issue #70.
+
+#### 3. Static Swagger contract
+
+**Expected**
+
+`api-doc.yaml` documents every approved administrator endpoint with the required descriptions,
+user-story mapping and error responses.
+
+**Actual**
+
+Required administrator paths are missing from `api-doc.yaml`.
+
+**Affected test**
+
+```text
+tests/api/features/admin/test_admin_contract.py::test_static_swagger_documents_the_approved_admin_paths
+```
+
+**Current classification:** API-documentation defect tracked in issue #70.
+
+#### 4. Authentication challenge
+
+**Expected**
+
+A missing Bearer token returns the approved authentication error and includes:
+
+```text
+WWW-Authenticate: Bearer
+```
+
+**Actual**
+
+The missing-credential response does not include the required Bearer challenge header.
+
+**Affected test**
+
+```text
+tests/api/features/admin/test_admin_contract.py::test_missing_credentials_include_the_bearer_challenge
+```
+
+**Current classification:** Shared authentication defect. Link it to the existing SCRUM-88
+authentication correction as well as issue #70 where the administrator impact is recorded.
+
+#### 5. User provisioning and unknown-ward handling
+
+**Expected**
+
+Valid supported-role provisioning succeeds, and an unknown ward is rejected through the approved
+safe validation response.
+
+**Actual**
+
+The backend calls `uuid.UUID()` on a value that is already a UUID, causing:
+
+```text
+AttributeError: 'UUID' object has no attribute 'replace'
+```
+
+This shared backend error blocks the administrator system journey, all four supported-role
+provisioning cases and the unknown-ward validation case.
+
+**Affected tests**
+
+```text
+tests/api/features/admin/test_admin_system.py::test_admin_provisions_user_user_logs_in_admin_disables_and_reenables
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[CITIZEN]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[COLLECTION_WORKER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[MUNICIPAL_OFFICER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[RECYCLER]
+tests/api/features/admin/test_admin_users.py::test_admin_create_rejects_unsafe_or_invalid_input_without_persistence[unknown-ward]
+```
+
+**Current classification:** Backend implementation defect tracked in issue #70.
+
+#### 6. Required audit rollback
+
+**Expected**
+
+When a required audit write fails, the exception aborts the request and the new user is not retained
+in the request database session.
+
+**Actual**
+
+After the intentionally injected audit exception is caught by the test, the rollback verification
+still fails. User creation is not fully rolled back in the request session.
+
+**Affected test**
+
+```text
+tests/api/features/admin/test_admin_users.py::test_audit_failure_rolls_back_user_creation
+```
+
+**Current classification:** Transaction-integrity defect tracked in issue #70.
+
+### Current QA decision
+
+```text
+SCRUM-173 Administrator API QA: FAILED
+Latest focused suite: 71 passed, 11 failed
+Test errors: 0
+Skipped: 0
+Full backend regression: Pending product corrections
+Coverage: Pending full backend execution
+QA pull request: Draft PR #80
+Corrective issue: #70
+```
+
+The remaining failures require product or API-contract corrections. Expected results were not
+weakened, skipped, suppressed or changed to obtain a passing result.
+
+### Next retest and sign-off action
+
+After the corrective code is merged into `main`:
+
+1. merge current `origin/main` into `test/SCRUM-173-admin-qa`;
+2. rerun the focused administrator suite;
+3. update only the latest retest result and the affected current failure groups;
+4. run the complete backend quality and regression commands;
+5. record final coverage and CI status;
+6. mark the Draft PR ready only when the focused suite, complete backend suite and required CI checks
+   all pass.

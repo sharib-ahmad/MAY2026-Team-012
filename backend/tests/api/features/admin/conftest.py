@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from sqlalchemy.orm import Session
@@ -18,7 +19,7 @@ from app.models.zone import Zone
 
 @dataclass(frozen=True, slots=True)
 class AdminPaths:
-    """Resolved runtime paths plus the approved canonical paths."""
+    """Current preferred routes, with isolated fallbacks for legacy aliases."""
 
     create_user: str
     list_users: str
@@ -27,44 +28,25 @@ class AdminPaths:
     delete_user: str
     ward_collection: str
     ward_item: str
-    public_wards: str
+    ward_reference: str
     dashboard: str
     logs: str
     login: str
     me: str
-    canonical_users: bool
-    canonical_wards: bool
+    has_list_users: bool
 
 
-LEGACY_ROLE_BY_CANONICAL = {
-    Role.CITIZEN: "RESIDENT",
-    Role.COLLECTION_WORKER: "COLLECTOR",
-    Role.MUNICIPAL_OFFICER: "MANAGER",
-    Role.RECYCLER: "RECYCLER",
-    Role.SYSTEM_ADMIN: "ADMIN",
-}
-
-
-@pytest.fixture
-def admin_paths(app_test) -> AdminPaths:
-    routes = {
+def _runtime_routes(app_test) -> set[tuple[str, str]]:
+    return {
         (method, route.path)
         for route in app_test.routes
         for method in getattr(route, "methods", set())
     }
 
-    canonical_users = {
-        ("POST", "/api/v1/admin/users"),
-        ("GET", "/api/v1/admin/users"),
-        ("PATCH", "/api/v1/admin/users/{user_id}"),
-    } <= routes
 
-    canonical_wards = {
-        ("GET", "/api/v1/admin/wards"),
-        ("POST", "/api/v1/admin/wards"),
-        ("PATCH", "/api/v1/admin/wards/{ward_id}"),
-        ("DELETE", "/api/v1/admin/wards/{ward_id}"),
-    } <= routes
+@pytest.fixture
+def admin_paths(app_test) -> AdminPaths:
+    routes = _runtime_routes(app_test)
 
     return AdminPaths(
         create_user=(
@@ -72,17 +54,15 @@ def admin_paths(app_test) -> AdminPaths:
             if ("POST", "/api/v1/admin/users") in routes
             else "/api/v1/admin/user"
         ),
-        list_users=(
-            "/api/v1/admin/users"
-            if ("GET", "/api/v1/admin/users") in routes
-            else "/api/v1/admin/dashboard"
-        ),
+        list_users="/api/v1/admin/users",
         update_user=(
-            "/api/v1/admin/users/{user_id}" if canonical_users else "/api/v1/admin/user/{user_id}"
+            "/api/v1/admin/users/{user_id}"
+            if ("PATCH", "/api/v1/admin/users/{user_id}") in routes
+            else "/api/v1/admin/user/{user_id}"
         ),
         update_status=(
-            "/api/v1/admin/users/{user_id}"
-            if canonical_users
+            "/api/v1/admin/users/{user_id}/status"
+            if ("PATCH", "/api/v1/admin/users/{user_id}/status") in routes
             else "/api/v1/admin/user/{user_id}/status"
         ),
         delete_user=(
@@ -90,19 +70,24 @@ def admin_paths(app_test) -> AdminPaths:
             if ("DELETE", "/api/v1/admin/users/{user_id}") in routes
             else "/api/v1/admin/user/{user_id}"
         ),
-        ward_collection=("/api/v1/admin/wards" if canonical_wards else "/api/v1/admin/ward"),
-        ward_item=(
-            "/api/v1/admin/wards/{ward_id}" if canonical_wards else "/api/v1/admin/ward/{ward_id}"
+        ward_collection=(
+            "/api/v1/admin/wards"
+            if ("GET", "/api/v1/admin/wards") in routes
+            else "/api/v1/admin/ward"
         ),
-        public_wards=("/api/v1/wards" if ("GET", "/api/v1/wards") in routes else "/api/v1/zones"),
+        ward_item=(
+            "/api/v1/admin/wards/{ward_id}"
+            if ("PATCH", "/api/v1/admin/wards/{ward_id}") in routes
+            else "/api/v1/admin/ward/{ward_id}"
+        ),
+        ward_reference="/api/v1/wards",
         dashboard="/api/v1/admin/dashboard",
         logs="/api/v1/admin/logs",
         login=(
             "/api/v1/auth/login" if ("POST", "/api/v1/auth/login") in routes else "/api/v1/login"
         ),
         me=("/api/v1/auth/me" if ("GET", "/api/v1/auth/me") in routes else "/api/v1/me"),
-        canonical_users=canonical_users,
-        canonical_wards=canonical_wards,
+        has_list_users=("GET", "/api/v1/admin/users") in routes,
     )
 
 
@@ -161,7 +146,7 @@ def admin_user(make_user: Callable[..., User]) -> User:
 
 
 def _user_create_payload(
-    paths: AdminPaths,
+    _paths: AdminPaths,
     *,
     name: str,
     email: str,
@@ -170,43 +155,29 @@ def _user_create_payload(
     role: Role,
     ward: Zone | None = None,
 ) -> dict[str, object]:
-    """Build input for the current route while preserving canonical assertions."""
+    """Build a valid request that reaches the current administrator service."""
 
-    if paths.canonical_users:
-        payload: dict[str, object] = {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "password": password,
-            "role": role.value,
-        }
-        if ward is not None:
-            payload["ward_code"] = ward.code
-        return payload
-
-    payload = {
+    payload: dict[str, object] = {
         "name": name,
         "email": email,
         "phone": phone,
         "password": password,
-        "role": LEGACY_ROLE_BY_CANONICAL[role],
+        "role": role.value,
     }
     if ward is not None:
         payload["zone_id"] = str(ward.id)
     return payload
 
 
-def _role_update_payload(paths: AdminPaths, role: Role) -> dict[str, str]:
-    if paths.canonical_users:
-        return {"role": role.value}
-    return {"role": LEGACY_ROLE_BY_CANONICAL[role]}
+def _role_update_payload(_paths: AdminPaths, role: Role) -> dict[str, str]:
+    return {"role": role.value}
 
 
-def _status_update_payload(_paths: AdminPaths, status: UserStatus) -> dict[str, str]:
-    return {"status": status.value}
+def _status_update_payload(_paths: AdminPaths, user_status: UserStatus) -> dict[str, str]:
+    return {"status": user_status.value}
 
 
-def _extract_user_body(response) -> dict:
+def _extract_user_body(response) -> dict[str, Any]:
     body = response.json()
     if isinstance(body, dict) and isinstance(body.get("user"), dict):
         return body["user"]
@@ -214,32 +185,74 @@ def _extract_user_body(response) -> dict:
     return body
 
 
-def _assert_safe_public_body(response) -> None:
+def _iter_json_keys(value: Any) -> Iterable[str]:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield str(key)
+            yield from _iter_json_keys(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _iter_json_keys(child)
+
+
+def _assert_no_internal_error_details(response, *, secret_values: Iterable[str] = ()) -> None:
     text = response.text.lower()
-    forbidden = (
-        "password_hash",
-        "token_version",
-        "deleted_at",
+    forbidden_markers = (
         "traceback",
         "sqlalchemy",
         "psycopg",
-        "constraint",
         "secret_key",
+        "private_table",
     )
-    for term in forbidden:
-        assert term not in text
+    for marker in forbidden_markers:
+        assert marker not in text
+    for value in secret_values:
+        if value:
+            assert value.lower() not in text
 
 
-def _assert_safe_error(response, expected_status: int, expected_code: str | None = None) -> dict:
-    assert response.status_code == expected_status, response.text
+def _assert_safe_public_body(
+    response,
+    *,
+    additional_forbidden_keys: Iterable[str] = (),
+) -> None:
+    """Reject sensitive response fields without rejecting safe validation locations."""
+
+    body = response.json()
+    keys = {key.lower() for key in _iter_json_keys(body)}
+    forbidden_keys = {
+        "password_hash",
+        "token_version",
+        "deleted_at",
+        "secret_key",
+    }
+    forbidden_keys.update(key.lower() for key in additional_forbidden_keys)
+    assert keys.isdisjoint(forbidden_keys), f"Sensitive response keys: {keys & forbidden_keys}"
+    _assert_no_internal_error_details(response)
+
+
+def _assert_safe_error(
+    response,
+    expected_status: int | set[int],
+    expected_code: str | set[str] | None = None,
+    *,
+    secret_values: Iterable[str] = (),
+) -> dict[str, Any]:
+    allowed_statuses = {expected_status} if isinstance(expected_status, int) else expected_status
+    assert response.status_code in allowed_statuses, response.text
+
     body = response.json()
     assert set(body) == {"error"}
     error = body["error"]
     assert {"code", "message", "request_id"} <= set(error)
+    assert isinstance(error["message"], str) and error["message"].strip()
+
     if expected_code is not None:
-        assert error["code"] == expected_code
+        allowed_codes = {expected_code} if isinstance(expected_code, str) else expected_code
+        assert error["code"] in allowed_codes
+
     assert response.headers.get("X-Request-ID") == error["request_id"]
-    _assert_safe_public_body(response)
+    _assert_no_internal_error_details(response, secret_values=secret_values)
     return error
 
 

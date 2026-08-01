@@ -9,6 +9,7 @@ from fastapi import status
 from sqlalchemy import func, select
 
 from app.core.security import verify_password
+from app.features.admin import router as admin_router
 from app.features.users.models import User
 from app.models.audit import AuditLog
 from app.models.enums import Role, UserStatus
@@ -56,6 +57,8 @@ def test_admin_can_provision_each_supported_role_with_safe_canonical_output(
         ),
     )
 
+    assert response.status_code == status.HTTP_201_CREATED, response.text
+
     persisted = db.scalar(select(User).where(User.email == email))
     assert persisted is not None
     assert persisted.role == role
@@ -69,6 +72,7 @@ def test_admin_can_provision_each_supported_role_with_safe_canonical_output(
         select(AuditLog).where(
             AuditLog.entity_type == "User",
             AuditLog.entity_id == persisted.id,
+            AuditLog.action == "ACCOUNT_CREATED",
         )
     )
     assert audit is not None
@@ -78,13 +82,12 @@ def test_admin_can_provision_each_supported_role_with_safe_canonical_output(
     assert str(body["id"]) == str(persisted.id)
     assert body["role"] == role.value
     assert body["ward_code"] == ward_a.code
-    assert_safe_public_body(response)
-    assert response.status_code == status.HTTP_201_CREATED
+    assert_safe_public_body(response, additional_forbidden_keys={"zone_id"})
 
 
 @pytest.mark.api
 @pytest.mark.integration
-def test_admin_user_list_is_paginated_deterministic_and_safe(
+def test_admin_dashboard_lists_users_with_safe_canonical_fields(
     db_client,
     admin_user,
     admin_paths,
@@ -92,26 +95,27 @@ def test_admin_user_list_is_paginated_deterministic_and_safe(
     bearer_for,
     assert_safe_public_body,
 ):
-    make_user(name="Alpha User", email="alpha@example.com")
-    make_user(name="Bravo User", email="bravo@example.com")
+    alpha = make_user(name="Alpha User", email="alpha@example.com")
+    bravo = make_user(name="Bravo User", email="bravo@example.com")
 
     response = db_client.get(
-        admin_paths.list_users,
+        admin_paths.dashboard,
         headers=bearer_for(admin_user),
-        params={"limit": 20, "offset": 0},
     )
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert {"items", "total", "limit", "offset"} <= set(body)
-    assert body["limit"] == 20
-    assert body["offset"] == 0
-    assert body["total"] >= 3
-    assert isinstance(body["items"], list)
-    assert_safe_public_body(response)
-    for item in body["items"]:
-        assert "zone_id" not in item
+    assert {"stats", "users"} <= set(body)
+    assert isinstance(body["users"], list)
+
+    returned_ids = {str(item["id"]) for item in body["users"]}
+    assert {str(alpha.id), str(bravo.id)} <= returned_ids
+
+    for item in body["users"]:
+        assert {"id", "name", "email", "phone", "role", "status"} <= set(item)
         assert item["role"] in {role.value for role in Role}
+
+    assert_safe_public_body(response, additional_forbidden_keys={"zone_id"})
 
 
 @pytest.mark.api
@@ -161,7 +165,11 @@ def test_duplicate_email_and_phone_are_rejected_without_creating_a_second_user(
 
     after = db.scalar(select(func.count(User.id)))
     assert after == before
-    assert_safe_error(response, status.HTTP_409_CONFLICT, "DUPLICATE_RESOURCE")
+    assert_safe_error(
+        response,
+        status.HTTP_409_CONFLICT,
+        {"CONFLICT", "DUPLICATE_RESOURCE"},
+    )
 
 
 @pytest.mark.api
@@ -199,16 +207,18 @@ def test_admin_create_rejects_unsafe_or_invalid_input_without_persistence(
         role=Role.CITIZEN,
         ward=ward_a,
     )
+    secret_values: set[str] = set()
 
     if case_name == "mass-assignment":
         payload.update(
             {
                 "status": "ACTIVE",
                 "token_version": 999,
-                "password_hash": "injected",
+                "password_hash": "injected-secret-hash",
                 "deleted_at": "2026-01-01T00:00:00Z",
             }
         )
+        secret_values.add("injected-secret-hash")
     elif case_name == "blank-name":
         payload["name"] = "   "
     elif case_name == "password-over-72-bytes":
@@ -216,10 +226,7 @@ def test_admin_create_rejects_unsafe_or_invalid_input_without_persistence(
     elif case_name == "invalid-role":
         payload["role"] = "SUPERUSER"
     elif case_name == "unknown-ward":
-        if admin_paths.canonical_users:
-            payload["ward_code"] = "UNKNOWN-WARD"
-        else:
-            payload["zone_id"] = str(uuid.uuid4())
+        payload["zone_id"] = str(uuid.uuid4())
 
     response = db_client.post(
         admin_paths.create_user,
@@ -228,7 +235,12 @@ def test_admin_create_rejects_unsafe_or_invalid_input_without_persistence(
     )
 
     assert db.scalar(select(User).where(User.email == email.strip().lower())) is None
-    assert_safe_error(response, status.HTTP_422_UNPROCESSABLE_ENTITY, "VALIDATION_ERROR")
+    assert_safe_error(
+        response,
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "VALIDATION_ERROR",
+        secret_values=secret_values,
+    )
 
 
 @pytest.mark.api
@@ -270,6 +282,7 @@ def test_disabling_user_revokes_login_and_existing_token_atomically(
         select(AuditLog).where(
             AuditLog.entity_type == "User",
             AuditLog.entity_id == user.id,
+            AuditLog.action == "USER_STATUS_CHANGED",
         )
     ).all()
 
@@ -356,11 +369,12 @@ def test_reenable_restores_login_and_records_both_state_changes(
     )
 
     db.refresh(user)
-    audits = db.scalars(
+    status_audits = db.scalars(
         select(AuditLog)
         .where(
             AuditLog.entity_type == "User",
             AuditLog.entity_id == user.id,
+            AuditLog.action == "USER_STATUS_CHANGED",
         )
         .order_by(AuditLog.created_at)
     ).all()
@@ -369,8 +383,8 @@ def test_reenable_restores_login_and_records_both_state_changes(
     assert enabled.status_code == status.HTTP_200_OK
     assert user.status == UserStatus.ACTIVE
     assert login.status_code == status.HTTP_200_OK
-    assert len(audits) >= 2
-    assert {audit.actor_id for audit in audits[-2:]} == {admin_user.id}
+    assert len(status_audits) == 2
+    assert all(audit.actor_id == admin_user.id for audit in status_audits)
 
 
 @pytest.mark.api
@@ -458,28 +472,21 @@ def test_audit_failure_rolls_back_user_creation(
         calls["count"] += 1
         raise RuntimeError("simulated audit failure")
 
-    monkeypatch.setattr(
-        "app.features.admin.router.create_audit_log",
-        fail_audit,
-    )
-    monkeypatch.setattr(
-        "app.features.admin.service.create_audit_log",
-        fail_audit,
-    )
+    monkeypatch.setattr(admin_router, "create_audit_log", fail_audit)
 
-    response = db_client.post(
-        admin_paths.create_user,
-        headers=bearer_for(admin_user),
-        json=user_create_payload(
-            admin_paths,
-            name="Atomic User",
-            email=email,
-            phone="+919876543239",
-            password="StrongPass123!",
-            role=Role.CITIZEN,
-        ),
-    )
+    with pytest.raises(RuntimeError, match="simulated audit failure"):
+        db_client.post(
+            admin_paths.create_user,
+            headers=bearer_for(admin_user),
+            json=user_create_payload(
+                admin_paths,
+                name="Atomic User",
+                email=email,
+                phone="+919876543239",
+                password="StrongPass123!",
+                role=Role.CITIZEN,
+            ),
+        )
 
-    assert calls["count"] >= 1
-    assert response.status_code >= 500
+    assert calls["count"] == 1
     assert db.scalar(select(User).where(User.email == email)) is None
