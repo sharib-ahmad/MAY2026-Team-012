@@ -20,10 +20,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Generate a bcrypt hash of the password."""
-    # Truncate to 72 bytes if necessary to prevent bcrypt limits
-    truncated = password.encode("utf-8")[:72]
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > 72:
+        raise ValueError("Password must not exceed 72 UTF-8 bytes.")
+
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(truncated, salt)
+    hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode("utf-8")
 
 

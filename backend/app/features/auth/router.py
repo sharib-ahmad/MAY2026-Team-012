@@ -27,12 +27,27 @@ router = APIRouter(tags=["Authentication"])
 
 # Map frontend roles to database Role enums
 ROLE_MAP_FRONTEND_TO_DB = {
+    "CITIZEN": Role.CITIZEN,
     "RESIDENT": Role.CITIZEN,
     "COLLECTOR": Role.COLLECTION_WORKER,
     "RECYCLER": Role.RECYCLER,
     "MANAGER": Role.MUNICIPAL_OFFICER,
     "ADMIN": Role.SYSTEM_ADMIN,
 }
+
+LEGACY_ROLE_MAP_DB_TO_FRONTEND = {
+    Role.CITIZEN: "RESIDENT",
+    Role.COLLECTION_WORKER: "COLLECTOR",
+    Role.RECYCLER: "RECYCLER",
+    Role.MUNICIPAL_OFFICER: "MANAGER",
+    Role.SYSTEM_ADMIN: "ADMIN",
+}
+
+
+def _response_role(role: Role, legacy: bool = False) -> str:
+    """Return the documented role, preserving deprecated root-route responses."""
+    mapping = LEGACY_ROLE_MAP_DB_TO_FRONTEND if legacy else ROLE_MAP_DB_TO_FRONTEND
+    return mapping.get(role, role.name)
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -129,7 +144,7 @@ def register(request: UserRegisterRequest, req: Request, db: Session = Depends(g
         id=user.id,
         name=user.name,
         email=user.email,
-        role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
+        role=_response_role(user.role, legacy=not req.url.path.startswith("/api/v1/auth/")),
         ward_code=ward_code,
     )
 
@@ -167,8 +182,8 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
     # Verify status is Active
     if user.status == UserStatus.DISABLED:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account has been suspended by an administrator.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
         )
 
     # Update last login timestamp
@@ -210,7 +225,7 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
         id=user.id,
         name=user.name,
         email=user.email,
-        role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
+        role=_response_role(user.role, legacy=not req.url.path.startswith("/api/v1/auth/")),
         ward_code=ward_code,
     )
 
@@ -223,7 +238,11 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
 
 
 @router.get("/me", response_model=AuthenticatedUser)
-def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Any:
+def get_me(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
     """Return the authenticated caller's profile details."""
     ward_code = None
     if current_user.zone_id:
@@ -235,6 +254,9 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         id=current_user.id,
         name=current_user.name,
         email=current_user.email,
-        role=ROLE_MAP_DB_TO_FRONTEND.get(current_user.role, current_user.role.name),
+        role=_response_role(
+            current_user.role,
+            legacy=not request.url.path.startswith("/api/v1/auth/"),
+        ),
         ward_code=ward_code,
     )
