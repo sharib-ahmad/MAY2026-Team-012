@@ -211,7 +211,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 def seed_database(session_factory) -> None:
-    """Seed default waste categories, zones, and demo accounts on startup."""
+    """Seed reference data needed by local development only."""
     from sqlalchemy import select
 
     from app.core.security import get_password_hash
@@ -288,7 +288,6 @@ def seed_database(session_factory) -> None:
                     status=UserStatus.ACTIVE,
                 )
                 db.add(new_user)
-
         db.commit()
 
 

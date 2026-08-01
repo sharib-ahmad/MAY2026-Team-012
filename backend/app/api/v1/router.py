@@ -13,6 +13,9 @@ from app.features.users.router import router as user_router
 from app.features.wards.router import router as wards_router
 
 router = APIRouter()
+router.include_router(auth_router, prefix="/auth")
+# Deprecated aliases retained for already-deployed clients. New clients must
+# use the approved /api/v1/auth/* contract.
 router.include_router(auth_router)
 router.include_router(tracking_router)
 router.include_router(user_router, prefix="/user")
