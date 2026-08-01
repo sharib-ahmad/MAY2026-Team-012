@@ -4,6 +4,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+MAX_BCRYPT_PASSWORD_BYTES = 72
 
 
 def validate_email_format(v: str) -> str:
@@ -15,6 +16,13 @@ def validate_email_format(v: str) -> str:
     return v
 
 
+def validate_password_bytes(value: str) -> str:
+    """Reject passwords bcrypt cannot represent without silent truncation."""
+    if len(value.encode("utf-8")) > MAX_BCRYPT_PASSWORD_BYTES:
+        raise ValueError("Password must not exceed 72 UTF-8 bytes")
+    return value
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str = Field(..., min_length=1, max_length=128)
@@ -23,6 +31,11 @@ class LoginRequest(BaseModel):
     @classmethod
     def check_email(cls, v: str) -> str:
         return validate_email_format(v)
+
+    @field_validator("password")
+    @classmethod
+    def check_password_bytes(cls, v: str) -> str:
+        return validate_password_bytes(v)
 
 
 class UserRegisterRequest(BaseModel):
@@ -45,6 +58,11 @@ class UserRegisterRequest(BaseModel):
     @classmethod
     def strip_whitespace(cls, v: str) -> str:
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("password")
+    @classmethod
+    def check_password_bytes(cls, v: str) -> str:
+        return validate_password_bytes(v)
 
 
 class AuthenticatedUser(BaseModel):
