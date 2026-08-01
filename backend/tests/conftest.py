@@ -23,6 +23,7 @@ from app.core.config import (
     DatabaseSettings,
     Settings,
     get_database_settings,
+    get_settings,
 )
 from app.db.session import get_db
 from app.main import create_app
@@ -97,7 +98,7 @@ def app_test():
 
     test_settings = Settings(
         APP_ENV="test",
-        SECRET_KEY="",
+        SECRET_KEY=get_settings().SECRET_KEY,
         DATABASE_URL=database_settings.DATABASE_URL,
     )
 
