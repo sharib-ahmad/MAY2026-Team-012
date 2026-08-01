@@ -59,6 +59,10 @@ class BulkPickupRequest(Base, UUIDPrimaryKey, Timestamps):
         ForeignKey("users.id", name="fk_bulk_pickup_requests_decided_by_id_users"),
         nullable=True,
     )
+    assigned_collector_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", name="fk_bulk_pickup_requests_assigned_collector_id_users"),
+        nullable=True,
+    )
     decided_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -75,9 +79,14 @@ class BulkPickupRequest(Base, UUIDPrimaryKey, Timestamps):
         "User",
         foreign_keys=[decided_by_id],
     )
+    assigned_collector: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[assigned_collector_id],
+    )
 
     __table_args__ = (
         Index("ix_bulk_pickup_requests_requester_id", "requester_id"),
         Index("ix_bulk_pickup_requests_status", "status"),
+        Index("ix_bulk_pickup_requests_assigned_collector_id", "assigned_collector_id"),
         Index("ix_bulk_pickup_requests_zone_requested", "zone_id", "requested_date"),
     )

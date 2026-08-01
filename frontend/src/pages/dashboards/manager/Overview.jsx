@@ -15,6 +15,7 @@ const openByWard = DATA.wards.map((w) => ({
   ward: w.code,
   open: DATA.complaints.filter((c) => c.ward_code === w.code && c.status !== "RESOLVED").length,
 }));
+void openByWard;
 
 // Escalated first, then high-severity open tickets — the queue an
 // officer should look at before anything else.
@@ -22,6 +23,7 @@ const needsAttention = DATA.complaints
   .filter((c) => c.status === "ESCALATED" || (c.status !== "RESOLVED" && c.severity === "HIGH"))
   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   .slice(0, 5);
+void needsAttention;
 
 // Story 3.2-AC3: Hazardous mixed-waste flags need to appear prominently
 // and take priority over Routine ones for officer review.
@@ -34,6 +36,7 @@ function getPriorityMixedWasteFlags() {
     })
     .slice(0, 5);
 }
+void getPriorityMixedWasteFlags;
 
 // Title/stat hero — moved here from the dashboard shell so it lives with
 // the page it summarizes rather than as a band sitting above the sidebar.
@@ -66,8 +69,8 @@ function WardOverviewHero({ name, stats }) {
           ],
           [
             Users,
-            stats.active_workers,
-            "workers on duty",
+            stats.collectors_assigned,
+            "collectors assigned",
             `${stats.wards_supervised} wards supervised`,
           ],
           [
@@ -91,18 +94,29 @@ function WardOverviewHero({ name, stats }) {
   );
 }
 
-export default function Overview() {
+export default function Overview({ data }) {
   const { user } = useAuth();
-  const hazardFlags = getPriorityMixedWasteFlags();
+  const wardCoverage = data.ward_coverage || data.wards;
+  const openByWardLive = data.all_ward_open_complaints || [];
+  const needsAttentionLive = data.complaints
+    .filter((c) => c.status !== "RESOLVED" && c.severity === "HIGH")
+    .slice(0, 5);
+  const hazardFlags = data.mixed_waste_flags
+    .slice()
+    .sort((a, b) => {
+      if (a.severity !== b.severity) return a.severity === "HAZARDOUS" ? -1 : 1;
+      return new Date(b.flagged_at) - new Date(a.flagged_at);
+    })
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <WardOverviewHero name={user?.name} stats={DATA.stats} />
+      <WardOverviewHero name={user?.name} stats={data.stats} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ClusteredBarChartCard
           title="Complaints this week — filed vs resolved"
-          data={DATA.complaints_trend}
+          data={data.complaints_trend}
           nameKey="day"
           bars={[
             { key: "filed", name: "Filed", color: GOLD },
@@ -111,7 +125,7 @@ export default function Overview() {
         />
         <ClusteredBarChartCard
           title="Open complaints by ward"
-          data={openByWard}
+          data={openByWardLive}
           nameKey="ward"
           bars={[{ key: "open", name: "Open complaints", color: GOLD }]}
         />
@@ -119,7 +133,7 @@ export default function Overview() {
 
       <Section eyebrow="Priority queue" title="Needs attention">
         <ul className="divide-y divide-gray-100">
-          {needsAttention.map((c) => (
+          {needsAttentionLive.map((c) => (
             <li key={c.id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="font-mono-civic text-xs text-gray-400">{c.ref_code}</span>
               <span className="text-xs font-semibold text-[#3F5426]">{c.ward_code}</span>
@@ -165,24 +179,36 @@ export default function Overview() {
                 <th className="px-4 py-2 font-medium">Ward</th>
                 <th className="px-4 py-2 font-medium">Area</th>
                 <th className="px-4 py-2 font-medium">Households</th>
-                <th className="px-4 py-2 font-medium">Routes today</th>
+                <th className="px-4 py-2 font-medium">Stops today</th>
                 <th className="px-4 py-2 font-medium">Active workers</th>
                 <th className="px-4 py-2 font-medium w-48">Coverage</th>
               </tr>
             </thead>
             <tbody>
-              {DATA.wards.map((w) => (
-                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-mono-civic text-xs">{w.code}</td>
+              {wardCoverage.map((w) => (
+                <tr
+                  key={w.id}
+                  className={`border-b border-gray-50 ${w.is_managed ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-gray-50"}`}
+                >
+                  <td className="px-4 py-2.5 font-mono-civic text-xs">
+                    <span className="inline-flex items-center gap-2">
+                      {w.code}
+                      {w.is_managed && (
+                        <span className="rounded-full bg-[#3F5426] px-2 py-0.5 font-sans text-[10px] font-semibold text-white">
+                          Your ward
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-2.5">{w.name}</td>
                   <td className="px-4 py-2.5">{w.households.toLocaleString("en-IN")}</td>
-                  <td className="px-4 py-2.5">{w.routes_today}</td>
+                  <td className="px-4 py-2.5">{w.stops_today}</td>
                   <td className="px-4 py-2.5">{w.active_workers}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-[#B8860B]"
+                          className={`h-full rounded-full ${w.is_managed ? "bg-[#3F5426]" : "bg-[#B8860B]"}`}
                           style={{ width: `${w.coverage_pct}%` }}
                         />
                       </div>

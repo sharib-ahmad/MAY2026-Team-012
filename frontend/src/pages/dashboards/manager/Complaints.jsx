@@ -1,12 +1,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, History, ShieldAlert } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext";
 import { Modal, StatusPill } from "../../../components/UI";
-import {
-  listComplaints,
-  updateComplaint,
-  isOutsideAssignedWards,
-} from "../../../lib/mockOfficerData";
+import { updateManagerComplaint } from "../../../lib/api";
 import DATA from "../../../data/municipal_officer_data.json";
 import { Section, PaginatedTable, SearchInput, FilterSelect, SeverityPill } from "./shared";
 import { formatDate } from "./format";
@@ -15,12 +10,12 @@ const WARD_OPTIONS = [
   { value: "ALL", label: "All wards" },
   ...DATA.wards.map((w) => ({ value: w.code, label: `${w.code} · ${w.name}` })),
 ];
+void WARD_OPTIONS;
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All statuses" },
   { value: "OPEN", label: "Open" },
-  { value: "IN_REVIEW", label: "In review" },
-  { value: "ESCALATED", label: "Escalated" },
+  { value: "IN_PROGRESS", label: "In progress" },
   { value: "RESOLVED", label: "Resolved" },
 ];
 
@@ -32,10 +27,10 @@ const SORT_OPTIONS = [
 ];
 
 // Workflow order, not alphabetical: unhandled tickets surface first.
-const STATUS_SORT_ORDER = { OPEN: 0, IN_REVIEW: 1, ESCALATED: 2, RESOLVED: 3 };
+const STATUS_SORT_ORDER = { OPEN: 0, IN_PROGRESS: 1, REOPENED: 2, RESOLVED: 3 };
 
 // Officer can move a ticket forward, escalate it, or close it out.
-const NEXT_STATUS_OPTIONS = ["IN_REVIEW", "ESCALATED", "RESOLVED"];
+const NEXT_STATUS_OPTIONS = ["IN_PROGRESS", "RESOLVED"];
 
 // Unresolved complaints older than this are flagged "Aging" in the grid
 // so accountability gaps stay visible.
@@ -51,10 +46,8 @@ const typeLabel = (t) =>
     .toLowerCase()
     .replace(/^\w/, (c) => c.toUpperCase());
 
-export default function Complaints() {
-  const { user } = useAuth();
-  const [complaints, setComplaints] = useState(listComplaints);
-  const [wardFilter, setWardFilter] = useState("ALL");
+export default function Complaints({ data }) {
+  const [complaints, setComplaints] = useState(data.complaints);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("NEWEST");
   const [query, setQuery] = useState("");
@@ -79,7 +72,6 @@ export default function Complaints() {
   const rows = complaints
     .filter(
       (c) =>
-        (wardFilter === "ALL" || c.ward_code === wardFilter) &&
         (statusFilter === "ALL" || c.status === statusFilter) &&
         (issueFilter === "ALL" || c.issue_type === issueFilter) &&
         (!q ||
@@ -105,26 +97,33 @@ export default function Complaints() {
     setError("");
   };
 
-  // Officers with a ward list can only act inside it (Story 2.3 AC3).
-  const outsideWard = selected ? isOutsideAssignedWards(selected, user?.assigned_wards) : false;
+  const managedWardCodes = new Set(
+    (data.ward_coverage || data.wards || [])
+      .filter((ward) => ward.is_managed)
+      .map((ward) => ward.code)
+  );
+  const outsideWard = selected && !managedWardCodes.has(selected.ward_code);
 
-  const save = () => {
+  const save = async () => {
     if (nextStatus === "RESOLVED" && !note.trim()) {
       setError("A short resolution note is required to close a complaint.");
       return;
     }
     try {
-      setComplaints(
-        updateComplaint(selected, {
-          status: nextStatus,
-          note: note.trim(),
-          officerName: user?.name || "Municipal Officer",
-          assignedWards: user?.assigned_wards,
-        })
+      await updateManagerComplaint(selected.id, {
+        status: nextStatus,
+        resolution_notes: note.trim() || null,
+      });
+      setComplaints((current) =>
+        current.map((complaint) =>
+          complaint.id === selected.id
+            ? { ...complaint, status: nextStatus, resolution_notes: note.trim() || null }
+            : complaint
+        )
       );
       setSelected(null);
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      setError(err.response?.data?.error?.message || "Could not save the complaint update.");
     }
   };
 
@@ -136,7 +135,6 @@ export default function Complaints() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <SearchInput value={query} onChange={setQuery} placeholder="Search ref, citizen…" />
-            <FilterSelect value={wardFilter} onChange={setWardFilter} options={WARD_OPTIONS} />
             <FilterSelect
               value={statusFilter}
               onChange={setStatusFilter}
@@ -256,9 +254,8 @@ export default function Complaints() {
                   <ShieldAlert size={13} /> View only
                 </p>
                 <p className="text-amber-900 mt-1">
-                  {selected.ward_code} is outside your assigned wards (
-                  {(user?.assigned_wards || []).join(", ")}), so this complaint can be viewed but
-                  not updated from this account.
+                  This complaint is outside your managed wards, so it can be viewed but not updated
+                  from this account.
                 </p>
               </div>
             ) : (

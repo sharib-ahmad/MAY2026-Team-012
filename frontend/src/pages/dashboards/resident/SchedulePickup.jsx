@@ -15,6 +15,12 @@ function localISODate(date) {
 // request placed at any point today could be less than 24h before a
 // same-day window. The earliest selectable date is therefore tomorrow.
 const MIN_LEAD_HOURS = 24;
+const SLOT_START_TIMES = {
+  "Morning (8-11)": "09:00:00",
+  "Midday (11-2)": "11:00:00",
+  "Evening (4-7)": "16:00:00",
+};
+
 function minLeadDate() {
   const minimum = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
   const earliest = new Date();
@@ -68,7 +74,9 @@ export default function SchedulePickup({ onNavigate }) {
       );
       return;
     }
-    const scheduled = new Date(`${form.scheduled_date}T09:00:00`).toISOString();
+    const scheduled = new Date(
+      `${form.scheduled_date}T${SLOT_START_TIMES[form.time_slot]}`
+    ).toISOString();
 
     try {
       const pickup = await scheduleUserPickup({
