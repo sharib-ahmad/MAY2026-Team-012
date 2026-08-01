@@ -35,6 +35,11 @@ export default function CrewManagement({ data }) {
     setError("");
   };
 
+  const closeModal = () => {
+    setSelected(null);
+    setError("");
+  };
+
   const save = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
       setError("Name and phone number are required.");
@@ -126,11 +131,7 @@ export default function CrewManagement({ data }) {
         />
       </Section>
 
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected ? `Edit ${selected.name}` : ""}
-      >
+      <Modal open={!!selected} onClose={closeModal} title={selected ? `Edit ${selected.name}` : ""}>
         <div className="space-y-4 text-sm">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Name</label>

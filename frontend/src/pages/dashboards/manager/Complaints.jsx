@@ -97,7 +97,12 @@ export default function Complaints({ data }) {
     setError("");
   };
 
-  const outsideWard = false;
+  const managedWardCodes = new Set(
+    (data.ward_coverage || data.wards || [])
+      .filter((ward) => ward.is_managed)
+      .map((ward) => ward.code)
+  );
+  const outsideWard = selected && !managedWardCodes.has(selected.ward_code);
 
   const save = async () => {
     if (nextStatus === "RESOLVED" && !note.trim()) {

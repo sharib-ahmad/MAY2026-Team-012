@@ -103,7 +103,10 @@ export default function Overview({ data }) {
     .slice(0, 5);
   const hazardFlags = data.mixed_waste_flags
     .slice()
-    .sort((a) => (a.severity === "HAZARDOUS" ? -1 : 1))
+    .sort((a, b) => {
+      if (a.severity !== b.severity) return a.severity === "HAZARDOUS" ? -1 : 1;
+      return new Date(b.flagged_at) - new Date(a.flagged_at);
+    })
     .slice(0, 5);
 
   return (

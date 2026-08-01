@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select, update
@@ -42,7 +43,7 @@ def mark_manager_notifications_read(
 
 @router.patch("/tickets/{ticket_id}")
 def update_manager_ticket(
-    ticket_id: str,
+    ticket_id: UUID,
     payload: TicketUpdate,
     current_user: User = Depends(require_manager),
     db: Session = Depends(get_db),
@@ -77,7 +78,7 @@ def update_manager_ticket(
 
 @router.post("/bulk-pickups/{request_id}/assign")
 def assign_bulk_pickup(
-    request_id: str,
+    request_id: UUID,
     payload: BulkPickupAssignment,
     current_user: User = Depends(require_manager),
     db: Session = Depends(get_db),
@@ -131,7 +132,7 @@ def assign_bulk_pickup(
 
 @router.patch("/workers/{worker_id}")
 def update_worker(
-    worker_id: str,
+    worker_id: UUID,
     payload: WorkerUpdate,
     request: Request,
     current_user: User = Depends(require_manager),
@@ -139,18 +140,11 @@ def update_worker(
 ) -> dict:
     """Edit a collector's contact details or active state within the manager's wards."""
     worker = db.scalar(select(User).where(User.id == worker_id, User.deleted_at.is_(None)))
-    if not worker or worker.role not in {Role.COLLECTION_WORKER, Role.RECYCLER}:
+    if not worker or worker.role != Role.COLLECTION_WORKER:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crew member not found.")
-    if worker.role == Role.COLLECTION_WORKER and worker.zone_id not in get_managed_zone_ids(
-        db, current_user
-    ):
+    if worker.zone_id not in get_managed_zone_ids(db, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Collector is outside your wards."
-        )
-    if payload.status not in {"ACTIVE", "INACTIVE"}:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Status must be Active or Inactive.",
         )
     old_values = {"name": worker.name, "phone": worker.phone, "status": worker.status.value}
     worker.name = payload.name.strip()
@@ -184,25 +178,24 @@ def update_worker(
 
 @router.delete("/workers/{worker_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_worker(
-    worker_id: str,
+    worker_id: UUID,
     request: Request,
     current_user: User = Depends(require_manager),
     db: Session = Depends(get_db),
 ) -> None:
-    """Permanently delete a crew member within the manager's wards."""
+    """Soft-delete a collector within the manager's wards."""
     worker = db.scalar(select(User).where(User.id == worker_id, User.deleted_at.is_(None)))
-    if not worker or worker.role not in {Role.COLLECTION_WORKER, Role.RECYCLER}:
+    if not worker or worker.role != Role.COLLECTION_WORKER:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crew member not found.")
-    if worker.role == Role.COLLECTION_WORKER and worker.zone_id not in get_managed_zone_ids(
-        db, current_user
-    ):
+    if worker.zone_id not in get_managed_zone_ids(db, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Collector is outside your wards."
         )
     worker_name = worker.name
     worker_role = worker.role.value
     worker_uuid = worker.id
-    db.delete(worker)
+    worker.deleted_at = datetime.now(UTC)
+    worker.status = UserStatus.DISABLED
     db.commit()
     create_audit_log(
         db,
@@ -213,6 +206,6 @@ def delete_worker(
         entity_type="User",
         entity_id=str(worker_uuid),
         module="manager",
-        description=f"Manager permanently deleted {worker_role} {worker_name}.",
+        description=f"Manager soft-deleted {worker_role} {worker_name}.",
         ip_address=request.client.host if request.client else None,
     )

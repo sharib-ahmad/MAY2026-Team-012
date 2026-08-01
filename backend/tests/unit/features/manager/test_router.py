@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.features.manager import router as manager_router
 from app.features.manager.schemas import BulkPickupAssignment, TicketUpdate, WorkerUpdate
@@ -129,6 +130,37 @@ def test_assign_bulk_pickup_sets_assignment_and_notifies(monkeypatch, manager) -
     assert db.commits == 1
 
 
+def test_manager_schemas_reject_invalid_identifiers_and_worker_status() -> None:
+    with pytest.raises(ValidationError):
+        BulkPickupAssignment(collector_id="not-a-uuid")
+    with pytest.raises(ValidationError):
+        WorkerUpdate(name="Casey", phone="123", status="PENDING")
+
+
+def test_manager_cannot_mutate_recycler(monkeypatch, manager) -> None:
+    recycler = SimpleNamespace(
+        id=uuid4(),
+        name="Reese Recycler",
+        phone="111",
+        status=UserStatus.ACTIVE,
+        role=Role.RECYCLER,
+        zone_id=manager.zone_id,
+    )
+    db = FakeDatabase([recycler])
+    monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
+
+    with pytest.raises(HTTPException, match="Crew member not found") as error:
+        manager_router.update_worker(
+            recycler.id,
+            WorkerUpdate(name="Reese", phone="111", status="ACTIVE"),
+            SimpleNamespace(client=None),
+            manager,
+            db,
+        )
+
+    assert error.value.status_code == 404
+
+
 def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> None:
     worker = SimpleNamespace(
         id=uuid4(),
@@ -167,5 +199,7 @@ def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> N
     )
 
     assert deleted is None
-    assert db.deleted == [worker]
+    assert worker.deleted_at is not None
+    assert worker.status == UserStatus.DISABLED
+    assert db.deleted == []
     assert audit_events[1]["action"] == "CREW_MEMBER_DELETED"

@@ -168,17 +168,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
-    recyclers = (
-        db.scalars(
-            select(User)
-            .where(User.role == Role.RECYCLER, User.deleted_at.is_(None))
-            .options(joinedload(User.zone))
-            .order_by(User.name)
-        )
-        .unique()
-        .all()
-    )
-    crew_members = [*workers, *recyclers]
+    crew_members = workers
     schedule_by_worker = {schedule.collector_id: schedule for schedule in schedules}
     households_by_zone = dict(
         db.execute(
