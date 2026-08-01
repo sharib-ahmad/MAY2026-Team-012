@@ -746,3 +746,53 @@ After the corrective code is merged into `main`:
 5. record final coverage and CI status;
 6. mark the Draft PR ready only when the focused suite, complete backend suite and required CI checks
    all pass.
+
+## CI full-backend regression result
+
+GitHub Actions executed the complete backend suite against QA commit `c35179`.
+
+```text
+Pull request: #80
+Branch: test/SCRUM-173-admin-qa
+Frontend check: Passed
+API contract check: Passed
+Backend dependency check: Passed
+Backend lint: Passed
+Backend formatting: Passed
+Migration verification: Passed
+
+Complete backend pytest result:
+201 tests executed
+190 passed
+11 failed
+0 errors
+Coverage: 80.87%
+Required coverage threshold: 80%
+Duration: 42.61 seconds
+```
+
+The same 11 administrator failures reproduced in both the local focused execution and the
+complete GitHub Actions regression. No unrelated regression failure was observed.
+
+### CI failure groups
+
+1. Missing `GET /api/v1/admin/users`.
+2. Legacy administrator aliases remain published in OpenAPI.
+3. Required administrator endpoints are missing from `api-doc.yaml`.
+4. Missing credentials omit `WWW-Authenticate: Bearer`.
+5. User provisioning and unknown-ward handling attempt to convert an existing UUID again.
+6. Required audit failure does not roll back the created user.
+
+### CI decision
+
+```text
+Coverage gate: Passed
+Frontend check: Passed
+API contract check: Passed
+Backend check: Failed on confirmed requirement tests
+Merge status: Blocked
+QA pull request status: Draft
+Corrective issue: #70
+```
+
+No expected result was weakened, skipped, suppressed or changed to make CI pass.
