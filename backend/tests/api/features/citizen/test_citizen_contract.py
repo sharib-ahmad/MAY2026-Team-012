@@ -117,7 +117,7 @@ def test_every_citizen_endpoint_rejects_missing_credentials(
     endpoint_key,
     assert_safe_public_body,
 ):
-    """Verify missing credentials return 401 Unauthorized or 403 Forbidden across all citizen endpoints."""
+    """Verify missing credentials return 401 or 403 status across citizen endpoints."""
     response = _endpoint_request(db_client, citizen_paths, endpoint_key)
     assert response.status_code in {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}
     assert_safe_public_body(response)
