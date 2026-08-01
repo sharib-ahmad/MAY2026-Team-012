@@ -146,6 +146,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         code = code_map.get(exc.status_code, "ERROR")
 
         message = exc.detail if isinstance(exc.detail, str) else code.replace("_", " ").title()
+        if isinstance(exc.detail, dict):
+            code = exc.detail.get("code", code)
+            message = exc.detail.get("message", message)
 
         return error_response(
             exc.status_code,
@@ -211,7 +214,10 @@ def seed_database(session_factory) -> None:
     """Seed reference data needed by local development only."""
     from sqlalchemy import select
 
+    from app.core.security import get_password_hash
     from app.features.sorting_guide.models import WasteCategory
+    from app.features.users.models import User
+    from app.models.enums import Role, UserStatus
     from app.models.zone import Zone
 
     with session_factory() as db:
@@ -242,6 +248,46 @@ def seed_database(session_factory) -> None:
                 db.add(new_zone)
         db.flush()
 
+        # Get W-01 zone for linking users
+        zone_w01 = db.scalar(select(Zone).where(Zone.code == "W-01"))
+        zone_id = zone_w01.id if zone_w01 else None
+
+        # 3. Seed Users if email doesn't exist
+        password_hash = get_password_hash("password123")
+
+        seeds = [
+            ("Demo Admin", "admin@verdeza.test", "+919999999999", Role.SYSTEM_ADMIN, None),
+            (
+                "Demo Manager",
+                "manager@verdeza.test",
+                "+919876543213",
+                Role.MUNICIPAL_OFFICER,
+                zone_id,
+            ),
+            ("Demo Citizen", "citizen@verdeza.test", "+919876543214", Role.CITIZEN, zone_id),
+            (
+                "Demo Collector",
+                "collector@verdeza.test",
+                "+919876543215",
+                Role.COLLECTION_WORKER,
+                zone_id,
+            ),
+            ("Demo Recycler", "recycler@verdeza.test", "+919876543216", Role.RECYCLER, None),
+        ]
+
+        for name, email, phone, role, z_id in seeds:
+            user = db.scalar(select(User).where(User.email == email))
+            if not user:
+                new_user = User(
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    password_hash=password_hash,
+                    role=role,
+                    zone_id=z_id,
+                    status=UserStatus.ACTIVE,
+                )
+                db.add(new_user)
         db.commit()
 
 

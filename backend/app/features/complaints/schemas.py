@@ -16,6 +16,7 @@ class TicketResponse(BaseModel):
     issue_type: str
     status: str
     description: str
+    manager_note: str | None = None
     ward_code: str | None = None
     ward_name: str | None = None
     ward_sectors: str | None = None

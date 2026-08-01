@@ -12,7 +12,7 @@
 
   "roles": [
     {
-      "key": "RESIDENT",
+      "key": "CITIZEN",
       "label": "Citizen",
       "description": "Households, shopkeepers, and school administrators generating waste.",
       "permissions": [
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "key": "COLLECTOR",
+      "key": "COLLECTION_WORKER",
       "label": "Collection Worker",
       "description": "Field drivers and helpers covering assigned routes.",
       "permissions": [
@@ -34,7 +34,7 @@
       ]
     },
     {
-      "key": "MANAGER",
+      "key": "MUNICIPAL_OFFICER",
       "label": "Municipal Officer",
       "description": "Operations supervisors monitoring complaints, routes, and crews.",
       "permissions": [
@@ -51,7 +51,7 @@
       "permissions": ["view_material_ledger", "claim_batch", "update_pickup_status"]
     },
     {
-      "key": "ADMIN",
+      "key": "SYSTEM_ADMIN",
       "label": "System Admin",
       "description": "Engineering role responsible for platform health and access control.",
       "permissions": [
@@ -112,7 +112,7 @@
       "id": "usr-001",
       "name": "Demo Admin",
       "email": "admin@verdeza.test",
-      "role": "ADMIN",
+      "role": "SYSTEM_ADMIN",
       "zone_id": null,
       "phone": "+91 90000 00001",
       "status": "ACTIVE",
@@ -123,7 +123,7 @@
       "id": "usr-002",
       "name": "Demo Manager",
       "email": "manager@verdeza.test",
-      "role": "MANAGER",
+      "role": "MUNICIPAL_OFFICER",
       "zone_id": "zone-1",
       "phone": "+91 90000 00002",
       "status": "ACTIVE",
@@ -134,7 +134,7 @@
       "id": "usr-003",
       "name": "Ritu Sharma",
       "email": "ritu.sharma@verdeza.test",
-      "role": "RESIDENT",
+      "role": "CITIZEN",
       "zone_id": "zone-1",
       "phone": "+91 98765 43201",
       "status": "ACTIVE",
@@ -145,7 +145,7 @@
       "id": "usr-004",
       "name": "Anil Verma",
       "email": "anil.verma@verdeza.test",
-      "role": "RESIDENT",
+      "role": "CITIZEN",
       "zone_id": "zone-2",
       "phone": "+91 98765 43202",
       "status": "ACTIVE",
@@ -156,7 +156,7 @@
       "id": "usr-005",
       "name": "Meera Nair",
       "email": "meera.nair@verdeza.test",
-      "role": "RESIDENT",
+      "role": "CITIZEN",
       "zone_id": "zone-3",
       "phone": "+91 98765 43203",
       "status": "SUSPENDED",
@@ -167,7 +167,7 @@
       "id": "usr-006",
       "name": "Officer Rakesh Tiwari",
       "email": "rakesh.tiwari@verdeza.test",
-      "role": "MANAGER",
+      "role": "MUNICIPAL_OFFICER",
       "zone_id": "zone-1",
       "phone": "+91 98765 43204",
       "status": "ACTIVE",
@@ -178,7 +178,7 @@
       "id": "usr-007",
       "name": "Officer Sunita Yadav",
       "email": "sunita.yadav@verdeza.test",
-      "role": "MANAGER",
+      "role": "MUNICIPAL_OFFICER",
       "zone_id": "zone-2",
       "phone": "+91 98765 43205",
       "status": "ACTIVE",
@@ -189,7 +189,7 @@
       "id": "usr-008",
       "name": "Officer Vikram Singh",
       "email": "vikram.singh@verdeza.test",
-      "role": "MANAGER",
+      "role": "MUNICIPAL_OFFICER",
       "zone_id": "zone-4",
       "phone": "+91 98765 43206",
       "status": "PENDING",
@@ -200,7 +200,7 @@
       "id": "usr-009",
       "name": "Deepak Kumar",
       "email": "deepak.kumar@verdeza.test",
-      "role": "COLLECTOR",
+      "role": "COLLECTION_WORKER",
       "zone_id": "zone-1",
       "phone": "+91 98765 43207",
       "status": "ACTIVE",
@@ -211,7 +211,7 @@
       "id": "usr-010",
       "name": "Suresh Pal",
       "email": "suresh.pal@verdeza.test",
-      "role": "COLLECTOR",
+      "role": "COLLECTION_WORKER",
       "zone_id": "zone-1",
       "phone": "+91 98765 43208",
       "status": "ACTIVE",
@@ -222,7 +222,7 @@
       "id": "usr-011",
       "name": "Ramesh Chauhan",
       "email": "ramesh.chauhan@verdeza.test",
-      "role": "COLLECTOR",
+      "role": "COLLECTION_WORKER",
       "zone_id": "zone-2",
       "phone": "+91 98765 43209",
       "status": "ACTIVE",
@@ -233,7 +233,7 @@
       "id": "usr-012",
       "name": "Om Prakash",
       "email": "om.prakash@verdeza.test",
-      "role": "COLLECTOR",
+      "role": "COLLECTION_WORKER",
       "zone_id": "zone-3",
       "phone": "+91 98765 43210",
       "status": "SUSPENDED",
@@ -348,7 +348,7 @@
       "actor": "Demo Admin",
       "action": "USER_ROLE_ASSIGNED",
       "target": "Officer Vikram Singh (usr-008)",
-      "note": "Provisioned as MANAGER for Zone 4",
+      "note": "Provisioned as MUNICIPAL_OFFICER for Zone 4",
       "timestamp": "2026-07-01T10:05:00Z"
     },
     {

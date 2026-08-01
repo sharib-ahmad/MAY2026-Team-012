@@ -275,7 +275,7 @@ export default function Complaints({ data }) {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Resolution note
+                    {nextStatus === "RESOLVED" ? "Resolution note" : "Progress note"}
                   </label>
                   <textarea
                     value={note}

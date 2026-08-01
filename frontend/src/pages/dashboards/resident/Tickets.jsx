@@ -180,6 +180,14 @@ export default function Tickets() {
               <p className="text-xs font-medium text-gray-600 mb-1">Note</p>
               <div className="rounded-input bg-gray-50 p-3">{selected.description}</div>
             </div>
+            {selected.manager_note && (
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">Manager update</p>
+                <div className="rounded-input border border-blue-100 bg-blue-50 p-3 text-blue-950">
+                  {selected.manager_note}
+                </div>
+              </div>
+            )}
             {selected.ward_name && (
               <div>
                 <p className="text-xs font-medium text-gray-600 mb-1">Assigned Ward</p>

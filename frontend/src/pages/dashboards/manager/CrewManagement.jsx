@@ -91,7 +91,7 @@ export default function CrewManagement({ data }) {
               label: "Role",
               render: (value) => (
                 <span className="text-xs font-semibold text-[#3F5426]">
-                  {value === "COLLECTOR" ? "Collector" : "Recycler"}
+                  {value === "COLLECTION_WORKER" ? "Collection Worker" : "Recycler"}
                 </span>
               ),
             },

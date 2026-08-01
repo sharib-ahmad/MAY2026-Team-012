@@ -32,6 +32,9 @@ class FakeDatabase:
     def add_all(self, records):
         self.added.extend(records)
 
+    def add(self, record):
+        self.added.append(record)
+
     def delete(self, record):
         self.deleted.append(record)
 
@@ -65,6 +68,8 @@ def test_update_ticket_resolves_ticket_in_manager_ward(monkeypatch, manager) -> 
     ticket = SimpleNamespace(
         id=uuid4(),
         zone_id=manager.zone_id,
+        raised_by_id=uuid4(),
+        ref_code="TK-0001",
         status=TicketStatus.OPEN,
         resolution_notes=None,
         resolved_at=None,
@@ -83,6 +88,8 @@ def test_update_ticket_resolves_ticket_in_manager_ward(monkeypatch, manager) -> 
     assert result == {"id": str(ticket.id), "status": "RESOLVED"}
     assert ticket.resolution_notes == "Cleared the blockage"
     assert ticket.resolved_by_id == manager.id
+    assert db.added[0].user_id == ticket.raised_by_id
+    assert "resolved" in db.added[0].body
     assert db.commits == 1
 
 

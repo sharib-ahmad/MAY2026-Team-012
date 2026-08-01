@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
@@ -16,6 +17,15 @@ from app.features.admin.schemas import (
     WardListResponse,
     WardResponse,
     WardUpdate,
+)
+from app.features.admin.schemas import (
+    UserCreate as AdminUserCreate,
+)
+from app.features.admin.schemas import (
+    UserStatusUpdate as AdminUserStatusUpdate,
+)
+from app.features.admin.schemas import (
+    UserUpdate as AdminUserUpdate,
 )
 from app.features.admin.service import (
     create_ward,
@@ -34,14 +44,8 @@ from app.models.zone import Zone
 if TYPE_CHECKING:
     from app.features.users.models import User
 
-# Map frontend role strings to backend Role enums
-ROLE_MAP_FRONTEND_TO_DB = {
-    "RESIDENT": Role.CITIZEN,
-    "COLLECTOR": Role.COLLECTION_WORKER,
-    "RECYCLER": Role.RECYCLER,
-    "MANAGER": Role.MUNICIPAL_OFFICER,
-    "ADMIN": Role.SYSTEM_ADMIN,
-}
+# Admin requests use the canonical database role names.
+ROLE_MAP_FRONTEND_TO_DB = {role.value: role for role in Role}
 
 
 class CreateAccountRequest(BaseModel):
@@ -85,7 +89,8 @@ def get_admin_dashboard(
     return get_dashboard_data(db)
 
 
-@router.get("/ward", response_model=WardListResponse)
+@router.get("/wards", response_model=WardListResponse)
+@router.get("/ward", response_model=WardListResponse, include_in_schema=False)
 def get_wards(
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
@@ -94,7 +99,13 @@ def get_wards(
     return list_wards(db)
 
 
-@router.post("/ward", response_model=WardResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/wards", response_model=WardResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ward",
+    response_model=WardResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 def create_new_ward(
     ward_data: WardCreate,
     req: Request,
@@ -118,7 +129,8 @@ def create_new_ward(
         ) from e
 
 
-@router.patch("/ward/{ward_id}", response_model=WardResponse)
+@router.patch("/wards/{ward_id}", response_model=WardResponse)
+@router.patch("/ward/{ward_id}", response_model=WardResponse, include_in_schema=False)
 def update_ward_endpoint(
     ward_id: str,
     ward_data: WardUpdate,
@@ -146,7 +158,8 @@ def update_ward_endpoint(
         ) from e
 
 
-@router.delete("/ward/{ward_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/wards/{ward_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/ward/{ward_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_ward_endpoint(
     ward_id: str,
     req: Request,
@@ -179,7 +192,7 @@ def create_account(
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Create a new MANAGER or ADMIN account."""
+    """Create a new MUNICIPAL_OFFICER or SYSTEM_ADMIN account."""
     import uuid
 
     from app.features.users.models import User
@@ -213,11 +226,13 @@ def create_account(
             detail=f"Unsupported role: {account_data.role}",
         )
 
-    # Only allow MANAGER and ADMIN roles
+    # Only allow municipal-officer and system-admin roles.
     if db_role not in [Role.MUNICIPAL_OFFICER, Role.SYSTEM_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only MANAGER and ADMIN accounts can be created by administrators.",
+            detail=(
+                "Only MUNICIPAL_OFFICER and SYSTEM_ADMIN accounts can be created by administrators."
+            ),
         )
 
     # If zone_id is provided, verify it exists
@@ -301,30 +316,19 @@ def get_admin_logs(
     return get_logs(db, limit)
 
 
-@router.patch("/user/{user_id}/status")
+@router.patch("/users/{user_id}/status")
+@router.patch("/user/{user_id}/status", include_in_schema=False)
 def update_user_status(
-    user_id: str,
-    status_update: UserStatusUpdate,
+    user_id: UUID,
+    status_update: AdminUserStatusUpdate,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     """Update a user's status (suspend/activate)."""
-    import uuid
-
-    from sqlalchemy import select
-
     from app.features.users.models import User
 
-    try:
-        user_uuid = uuid.UUID(user_id)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user ID format",
-        ) from err
-
-    user = db.scalar(select(User).where(User.id == user_uuid))
+    user = db.scalar(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -332,54 +336,55 @@ def update_user_status(
         )
 
     old_status = user.status
+    if (
+        old_status == UserStatus.ACTIVE
+        and status_update.status == UserStatus.DISABLED
+        and user.role == Role.SYSTEM_ADMIN
+        and db.scalar(
+            select(func.count(User.id)).where(
+                User.role == Role.SYSTEM_ADMIN,
+                User.status == UserStatus.ACTIVE,
+                User.deleted_at.is_(None),
+            )
+        )
+        <= 1
+    ):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="LAST_ACTIVE_ADMIN")
     user.status = status_update.status
+    user.token_version += 1
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_STATUS_CHANGED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
+        description=f"User {user.email} status changed from {old_status} to {user.status}",
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(user)
-
-    # Log status change (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="USER_STATUS_CHANGED",
-            entity_type="User",
-            entity_id=str(user.id),
-            module="admin",
-            description=f"User {user.email} status changed from {old_status} to {user.status}",
-            ip_address=client_ip,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
     return {"message": "User status updated successfully", "status": user.status}
 
 
-@router.delete("/user/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/user/{user_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_user(
-    user_id: str,
+    user_id: UUID,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> None:
     """Delete a user account."""
-    import uuid
-
-    from sqlalchemy import select
-
     from app.features.users.models import User
 
-    try:
-        user_uuid = uuid.UUID(user_id)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user ID format",
-        ) from err
-
-    user = db.scalar(select(User).where(User.id == user_uuid))
+    user_uuid = user_id
+    user = db.scalar(select(User).where(User.id == user_uuid, User.deleted_at.is_(None)))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -398,30 +403,27 @@ def delete_user(
     user_name = user.name
 
     db.delete(user)
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_DELETED",
+        entity_type="User",
+        entity_id=str(user_uuid),
+        module="admin",
+        description=f"User {user_email} ({user_name}) deleted by admin",
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
+    )
     db.commit()
 
-    # Log user deletion (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="USER_DELETED",
-            entity_type="User",
-            entity_id=str(user_uuid),
-            module="admin",
-            description=f"User {user_email} ({user_name}) deleted by admin",
-            ip_address=client_ip,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
-
-@router.post("/user")
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+@router.post("/user", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_user(
-    user_data: UserCreate,
+    user_data: AdminUserCreate,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
@@ -487,31 +489,28 @@ def create_user(
         role=db_role,
         zone_id=zone_uuid,
         status=UserStatus.ACTIVE,
-        last_login_at=datetime.now(UTC),
     )
 
     db.add(user)
+    # The user ID is server-generated, so flush before recording an audit row
+    # that references it. Both records are committed atomically below.
+    db.flush()
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="ACCOUNT_CREATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
+        description=f"Admin created {user.role.name} account: {user.email}",
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(user)
-
-    # Log account creation (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="ACCOUNT_CREATED",
-            entity_type="User",
-            entity_id=str(user.id),
-            module="admin",
-            description=f"Admin created {user.role.name} account: {user.email}",
-            ip_address=client_ip,
-        )
-    except Exception:
-        # Ignore audit logging errors
-        pass
 
     # Find ward code if user is associated with a zone
     ward_code = None
@@ -531,30 +530,20 @@ def create_user(
     return {"user": auth_user}
 
 
-@router.patch("/user/{user_id}")
+@router.patch("/users/{user_id}")
+@router.patch("/user/{user_id}", include_in_schema=False)
 def update_user(
-    user_id: str,
-    user_update: UserUpdate,
+    user_id: UUID,
+    user_update: AdminUserUpdate,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     """Update a user's details."""
-    import uuid
-
-    from sqlalchemy import select
-
     from app.features.users.models import User
 
-    try:
-        user_uuid = uuid.UUID(user_id)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user ID format",
-        ) from err
-
-    user = db.scalar(select(User).where(User.id == user_uuid))
+    user_uuid = user_id
+    user = db.scalar(select(User).where(User.id == user_uuid, User.deleted_at.is_(None)))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -564,21 +553,12 @@ def update_user(
     # Track changes for audit log
     changes = []
 
-    print(f"Updating user {user_uuid}")
-    print(f"Current user: email={user.email}, phone={user.phone}")
-    print(
-        f"Update data: email={user_update.email}, "
-        f"phone={user_update.phone}, name={user_update.name}, role={user_update.role}"
-    )
-
     # Update fields if provided
     if user_update.name is not None and user_update.name != user.name:
         changes.append(f"name from '{user.name}' to '{user_update.name}'")
         user.name = user_update.name
     if user_update.email is not None and user_update.email.lower() != user.email.lower():
         # Check if email is already used by another user
-        from sqlalchemy import select
-
         existing_user = db.scalar(
             select(User).where(
                 User.email == user_update.email.lower(),
@@ -587,10 +567,6 @@ def update_user(
             )
         )
         if existing_user:
-            print(
-                f"Email conflict: trying to set {user_update.email.lower()} "
-                f"but user {existing_user.id} already has it"
-            )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="Email already in use by another user"
             )
@@ -598,8 +574,6 @@ def update_user(
         user.email = user_update.email.lower()
     if user_update.phone is not None and user_update.phone != user.phone:
         # Check if phone is already used by another user
-        from sqlalchemy import select
-
         existing_user = db.scalar(
             select(User).where(
                 User.phone == user_update.phone,
@@ -608,10 +582,6 @@ def update_user(
             )
         )
         if existing_user:
-            print(
-                f"Phone conflict: trying to set {user_update.phone} "
-                f"but user {existing_user.id} already has it"
-            )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Phone number already in use by another user",
@@ -621,30 +591,40 @@ def update_user(
     if user_update.role is not None:
         new_role = ROLE_MAP_FRONTEND_TO_DB.get(user_update.role)
         if new_role and new_role != user.role:
+            if (
+                user.role == Role.SYSTEM_ADMIN
+                and user.status == UserStatus.ACTIVE
+                and db.scalar(
+                    select(func.count(User.id)).where(
+                        User.role == Role.SYSTEM_ADMIN,
+                        User.status == UserStatus.ACTIVE,
+                        User.deleted_at.is_(None),
+                    )
+                )
+                <= 1
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT, detail="LAST_ACTIVE_ADMIN"
+                )
             changes.append(f"role from '{user.role.name}' to '{new_role.name}'")
             user.role = new_role
+            user.token_version += 1
 
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_UPDATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
+        description=f"User {user.email} updated: {', '.join(changes) if changes else 'no changes'}",
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(user)
-
-    # Log user update (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="USER_UPDATED",
-            entity_type="User",
-            entity_id=str(user.id),
-            module="admin",
-            description=(
-                f"User {user.email} updated: {', '.join(changes) if changes else 'no changes'}"
-            ),
-            ip_address=client_ip,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
     return {"message": "User updated successfully"}

@@ -64,6 +64,7 @@ def update_manager_ticket(
             detail="A resolution note is required to resolve a complaint.",
         )
 
+    previous_status = ticket.status
     ticket.status = payload.status
     ticket.resolution_notes = (payload.resolution_notes or "").strip() or None
     if payload.status == TicketStatus.RESOLVED:
@@ -72,6 +73,18 @@ def update_manager_ticket(
     else:
         ticket.resolved_at = None
         ticket.resolved_by_id = None
+    if previous_status != ticket.status:
+        note_suffix = f" Note: {ticket.resolution_notes}" if ticket.resolution_notes else ""
+        db.add(
+            Notification(
+                user_id=ticket.raised_by_id,
+                title="Complaint status updated",
+                body=(
+                    f"Your complaint {ticket.ref_code} is now "
+                    f"{ticket.status.value.replace('_', ' ').lower()}.{note_suffix}"
+                ),
+            )
+        )
     db.commit()
     return {"id": str(ticket.id), "status": ticket.status.value}
 
@@ -112,6 +125,7 @@ def assign_bulk_pickup(
     request.decided_by_id = current_user.id
     request.decided_at = datetime.now(UTC)
     request.status = BulkRequestStatus.ASSIGNED
+
     db.add_all(
         [
             Notification(

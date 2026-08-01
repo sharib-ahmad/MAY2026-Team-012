@@ -1,8 +1,23 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, LogOut, User, LayoutDashboard, ChevronDown } from "lucide-react";
+import {
+  Menu,
+  LogOut,
+  User,
+  LayoutDashboard,
+  ChevronDown,
+  Bell,
+  ClipboardCheck,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import CollectorRoutes from "./collector/Routes";
+import CompletedCollections from "./collector/CompletedCollections";
+import {
+  listCollectorNotifications,
+  markAllCollectorNotificationsRead,
+  markCollectorNotificationRead,
+} from "../../lib/api";
+import { usePolling } from "../../hooks/usePolling";
 
 // Collector workspace shell — mirrors the Recycler Dashboard's app frame
 // (top bar with account dropdown, left nav rail with an account card +
@@ -20,7 +35,50 @@ export default function CollectorDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePage, setActivePage] = useState("route");
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      setNotifications(await listCollectorNotifications());
+    } catch {
+      // Route data remains usable if the notification panel is temporarily unavailable.
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadNotifications]);
+  usePolling(loadNotifications, 30000);
+
+  const openNotification = async (notification) => {
+    if (!notification.is_read) {
+      try {
+        await markCollectorNotificationRead(notification.id);
+        setNotifications((items) =>
+          items.map((item) => (item.id === notification.id ? { ...item, is_read: true } : item))
+        );
+      } catch {
+        // Keep the notification visible; it will be retried on the next refresh.
+      }
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!notifications.some((notification) => !notification.is_read)) return;
+    try {
+      await markAllCollectorNotificationsRead();
+      setNotifications((items) => items.map((item) => ({ ...item, is_read: true })));
+    } catch {
+      // The next poll will retain the current state if this request fails.
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -55,6 +113,58 @@ export default function CollectorDashboard() {
         </div>
 
         <div className="flex items-center gap-4 relative z-30">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowNotifications((v) => !v);
+                setShowAccountMenu(false);
+              }}
+              className="relative text-white/70 hover:text-white"
+              aria-label="Notifications"
+            >
+              <Bell size={18} />
+              {notifications.some((item) => !item.is_read) && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" />
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
+                <div className="flex items-center justify-between gap-3 px-3.5 py-1.5">
+                  <p className="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
+                    Assignments & updates
+                  </p>
+                  <button
+                    type="button"
+                    onClick={markAllNotificationsRead}
+                    disabled={!notifications.some((item) => !item.is_read)}
+                    className="text-[11px] font-semibold text-[#2947A3] hover:underline disabled:opacity-40"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                {notifications.length ? (
+                  notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => openNotification(notification)}
+                      className={`w-full px-3.5 py-2 text-left hover:bg-black/[.03] ${notification.is_read ? "" : "bg-amber-50/50"}`}
+                    >
+                      <span className="block text-sm font-semibold text-gray-800">
+                        {notification.title}
+                      </span>
+                      <span className="block mt-0.5 text-xs text-gray-500">
+                        {notification.body}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3.5 py-3 text-sm text-gray-400">No notifications yet.</p>
+                )}
+              </div>
+            )}
+          </div>
           <div className="relative">
             <button
               type="button"
@@ -96,8 +206,14 @@ export default function CollectorDashboard() {
           </div>
         </div>
 
-        {showAccountMenu && (
-          <div className="fixed inset-0 z-20" onClick={() => setShowAccountMenu(false)} />
+        {(showAccountMenu || showNotifications) && (
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => {
+              setShowAccountMenu(false);
+              setShowNotifications(false);
+            }}
+          />
         )}
       </header>
 
@@ -114,9 +230,17 @@ export default function CollectorDashboard() {
           <nav className="w-64 px-3 py-4 space-y-1">
             <button
               type="button"
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white/20 text-white ring-1 ring-white/30 transition"
+              onClick={() => setActivePage("route")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition ${activePage === "route" ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"}`}
             >
-              <LayoutDashboard size={17} /> Dashboard
+              <LayoutDashboard size={17} /> My pickups
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePage("completed")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition ${activePage === "completed" ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"}`}
+            >
+              <ClipboardCheck size={17} /> Completed collections
             </button>
           </nav>
 
@@ -148,7 +272,7 @@ export default function CollectorDashboard() {
         {/* Main content — the only scrollable region */}
         <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-            <CollectorRoutes />
+            {activePage === "route" ? <CollectorRoutes /> : <CompletedCollections />}
           </div>
         </main>
       </div>

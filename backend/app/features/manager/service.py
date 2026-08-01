@@ -202,6 +202,19 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
+    bulk_mixed_waste_rows = [
+        {
+            "id": str(request.id),
+            "route_code": request.ref_code,
+            "ward_code": request.zone.code,
+            "point_label": request.requester.name,
+            "severity": request.flag_severity.value if request.flag_severity else "ROUTINE",
+            "note": request.flag_note,
+            "flagged_at": request.collected_at,
+        }
+        for request in bulk_requests
+        if request.is_flagged
+    ]
     notifications = db.scalars(
         select(Notification)
         .where(Notification.user_id == manager.id, Notification.is_read.is_(False))
@@ -245,6 +258,12 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
+    materialized_flag_refs = {tag.stop.pickup.ref_code.removeprefix("COL-") for tag in mixed_waste}
+    # New flags have both a source-request projection and a detailed route tag.
+    # Keep the source projection only for legacy flags that have no route tag.
+    bulk_mixed_waste_rows = [
+        row for row in bulk_mixed_waste_rows if row["route_code"] not in materialized_flag_refs
+    ]
 
     complaint_rows = [
         {
@@ -417,7 +436,8 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "flagged_at": tag.created_at,
             }
             for tag in mixed_waste
-        ],
+        ]
+        + bulk_mixed_waste_rows,
         "bulk_pickups": [
             {
                 "id": str(request.id),
@@ -443,7 +463,9 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "id": str(worker.id),
                 "name": worker.name,
                 "phone": worker.phone,
-                "role": "COLLECTOR" if worker.role == Role.COLLECTION_WORKER else "RECYCLER",
+                "role": "COLLECTION_WORKER"
+                if worker.role == Role.COLLECTION_WORKER
+                else "RECYCLER",
                 "crew_role": "Collector" if worker.role == Role.COLLECTION_WORKER else "Recycler",
                 "ward_code": worker.zone.code if worker.zone else "All wards",
                 "route_id": str(schedule_by_worker[worker.id].id)

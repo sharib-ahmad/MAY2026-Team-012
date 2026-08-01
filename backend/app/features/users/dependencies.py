@@ -13,3 +13,13 @@ def require_resident(current_user: User = Depends(get_current_user)) -> User:
             detail="Resident access required.",
         )
     return current_user
+
+
+def require_collector(current_user: User = Depends(get_current_user)) -> User:
+    """Require the authenticated user to be a collection worker."""
+    if current_user.role != Role.COLLECTION_WORKER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Collector access required.",
+        )
+    return current_user
