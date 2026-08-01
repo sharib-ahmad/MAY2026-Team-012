@@ -14,6 +14,7 @@ def test_serialize_ticket_uses_active_legacy_ward_manager() -> None:
         issue_type=TicketType.OVERFLOW,
         status=TicketStatus.OPEN,
         description="Bin has overflowed near the entrance.",
+        resolution_notes=None,
         created_at="2026-08-01T10:00:00Z",
         zone=SimpleNamespace(
             code="W-04",
