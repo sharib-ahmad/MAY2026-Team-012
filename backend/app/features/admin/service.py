@@ -93,10 +93,18 @@ def create_ward(
     db.add(new_ward)
     db.flush()
     create_audit_log(
-        db, actor_id=user_id, actor_name=user_name, actor_role="SYSTEM_ADMIN",
-        action="WARD_CREATED", entity_type="Zone", entity_id=str(new_ward.id), module="admin",
-        description=f"Ward {new_ward.code} created by admin", ip_address=ip_address,
-        commit=False, required=True,
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_CREATED",
+        entity_type="Zone",
+        entity_id=str(new_ward.id),
+        module="admin",
+        description=f"Ward {new_ward.code} created by admin",
+        ip_address=ip_address,
+        commit=False,
+        required=True,
     )
     db.commit()
     db.refresh(new_ward)
@@ -200,12 +208,20 @@ def update_ward(
     ward.manager_id = manager_id
 
     create_audit_log(
-        db, actor_id=user_id, actor_name=user_name, actor_role="SYSTEM_ADMIN",
-        action="WARD_UPDATED", entity_type="Zone", entity_id=str(ward.id), module="admin",
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_UPDATED",
+        entity_type="Zone",
+        entity_id=str(ward.id),
+        module="admin",
         description=(
             f"Ward {ward.code} updated: {', '.join(changes) if changes else 'details modified'}"
         ),
-        ip_address=ip_address, commit=False, required=True,
+        ip_address=ip_address,
+        commit=False,
+        required=True,
     )
     db.commit()
     db.refresh(ward)
@@ -270,10 +286,18 @@ def delete_ward(
     # Delete the ward
     db.delete(ward)
     create_audit_log(
-        db, actor_id=user_id, actor_name=user_name, actor_role="SYSTEM_ADMIN",
-        action="WARD_DELETED", entity_type="Zone", entity_id=str(ward.id), module="admin",
-        description=f"Ward {ward.code} deleted by admin", ip_address=ip_address,
-        commit=False, required=True,
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_DELETED",
+        entity_type="Zone",
+        entity_id=str(ward.id),
+        module="admin",
+        description=f"Ward {ward.code} deleted by admin",
+        ip_address=ip_address,
+        commit=False,
+        required=True,
     )
     db.commit()
 

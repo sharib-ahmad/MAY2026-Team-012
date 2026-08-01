@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
@@ -10,8 +10,6 @@ from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
     DailyPickupSchedule,
     DailyPickupStop,
-    DelayLog,
-    MixedWasteTag,
     Pickup,
 )
 from app.features.collection_ops.schemas import (
@@ -113,7 +111,10 @@ def _owned_bulk_pickup(db: Session, pickup_id: UUID, collector_id: UUID) -> Bulk
         .options(joinedload(BulkPickupRequest.requester), joinedload(BulkPickupRequest.zone))
     )
     if not pickup:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assigned pickup not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assigned pickup not found.",
+        )
     return pickup
 
 
@@ -134,14 +135,21 @@ def _owned_stop(db: Session, stop_id: UUID, collector_id: UUID) -> DailyPickupSt
         )
     )
     if not stop:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assigned pickup not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assigned pickup not found.",
+        )
     return stop
 
 
 def _refresh_schedule_completion(schedule: DailyPickupSchedule, db: Session) -> None:
-    stops = db.scalars(select(DailyPickupStop).where(DailyPickupStop.schedule_id == schedule.id)).all()
+    stops = db.scalars(
+        select(DailyPickupStop).where(DailyPickupStop.schedule_id == schedule.id)
+    ).all()
     schedule.completed_stops = sum(stop.status == PickupStopStatus.COLLECTED for stop in stops)
-    schedule.completed_at = datetime.now(UTC) if stops and schedule.completed_stops == len(stops) else None
+    schedule.completed_at = (
+        datetime.now(UTC) if stops and schedule.completed_stops == len(stops) else None
+    )
 
 
 def _is_within_undo_window(completed_at: datetime | None) -> bool:
@@ -231,7 +239,9 @@ def get_collector_route(
     outstanding = [pickup for pickup in pickups if pickup.status != BulkRequestStatus.COLLECTED]
     collected = [pickup for pickup in pickups if pickup.status == BulkRequestStatus.COLLECTED]
     pickups = outstanding + collected
-    zone_name = f"{pickups[0].zone.code} - {pickups[0].zone.name}" if pickups else "No assigned zone"
+    zone_name = (
+        f"{pickups[0].zone.code} - {pickups[0].zone.name}" if pickups else "No assigned zone"
+    )
     return CollectorRouteResponse(
         zone_name=zone_name,
         pickup_count=len(pickups),
@@ -242,7 +252,11 @@ def get_collector_route(
         ordered_pickups=[
             _bulk_pickup_response(
                 pickup,
-                outstanding.index(pickup) + 1 if pickup.status != BulkRequestStatus.COLLECTED else 0,
+                (
+                    outstanding.index(pickup) + 1
+                    if pickup.status != BulkRequestStatus.COLLECTED
+                    else 0
+                ),
             )
             for pickup in pickups
         ],
@@ -257,7 +271,13 @@ def complete_stop(
     now = datetime.now(UTC)
     pickup.status = BulkRequestStatus.COLLECTED
     pickup.collected_at = now
-    db.add(Notification(user_id=pickup.requester_id, title="Pickup collected", body=f"{pickup.ref_code} was collected."))
+    db.add(
+        Notification(
+            user_id=pickup.requester_id,
+            title="Pickup collected",
+            body=f"{pickup.ref_code} was collected.",
+        )
+    )
     db.commit()
     db.refresh(pickup)
     return _bulk_pickup_response(pickup, 0)
@@ -269,7 +289,10 @@ def undo_complete_stop(
 ) -> CollectorStopResponse:
     pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
     if pickup.status != BulkRequestStatus.COLLECTED or not pickup.collected_at:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This pickup is not completed.")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This pickup is not completed.",
+        )
     if not _is_within_undo_window(pickup.collected_at):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -302,9 +325,7 @@ def list_completed_collections(
         .unique()
         .all()
     )
-    return [
-        _bulk_pickup_response(pickup, index) for index, pickup in enumerate(pickups, start=1)
-    ]
+    return [_bulk_pickup_response(pickup, index) for index, pickup in enumerate(pickups, start=1)]
 
 
 @collector_router.post("/stops/{stop_id}/notify")
@@ -315,7 +336,13 @@ def notify_resident_of_delay(
     db: Session = Depends(get_db),
 ) -> dict:
     pickup = _owned_bulk_pickup(db, stop_id, current_user.id)
-    db.add(Notification(user_id=pickup.requester_id, title="Pickup update", body=payload.message.strip()))
+    db.add(
+        Notification(
+            user_id=pickup.requester_id,
+            title="Pickup update",
+            body=payload.message.strip(),
+        )
+    )
     db.commit()
     return {"message": "Resident notified."}
 
@@ -345,7 +372,10 @@ def flag_mixed_waste(
         db,
         pickup.zone_id,
         "Mixed waste flagged",
-        f"{pickup.ref_code} was flagged as {payload.severity.value.lower()} by {current_user.name}.",
+        (
+            f"{pickup.ref_code} was flagged as {payload.severity.value.lower()} "
+            f"by {current_user.name}."
+        ),
     )
     db.commit()
     return {"message": "Flag recorded for manager review."}
@@ -372,7 +402,9 @@ def list_collector_notifications(
 
 @collector_router.patch("/notifications/{notification_id}/read")
 def mark_collector_notification_read(
-    notification_id: UUID, current_user: User = Depends(require_collector), db: Session = Depends(get_db)
+    notification_id: UUID,
+    current_user: User = Depends(require_collector),
+    db: Session = Depends(get_db),
 ) -> dict:
     notification = mark_read(db, notification_id, current_user.id)
     if not notification:

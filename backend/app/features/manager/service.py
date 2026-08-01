@@ -430,7 +430,8 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "flagged_at": tag.created_at,
             }
             for tag in mixed_waste
-        ] + bulk_mixed_waste_rows,
+        ]
+        + bulk_mixed_waste_rows,
         "bulk_pickups": [
             {
                 "id": str(request.id),

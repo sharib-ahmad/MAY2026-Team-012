@@ -11,7 +11,11 @@ def _event(stage: str, label: str, at) -> PublicTrackingEvent:
 def track_ticket(ticket: Ticket) -> PublicTrackingResponse:
     timeline = [_event("OPEN", "Complaint submitted", ticket.created_at)]
     if ticket.status.value != "OPEN":
-        label = "Complaint resolved" if ticket.status.value == "RESOLVED" else "Complaint status updated"
+        label = (
+            "Complaint resolved"
+            if ticket.status.value == "RESOLVED"
+            else "Complaint status updated"
+        )
         timeline.append(_event(ticket.status.value, label, ticket.updated_at))
     return PublicTrackingResponse(
         ref_code=ticket.ref_code,
@@ -28,7 +32,11 @@ def track_bulk_pickup(request: BulkPickupRequest) -> PublicTrackingResponse:
     timeline = [_event("PENDING", "Pickup request submitted", request.created_at)]
     if request.status.value != "PENDING":
         timeline.append(
-            _event(request.status.value, f"Pickup {request.status.value.lower()}", request.updated_at)
+            _event(
+                request.status.value,
+                f"Pickup {request.status.value.lower()}",
+                request.updated_at,
+            )
         )
     return PublicTrackingResponse(
         ref_code=request.ref_code,

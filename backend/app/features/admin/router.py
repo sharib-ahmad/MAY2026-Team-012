@@ -358,11 +358,18 @@ def update_user_status(
     user.status = status_update.status
     user.token_version += 1
     create_audit_log(
-        db, actor_id=str(current_user.id), actor_name=current_user.name,
-        actor_role=current_user.role.value, action="USER_STATUS_CHANGED", entity_type="User",
-        entity_id=str(user.id), module="admin",
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_STATUS_CHANGED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
         description=f"User {user.email} status changed from {old_status} to {user.status}",
-        ip_address=req.client.host if req.client else None, commit=False, required=True,
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
     )
     db.commit()
     db.refresh(user)
@@ -402,11 +409,18 @@ def delete_user(
 
     db.delete(user)
     create_audit_log(
-        db, actor_id=str(current_user.id), actor_name=current_user.name,
-        actor_role=current_user.role.value, action="USER_DELETED", entity_type="User",
-        entity_id=str(user_uuid), module="admin",
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_DELETED",
+        entity_type="User",
+        entity_id=str(user_uuid),
+        module="admin",
         description=f"User {user_email} ({user_name}) deleted by admin",
-        ip_address=req.client.host if req.client else None, commit=False, required=True,
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
     )
     db.commit()
 
@@ -487,12 +501,18 @@ def create_user(
     # that references it. Both records are committed atomically below.
     db.flush()
     create_audit_log(
-        db, actor_id=str(current_user.id), actor_name=current_user.name,
-        actor_role=current_user.role.value, action="ACCOUNT_CREATED", entity_type="User",
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="ACCOUNT_CREATED",
+        entity_type="User",
         entity_id=str(user.id),
         module="admin",
         description=f"Admin created {user.role.name} account: {user.email}",
-        ip_address=req.client.host if req.client else None, commit=False, required=True,
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
     )
     db.commit()
     db.refresh(user)
@@ -600,11 +620,18 @@ def update_user(
             user.token_version += 1
 
     create_audit_log(
-        db, actor_id=str(current_user.id), actor_name=current_user.name,
-        actor_role=current_user.role.value, action="USER_UPDATED", entity_type="User",
-        entity_id=str(user.id), module="admin",
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="USER_UPDATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
         description=f"User {user.email} updated: {', '.join(changes) if changes else 'no changes'}",
-        ip_address=req.client.host if req.client else None, commit=False, required=True,
+        ip_address=req.client.host if req.client else None,
+        commit=False,
+        required=True,
     )
     db.commit()
     db.refresh(user)

@@ -3,7 +3,8 @@ from fastapi import APIRouter
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.bulk_pickups.router import router as bulk_pickups_router
-from app.features.collection_ops.router import collector_router, router as collection_ops_router
+from app.features.collection_ops.router import collector_router
+from app.features.collection_ops.router import router as collection_ops_router
 from app.features.complaints.router import router as complaints_router
 from app.features.manager.router import router as manager_router
 from app.features.notifications.router import router as notifications_router
