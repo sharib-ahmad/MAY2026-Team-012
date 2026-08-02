@@ -584,11 +584,81 @@ request ID, but the `WWW-Authenticate` header was absent.
 ```text
 SCRUM-88 Authentication QA: FAILED
 Latest focused suite: 33 passed, 5 failed
-Test errors: 0
-Full backend regression: Pending corrective changes
-QA pull request: Draft
-Corrective issue: #69 (reopen required)
+Focused-suite errors: 0
+CI full-backend suite: 142 passed, 5 failed
+CI test errors: 0
+Coverage: 79.55%
+Required coverage: 80%
+Coverage gate: Failed
+QA pull request: #81, Draft
+Corrective issue: #69 must remain open or be reopened
+Merge status: Blocked
 ```
 
-The remaining five failing cases represent three product root causes. Expected results were not
-weakened, skipped, suppressed or changed to obtain a passing result.
+The remaining five failing cases represent three product root causes. The complete CI regression
+reproduced the same five failures and introduced no additional functional test failure. Expected
+results were not weakened, skipped, suppressed or changed to obtain a passing result.
+
+## CI Full-Backend Regression Result
+
+GitHub Actions executed the complete backend suite against QA commit `277caa7`.
+
+```text
+Pull request: #81
+Branch: test/SCRUM-88-auth-qa
+Frontend check: Passed
+API contract check: Passed
+Backend check: Failed
+
+Complete backend pytest result:
+147 tests executed
+142 passed
+5 failed
+0 errors
+Coverage: 79.55%
+Required coverage threshold: 80%
+Duration: 14.83 seconds
+```
+
+The same five authentication failures reproduced in the complete GitHub Actions run:
+
+1. `tests/api/features/auth/test_auth_contract.py::test_runtime_exposes_only_the_approved_authentication_routes`
+2. `tests/api/features/auth/test_auth_contract.py::test_application_startup_does_not_seed_accounts_implicitly`
+3. `tests/api/features/auth/test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge[missing-authorization]`
+4. `tests/api/features/auth/test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge[unsupported-scheme]`
+5. `tests/api/features/auth/test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge[malformed-bearer-token]`
+
+### CI failure classification
+
+The five failing test cases still represent three confirmed root-cause groups:
+
+1. Forbidden legacy or public authentication routes remain exposed.
+2. Application startup still invokes `seed_database()`.
+3. Missing, unsupported-scheme and malformed Bearer credentials omit
+   `WWW-Authenticate: Bearer`.
+
+No additional functional test failure was observed outside these already documented authentication
+groups.
+
+The coverage gate also failed because the exact measured coverage was `79.55%`, below the required
+`80%`. The coverage result is recorded as a separate merge blocker and is not treated as another
+authentication defect.
+
+### CI decision
+
+```text
+Functional authentication result: Failed on five confirmed requirement tests
+Coverage gate: Failed at 79.55%
+Frontend check: Passed
+API contract check: Passed
+Backend check: Failed
+QA pull request status: Draft
+Corrective issue: #69 must remain open or be reopened
+Merge status: Blocked
+```
+
+PR `#81` must remain Draft. It must not be merged until the three remaining authentication
+root causes are corrected, meaningful test coverage reaches at least `80%`, the focused
+authentication suite passes, and the complete backend regression and required CI checks pass.
+
+No expected result was weakened, skipped, suppressed or changed to make CI pass.
