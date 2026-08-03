@@ -42,7 +42,7 @@ export default function CompletedCollections() {
         (filter === "normal" && !collection.is_flagged);
       const searchable = [
         collection.ref_code,
-        collection.resident_name,
+        collection.citizen_name,
         collection.category,
         collection.zone_name,
       ]
@@ -77,7 +77,7 @@ export default function CompletedCollections() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search resident, pickup code, category or zone"
+              placeholder="Search citizen, pickup code, category or zone"
               className="w-full rounded-input border border-gray-200 py-2 pl-9 pr-3 text-sm"
             />
           </label>
@@ -111,7 +111,7 @@ export default function CompletedCollections() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-serif font-semibold text-[#0B3D38]">
-                      {collection.resident_name}
+                      {collection.citizen_name}
                     </span>
                     <StatusPill status="COLLECTED" />
                     {collection.is_flagged ? (

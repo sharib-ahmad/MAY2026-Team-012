@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill } from "../../../components/UI";
 import { MapPin, CheckCircle2, Clock, User, Truck } from "lucide-react";
-import { getZoneFlow, getMyTodayStop } from "../../../lib/mockResidentData";
+import { getZoneFlow, getMyTodayStop } from "../../../lib/mockCitizenData";
 
 // Smooth a series of points into a single SVG path using Catmull-Rom -> Bezier.
 function smoothPath(points) {
@@ -241,7 +241,7 @@ export default function CollectionFlow() {
                     fontWeight={isSelected ? "700" : "500"}
                     fill={isSelected ? "#0B2F2C" : "#9CA3AF"}
                   >
-                    {isMine ? "You" : stop.resident_name.split(" ")[0]}
+                    {isMine ? "You" : stop.citizen_name.split(" ")[0]}
                   </text>
                 </g>
               );
@@ -293,7 +293,7 @@ export default function CollectionFlow() {
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-medium">
-                  Pickup #{selectedStop.pickup_order} — {selectedStop.resident_name}
+                  Pickup #{selectedStop.pickup_order} — {selectedStop.citizen_name}
                   {myStop && selectedStop.id === myStop.id && (
                     <span className="text-blue-600 ml-2">(You)</span>
                   )}

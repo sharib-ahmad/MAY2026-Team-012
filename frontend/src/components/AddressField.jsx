@@ -1,7 +1,7 @@
 import { MapPin } from "lucide-react";
 
 /** Lightweight replacement for the old map-based location picker. The
- *  resident portal now runs fully client-side with no map/geocoding
+ *  citizen portal now runs fully client-side with no map/geocoding
  *  service, so location is just a free-text address. latitude/longitude
  *  are kept in the returned object (set to null) purely so any code that
  *  destructures { latitude, longitude, address } keeps working. */

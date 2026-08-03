@@ -224,7 +224,7 @@
       "citizen_name": "Sushila Devi",
       "citizen_type": "HOUSEHOLD",
       "issue_type": "VEHICLE_DELAY",
-      "description": "No horn or announcement when vehicle passes; elderly residents miss the window.",
+      "description": "No horn or announcement when vehicle passes; elderly citizens miss the window.",
       "severity": "LOW",
       "status": "OPEN",
       "created_at": "2026-07-11T07:20:00Z",
@@ -400,7 +400,7 @@
         },
         {
           "seq": 2,
-          "label": "Lalbagh residential block",
+          "label": "Lalbagh citizenial block",
           "status": "COLLECTED",
           "updated_at": "2026-07-13T04:15:00Z"
         },

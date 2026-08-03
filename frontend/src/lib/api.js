@@ -53,6 +53,15 @@ export const getAdminDashboard = async () => {
   return data;
 };
 
+export const getAdminCreditFactors = async () => (await API.get("/v1/admin/credit-factors")).data;
+export const updateAdminCreditFactor = async (category, creditRate, co2Factor) =>
+  (
+    await API.patch(`/v1/admin/credit-factors/${category}`, {
+      credit_rate: creditRate,
+      co2_factor: co2Factor,
+    })
+  ).data;
+
 export const getManagerDashboard = async () => {
   const { data } = await API.get("/v1/manager/dashboard");
   return data;
@@ -83,6 +92,31 @@ export const updateManagerWorker = async (workerId, payload) => {
 export const deleteManagerWorker = async (workerId) => {
   await API.delete(`/v1/manager/workers/${workerId}`);
 };
+
+// ── Manager: Batch Management ────────────────────────────────────────────
+export const getManagerBatches = async () => (await API.get("/v1/manager/batches")).data;
+export const getManagerRecyclers = async () => (await API.get("/v1/manager/recyclers")).data;
+export const assignManagerBatch = async (batchId, recyclerId) =>
+  (
+    await API.post(`/v1/manager/batches/${batchId}/assign`, {
+      recycler_id: recyclerId,
+    })
+  ).data;
+
+// ── Recycler: Batches ─────────────────────────────────────────────────
+export const getRecyclerBatches = async () => (await API.get("/v1/recycler/batches")).data;
+export const acceptRecyclerBatch = async (batchId) =>
+  (await API.post(`/v1/recycler/batches/${batchId}/accept`)).data;
+export const rejectRecyclerBatch = async (batchId, note) =>
+  (await API.post(`/v1/recycler/batches/${batchId}/reject`, { note })).data;
+export const processRecyclerBatch = async (batchId) =>
+  (await API.post(`/v1/recycler/batches/${batchId}/process`)).data;
+export const listRecyclerNotifications = async () =>
+  (await API.get("/v1/recycler/notifications")).data;
+export const markRecyclerNotificationRead = async (notificationId) =>
+  (await API.patch(`/v1/recycler/notifications/${notificationId}/read`)).data;
+export const markAllRecyclerNotificationsRead = async () =>
+  (await API.patch("/v1/recycler/notifications/read")).data;
 
 export const getWards = async () => {
   const { data } = await API.get("/v1/admin/ward");
@@ -144,7 +178,9 @@ export const getUserPickupTracking = async (pickupId) => {
 };
 
 export const getPublicTracking = async (reference) => {
-  const { data } = await API.get(`/v1/track/${encodeURIComponent(reference.trim())}`);
+  const { data } = await API.get(
+    `/v1/track/${encodeURIComponent(reference.trim())}?t=${Date.now()}`
+  );
   return data;
 };
 

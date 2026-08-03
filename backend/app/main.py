@@ -215,6 +215,7 @@ def seed_database(session_factory) -> None:
     from sqlalchemy import select
 
     from app.core.security import get_password_hash
+    from app.features.credits.models import CreditFactor
     from app.features.sorting_guide.models import WasteCategory
     from app.features.users.models import User
     from app.models.enums import Role, UserStatus
@@ -231,6 +232,31 @@ def seed_database(session_factory) -> None:
                 ),
             ]
             db.add_all(categories)
+            db.flush()
+
+        # 1b. Seed credit factors per waste category
+        if db.scalar(select(CreditFactor)) is None:
+            factors = [
+                CreditFactor(
+                    category="WET",
+                    credit_rate=0.5,
+                    co2_factor=0.3,
+                    description="Wet waste recycling rate",
+                ),
+                CreditFactor(
+                    category="DRY",
+                    credit_rate=1.0,
+                    co2_factor=0.8,
+                    description="Dry waste recycling rate",
+                ),
+                CreditFactor(
+                    category="HAZARDOUS",
+                    credit_rate=2.0,
+                    co2_factor=1.5,
+                    description="Hazardous waste safe disposal rate",
+                ),
+            ]
+            db.add_all(factors)
             db.flush()
 
         # 2. Seed Zones if they don't exist
@@ -276,7 +302,7 @@ def seed_database(session_factory) -> None:
         ]
 
         for name, email, phone, role, z_id in seeds:
-            user = db.scalar(select(User).where(User.email == email))
+            user = db.scalar(select(User).where((User.email == email) | (User.phone == phone)))
             if not user:
                 new_user = User(
                     name=name,
@@ -297,7 +323,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     current = settings or get_settings()
 
     # Register every SQLAlchemy model before request handlers configure their
-    # relationships. Resident pickup endpoints reference models outside the
+    # relationships. Citizen pickup endpoints reference models outside the
     # authentication feature, so lazy partial registration breaks login.
     from app.db import registry as _model_registry  # noqa: F401
 

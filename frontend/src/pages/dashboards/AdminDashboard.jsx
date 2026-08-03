@@ -8,6 +8,7 @@ import {
   UserPlus,
   ScrollText,
   BookOpen,
+  Coins,
   Menu,
   Bell,
   ChevronDown,
@@ -20,6 +21,7 @@ import Wards from "./admin/Wards";
 import Logs from "./admin/Logs";
 import CreateAccount from "./admin/CreateAccount";
 import SortingGuideEditor from "./admin/SortingGuideEditor";
+import CreditRates from "./admin/CreditRates";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
 // collapsible left nav rail (off-canvas drawer on mobile, width-collapse
@@ -33,6 +35,7 @@ const TABS = [
   { key: "logs", label: "Logs", icon: ScrollText, component: Logs },
   { key: "create", label: "Create Account", icon: UserPlus, component: CreateAccount },
   { key: "sorting-guide", label: "Sorting Guide", icon: BookOpen, component: SortingGuideEditor },
+  { key: "credit-rates", label: "Credit Rates", icon: Coins, component: CreditRates },
 ];
 
 const RAIL = "#FFFFFF"; // white theme — top bar & sidebar

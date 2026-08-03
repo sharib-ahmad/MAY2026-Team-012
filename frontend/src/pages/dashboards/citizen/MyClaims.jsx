@@ -3,7 +3,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Empty } from "../../../components/UI";
 import DonationImages from "../../../components/DonationImages";
 import { Gift, Search } from "lucide-react";
-import { listMyClaims } from "../../../lib/mockResidentData";
+import { listMyClaims } from "../../../lib/mockCitizenData";
 
 const FILTERS = [
   { value: "", label: "All" },

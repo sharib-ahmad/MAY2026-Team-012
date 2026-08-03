@@ -1,16 +1,16 @@
-// Backend-free data layer for the Resident portal. Everything a resident
+// Backend-free data layer for the Citizen portal. Everything a citizen
 // sees — pickups, tickets, donations/community shelf, impact stats, today's
 // collection queue — lives in localStorage, keyed per browser. The very
-// first time a given resident opens their dashboard we seed a handful of
-// realistic demo records under their own user id (see ensureResidentSeed)
+// first time a given citizen opens their dashboard we seed a handful of
+// realistic demo records under their own user id (see ensureCitizenSeed)
 // so the experience feels alive immediately instead of starting empty.
 // Swap the functions below for real API calls once a backend exists —
-// nothing above this file (the resident pages) should need to change.
+// nothing above this file (the citizen pages) should need to change.
 
-const PICKUPS_KEY = "gc_resident_pickups";
-const TICKETS_KEY = "gc_resident_tickets";
-const DONATIONS_KEY = "gc_resident_donations";
-const SEED_FLAG_PREFIX = "gc_resident_seeded_";
+const PICKUPS_KEY = "gc_citizen_pickups";
+const TICKETS_KEY = "gc_citizen_tickets";
+const DONATIONS_KEY = "gc_citizen_donations";
+const SEED_FLAG_PREFIX = "gc_citizen_seeded_";
 
 function readList(key) {
   try {
@@ -43,7 +43,7 @@ function daysFromNow(n) {
 const COLLECTOR_NAMES = ["Arun Deka", "Priya Sharma", "Bibek Sonowal"];
 
 // ── Seeding ─────────────────────────────────────────────────────────
-export function ensureResidentSeed(user) {
+export function ensureCitizenSeed(user) {
   if (!user) return;
   const flag = `${SEED_FLAG_PREFIX}${user.id}`;
   if (localStorage.getItem(flag)) return;
@@ -199,7 +199,7 @@ export function ensureResidentSeed(user) {
       updated_at: daysAgo(4),
     },
   ];
-  // A shared, global community shelf pool of other residents' donations —
+  // A shared, global community shelf pool of other citizens' donations —
   // only seeded once ever, regardless of who logs in.
   const GLOBAL_SEED_FLAG = `${SEED_FLAG_PREFIX}global`;
   const globalSeed = !localStorage.getItem(GLOBAL_SEED_FLAG)
@@ -363,7 +363,7 @@ export function reopenTicket(ticketId) {
             {
               from: "RESOLVED",
               to: "OPEN",
-              by: "Resident (reopened)",
+              by: "Citizen (reopened)",
               at: new Date().toISOString(),
             },
           ],
@@ -397,7 +397,7 @@ export function listMyDonations(userId) {
 // — same pattern already used below for claim auto-completion — we
 // auto-approve shortly after submission purely so the demo has something to
 // show in the Community Shelf. Swap this timeout for the real officer-approval
-// flow once that portal exists; nothing else about the resident-facing
+// flow once that portal exists; nothing else about the citizen-facing
 // status lifecycle needs to change.
 export function createDonation(user, payload) {
   const all = readList(DONATIONS_KEY);
@@ -418,7 +418,7 @@ export function createDonation(user, payload) {
   setTimeout(() => {
     const current = readList(DONATIONS_KEY);
     const still = current.find((d) => d.id === donation.id);
-    // Only auto-approve if the resident hasn't withdrawn it in the meantime.
+    // Only auto-approve if the citizen hasn't withdrawn it in the meantime.
     if (still && still.status === "PENDING_APPROVAL") {
       writeList(
         DONATIONS_KEY,
@@ -630,7 +630,7 @@ export function getTodayQueue(userId) {
   if (!todays) return null;
   const pickup_number = todays.pickup_order || 7;
   return {
-    resident_id: userId,
+    citizen_id: userId,
     pickup_number,
     houses_before: Math.max(pickup_number - 3, 0),
     last_completed_house: Math.max(pickup_number - 3, 0),
@@ -659,7 +659,7 @@ export function getZoneFlow(userId) {
     return {
       id: `stop-${order}`,
       pickup_order: order,
-      resident_name: order === myOrder ? "You" : name,
+      citizen_name: order === myOrder ? "You" : name,
       address: order === myOrder ? "Your address" : `House #${order}, Zone 3`,
       status: order < myOrder - 2 ? "COLLECTED" : "PENDING",
     };
@@ -672,12 +672,12 @@ export function getZoneFlow(userId) {
 
 export function getMyTodayStop(userId) {
   const flow = getZoneFlow(userId);
-  return flow.stops.find((s) => s.resident_name === "You") || null;
+  return flow.stops.find((s) => s.citizen_name === "You") || null;
 }
 
 // ── Single-pickup live tracking ─────────────────────────────────────
 // Scoped to exactly one pickup — used by "Track Live Pickup" so a
-// resident only ever sees their own pickup's progress, never the whole
+// citizen only ever sees their own pickup's progress, never the whole
 // zone's queue.
 const STAGE_ORDER = ["REQUESTED", "ASSIGNED", "IN_PROGRESS", "COLLECTED"];
 

@@ -172,7 +172,7 @@ function backfillManagerWards(users) {
   );
 }
 
-// Registration only offers Resident / Collector / Recycler (see Register.jsx),
+// Registration only offers Citizen / Collector / Recycler (see Register.jsx),
 // so Manager and Admin accounts can't be created through the UI. Seed a
 // couple of demo logins once, on first run, so those dashboards are still
 // reachable for testing. Safe to delete this call once a real backend

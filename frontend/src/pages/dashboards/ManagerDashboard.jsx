@@ -5,6 +5,7 @@ import {
   Landmark,
   LogOut,
   MapPinned,
+  Recycle,
   Users,
   Menu,
   Bell,
@@ -17,6 +18,7 @@ import Overview from "./manager/Overview";
 import Complaints from "./manager/Complaints";
 import BulkCollections from "./manager/BulkCollections";
 import CrewManagement from "./manager/CrewManagement";
+import BatchManagement from "./manager/BatchManagement";
 import { getManagerDashboard, markManagerNotificationsRead } from "../../lib/api";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
@@ -38,6 +40,12 @@ const TABS = [
   },
   { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
   { key: "crew-management", label: "Crew management", icon: Users, component: CrewManagement },
+  {
+    key: "batch-management",
+    label: "Batch management",
+    icon: Recycle,
+    component: BatchManagement,
+  },
 ];
 
 const RAIL = "#14171F"; // single theme color — top bar & sidebar
@@ -74,11 +82,16 @@ export default function ManagerDashboard() {
 
   const notifications = useMemo(
     () =>
-      (dashboardData?.notifications || []).map((notification) => ({
-        ...notification,
-        tab: notification.title.toLowerCase().includes("complaint") ? "complaints" : "overview",
-        icon: notification.title.toLowerCase().includes("complaint") ? AlertCircle : MapPinned,
-      })),
+      (dashboardData?.notifications || []).map((notification) => {
+        const title = notification.title.toLowerCase();
+        const isBatch = title.includes("batch");
+        const isComplaint = title.includes("complaint");
+        return {
+          ...notification,
+          tab: isBatch ? "batch-management" : isComplaint ? "complaints" : "overview",
+          icon: isBatch ? Recycle : isComplaint ? AlertCircle : MapPinned,
+        };
+      }),
     [dashboardData]
   );
 

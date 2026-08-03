@@ -22,24 +22,25 @@ from app.features.collection_ops.schemas import (
     MixedWasteRequest,
 )
 from app.features.manager.service import notify_zone_managers
+from app.features.materials.service import pool_and_maybe_create_batches
 from app.features.notifications.models import Notification
 from app.features.notifications.service import list_for_user, mark_read
-from app.features.users.dependencies import require_collector, require_resident
+from app.features.users.dependencies import require_citizen, require_collector
 from app.features.users.models import User
 from app.models.enums import BulkRequestStatus, PickupStatus, PickupStopStatus, WasteSeverity
 
-router = APIRouter(tags=["Resident Collection Schedules"])
+router = APIRouter(tags=["Citizen Collection Schedules"])
 collector_router = APIRouter(prefix="/collector", tags=["Collector Operations"])
 
 
 @router.get("/daily-pickup-schedules", response_model=list[DailyPickupScheduleResponse])
 def list_daily_pickup_schedules(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> list[DailyPickupScheduleResponse]:
     stops = (
         db.scalars(
             select(DailyPickupStop)
-            .where(DailyPickupStop.resident_id == current_user.id)
+            .where(DailyPickupStop.citizen_id == current_user.id)
             .join(DailyPickupStop.schedule)
             .options(joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.collector))
             .order_by(DailyPickupSchedule.schedule_date.desc())
@@ -69,7 +70,7 @@ def _collector_stop(
         ref_code=stop.pickup.ref_code,
         status=stop.status.value,
         pickup_order=pickup_order if pickup_order is not None else stop.pickup_order,
-        resident_name=stop.resident.name,
+        citizen_name=stop.citizen.name,
         category=stop.pickup.category,
         estimated_weight=float(stop.pickup.estimated_weight),
         pickup_address=stop.notes,
@@ -92,7 +93,7 @@ def _bulk_pickup_response(
         ref_code=pickup.ref_code,
         status=pickup.status.value,
         pickup_order=pickup_order,
-        resident_name=pickup.requester.name,
+        citizen_name=pickup.requester.name,
         category=pickup.category,
         estimated_weight=float(pickup.estimated_weight or 0),
         pickup_address=pickup.notes,
@@ -134,7 +135,7 @@ def _owned_stop(db: Session, stop_id: UUID, collector_id: UUID) -> DailyPickupSt
         )
         .options(
             joinedload(DailyPickupStop.pickup),
-            joinedload(DailyPickupStop.resident),
+            joinedload(DailyPickupStop.citizen),
             joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
         )
     )
@@ -235,7 +236,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
         if not pickup:
             pickup = Pickup(
                 ref_code=ref_code,
-                resident_id=request.requester_id,
+                citizen_id=request.requester_id,
                 collector_id=collector.id,
                 zone_id=request.zone_id,
                 category=request.category,
@@ -274,7 +275,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             DailyPickupStop(
                 pickup_id=pickup.id,
                 schedule_id=schedule.id,
-                resident_id=request.requester_id,
+                citizen_id=request.requester_id,
                 pickup_order=schedule.total_stops,
                 status=PickupStopStatus.PENDING,
                 latitude=request.requester.latitude,
@@ -309,7 +310,7 @@ def get_collector_route(
             )
             .options(
                 joinedload(DailyPickupStop.pickup),
-                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.citizen),
                 joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
                 joinedload(DailyPickupStop.mixed_waste_tags),
             )
@@ -356,11 +357,12 @@ def complete_stop(
     _refresh_schedule_completion(stop.schedule, db)
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup collected",
             body=f"{stop.pickup.ref_code} was collected.",
         )
     )
+    pool_and_maybe_create_batches(db, stop.schedule.zone_id)
     db.commit()
     db.refresh(stop)
     return _collector_stop(stop)
@@ -412,7 +414,7 @@ def list_completed_collections(
             )
             .options(
                 joinedload(DailyPickupStop.pickup),
-                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.citizen),
                 joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
                 joinedload(DailyPickupStop.mixed_waste_tags),
             )
@@ -425,7 +427,7 @@ def list_completed_collections(
 
 
 @collector_router.post("/stops/{stop_id}/notify")
-def notify_resident_of_delay(
+def notify_citizen_of_delay(
     stop_id: UUID,
     payload: DelayStopRequest,
     current_user: User = Depends(require_collector),
@@ -444,13 +446,13 @@ def notify_resident_of_delay(
     )
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup update",
             body=payload.message.strip(),
         )
     )
     db.commit()
-    return {"message": "Resident notified."}
+    return {"message": "Citizen notified."}
 
 
 @collector_router.post("/stops/{stop_id}/flag")
@@ -487,7 +489,7 @@ def flag_mixed_waste(
     )
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup completed with a waste-quality flag",
             body=f"{stop.pickup.ref_code} was collected and needs a waste-quality review.",
         )
@@ -501,6 +503,7 @@ def flag_mixed_waste(
             f"by {current_user.name}."
         ),
     )
+    pool_and_maybe_create_batches(db, stop.schedule.zone_id)
     db.commit()
     return {"message": "Flag recorded for manager review."}
 

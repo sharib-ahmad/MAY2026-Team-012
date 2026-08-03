@@ -12,6 +12,8 @@ from app.db.session import get_db
 from app.features.admin.dependencies import require_admin
 from app.features.admin.schemas import (
     AdminDashboardResponse,
+    CreditFactorResponse,
+    CreditFactorUpdate,
     LogsResponse,
     WardCreate,
     WardListResponse,
@@ -37,6 +39,8 @@ from app.features.admin.service import (
 )
 from app.features.auth.dependencies import ROLE_MAP_DB_TO_FRONTEND
 from app.features.auth.schemas import AuthenticatedUser
+from app.features.credits.models import CreditFactor
+from app.features.sorting_guide.models import WasteCategory
 from app.models.audit import create_audit_log
 from app.models.enums import Role, UserStatus
 from app.models.zone import Zone
@@ -78,6 +82,62 @@ class UserUpdate(BaseModel):
 
 
 router = APIRouter(tags=["Admin"])
+
+
+@router.get("/credit-factors", response_model=list[CreditFactorResponse])
+def list_credit_factors(
+    current_user: "User" = Depends(require_admin), db: Session = Depends(get_db)
+) -> list[dict]:
+    """List the per-kilogram reward rates used when a recycler processes a batch."""
+    del current_user
+    rows = db.execute(
+        select(WasteCategory, CreditFactor)
+        .outerjoin(CreditFactor, CreditFactor.category == WasteCategory.code)
+        .order_by(WasteCategory.sort_order)
+    ).all()
+    return [
+        {
+            "category": category.code,
+            "category_label": category.label,
+            "credit_rate": float(factor.credit_rate) if factor else 0.0,
+            "co2_factor": float(factor.co2_factor) if factor else 0.0,
+            "description": factor.description if factor else None,
+        }
+        for category, factor in rows
+    ]
+
+
+@router.patch("/credit-factors/{category}", response_model=CreditFactorResponse)
+def update_credit_factor(
+    category: str,
+    payload: CreditFactorUpdate,
+    current_user: "User" = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update a category's reward points per kilogram for future processing."""
+    category_code = category.upper()
+    factor = db.scalar(select(CreditFactor).where(CreditFactor.category == category_code))
+    if not factor:
+        category_row = db.scalar(select(WasteCategory).where(WasteCategory.code == category_code))
+        if not category_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Waste category not found.",
+            )
+        factor = CreditFactor(category=category_code, credit_rate=0, co2_factor=0)
+        db.add(factor)
+    factor.credit_rate = payload.credit_rate
+    factor.co2_factor = payload.co2_factor
+    db.commit()
+    db.refresh(factor)
+    category_row = db.scalar(select(WasteCategory).where(WasteCategory.code == factor.category))
+    return {
+        "category": factor.category,
+        "category_label": category_row.label if category_row else factor.category,
+        "credit_rate": float(factor.credit_rate),
+        "co2_factor": float(factor.co2_factor),
+        "description": factor.description,
+    }
 
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)

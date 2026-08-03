@@ -17,31 +17,31 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { ensureResidentSeed } from "../../lib/mockResidentData";
+import { ensureCitizenSeed } from "../../lib/mockCitizenData";
 import { listUserNotifications, markUserNotificationRead } from "../../lib/api";
 import heroBg from "../../assets/eco-banner-bg.webp";
 import Footer from "../../components/Footer";
 
-import Home from "./resident/Home";
-import SchedulePickup from "./resident/SchedulePickup";
-import MyPickups from "./resident/MyPickups";
-import CollectionFlow from "./resident/CollectionFlow";
-import Tickets from "./resident/Tickets";
-import CommunityShelf from "./resident/CommunityShelf";
-import MyDonations from "./resident/MyDonations";
-import CreateDonation from "./resident/CreateDonation";
-import MyClaims from "./resident/MyClaims";
-import Impact from "./resident/Impact";
-import EcoBotChat from "./resident/EcoBotChat";
-import SortingGuide from "./resident/SortingGuide";
-import RecyclingTransparency from "./resident/RecyclingTransparency";
+import Home from "./citizen/Home";
+import SchedulePickup from "./citizen/SchedulePickup";
+import MyPickups from "./citizen/MyPickups";
+import CollectionFlow from "./citizen/CollectionFlow";
+import Tickets from "./citizen/Tickets";
+import CommunityShelf from "./citizen/CommunityShelf";
+import MyDonations from "./citizen/MyDonations";
+import CreateDonation from "./citizen/CreateDonation";
+import MyClaims from "./citizen/MyClaims";
+import Impact from "./citizen/Impact";
+import EcoBotChat from "./citizen/EcoBotChat";
+import SortingGuide from "./citizen/SortingGuide";
+import RecyclingTransparency from "./citizen/RecyclingTransparency";
 
 // Shell mechanics brought in line with the recycler portal's app frame:
 // one <aside> handling both the off-canvas mobile drawer and the
 // desktop width-collapse (instead of a fully duplicated mobile-drawer
 // block), a single 3-line toggle in the top bar driving both, and
 // outside-click-to-close on the notification/account dropdowns. The
-// resident portal's own identity — dark teal + hero photo on the
+// citizen portal's own identity — dark teal + hero photo on the
 // sidebar, amber active-state accents — is unchanged.
 const TABS = [
   { key: "home", label: "Home", icon: HomeIcon, component: Home },
@@ -64,7 +64,7 @@ const TABS = [
   },
 ];
 
-export default function ResidentDashboard() {
+export default function CitizenDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -73,7 +73,7 @@ export default function ResidentDashboard() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    ensureResidentSeed(user);
+    ensureCitizenSeed(user);
   }, [user]);
 
   const loadNotifications = useCallback(() => {
@@ -84,8 +84,8 @@ export default function ResidentDashboard() {
 
   useEffect(() => {
     loadNotifications();
-    window.addEventListener("resident-notifications-updated", loadNotifications);
-    return () => window.removeEventListener("resident-notifications-updated", loadNotifications);
+    window.addEventListener("citizen-notifications-updated", loadNotifications);
+    return () => window.removeEventListener("citizen-notifications-updated", loadNotifications);
   }, [loadNotifications]);
 
   useEffect(() => {
@@ -141,7 +141,7 @@ export default function ResidentDashboard() {
           <div className="leading-tight">
             <div className="font-display font-semibold text-white">Verdeza</div>
             <div className="text-[10px] text-white/50 tracking-wide hidden sm:block">
-              Resident Portal
+              Citizen Portal
             </div>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function ResidentDashboard() {
               <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
                 <div className="px-3.5 py-2 border-b border-black/5 mb-1">
                   <div className="text-sm font-semibold text-gray-800 truncate">
-                    {user?.name || "Resident"}
+                    {user?.name || "Citizen"}
                   </div>
                   <div className="text-xs text-gray-400 truncate">{user?.email}</div>
                 </div>
@@ -291,7 +291,7 @@ export default function ResidentDashboard() {
               </span>
               <div className="min-w-0 leading-tight">
                 <div className="text-sm font-medium text-white truncate">
-                  {user?.name || "Resident"}
+                  {user?.name || "Citizen"}
                 </div>
                 <div className="text-xs text-white/50 truncate">{user?.email}</div>
               </div>

@@ -74,8 +74,8 @@ def stop():
     return SimpleNamespace(
         id=uuid4(),
         pickup=pickup,
-        resident_id=uuid4(),
-        resident=SimpleNamespace(name="Riya Resident"),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
         schedule=schedule,
         schedule_id=schedule.id,
         pickup_order=1,
@@ -119,8 +119,9 @@ def test_route_commits_newly_materialized_stops(monkeypatch, collector, stop):
 
 
 def test_complete_updates_stop_and_schedule(monkeypatch, collector, stop):
-    db = FakeDatabase(scalars=[[stop]])
+    db = FakeDatabase(scalars=[[stop], []])
     monkeypatch.setattr(collector_module, "_owned_stop", lambda *_: stop)
+    monkeypatch.setattr(collector_module, "pool_and_maybe_create_batches", lambda *_: None)
     response = collector_module.complete_stop(stop.id, collector, db)
     assert response.status == "COLLECTED"
     assert stop.pickup.status == PickupStatus.COLLECTED
@@ -191,7 +192,7 @@ def test_undo_restores_pending_stop(monkeypatch, collector, stop):
 def test_delay_creates_log_and_notification(monkeypatch, collector, stop):
     db = FakeDatabase()
     monkeypatch.setattr(collector_module, "_owned_stop", lambda *_: stop)
-    collector_module.notify_resident_of_delay(
+    collector_module.notify_citizen_of_delay(
         stop.id,
         DelayStopRequest(reason="HEAVY_TRAFFIC", message=" Traffic is slow. "),
         collector,
@@ -203,8 +204,9 @@ def test_delay_creates_log_and_notification(monkeypatch, collector, stop):
 
 
 def test_flag_creates_manager_review_record(monkeypatch, collector, stop):
-    db, notices = FakeDatabase(scalars=[[stop]]), []
+    db, notices = FakeDatabase(scalars=[[stop], []]), []
     monkeypatch.setattr(collector_module, "_owned_stop", lambda *_: stop)
+    monkeypatch.setattr(collector_module, "pool_and_maybe_create_batches", lambda *_: None)
     monkeypatch.setattr(
         collector_module, "notify_zone_managers", lambda *args: notices.append(args)
     )

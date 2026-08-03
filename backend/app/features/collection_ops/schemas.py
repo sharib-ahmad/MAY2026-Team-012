@@ -21,7 +21,7 @@ class CollectorStopResponse(BaseModel):
     ref_code: str
     status: str
     pickup_order: int
-    resident_name: str
+    citizen_name: str
     category: str
     estimated_weight: float
     pickup_address: str | None = None
@@ -52,3 +52,26 @@ class DelayStopRequest(BaseModel):
 class MixedWasteRequest(BaseModel):
     severity: WasteSeverity
     description: str = Field(min_length=10, max_length=300)
+
+
+class PublicTrackingEvent(BaseModel):
+    stage: str
+    label: str
+    at: datetime
+
+
+class PublicTrackingResponse(BaseModel):
+    ref_code: str
+    entity_type: str
+    status: str
+    category: str | None = None
+    issue_type: str | None = None
+    scheduled_date: datetime | None = None
+    created_at: datetime
+    last_updated: datetime
+    timeline: list[PublicTrackingEvent]
+    citizen_name: str | None = None
+    zone_name: str | None = None
+    manager_name: str | None = None
+    collector_name: str | None = None
+    recycler_name: str | None = None

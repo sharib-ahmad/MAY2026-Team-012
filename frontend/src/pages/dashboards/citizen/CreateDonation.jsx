@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/UI";
 import AddressField from "../../../components/AddressField";
-import { createDonation } from "../../../lib/mockResidentData";
+import { createDonation } from "../../../lib/mockCitizenData";
 import { CheckCircle2 } from "lucide-react";
 
 const CATEGORIES = [

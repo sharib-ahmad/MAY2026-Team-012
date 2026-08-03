@@ -18,6 +18,12 @@ from app.models.enums import BulkRequestStatus, Role, TicketStatus, UserStatus
 
 router = APIRouter(prefix="/manager", tags=["Manager"])
 
+# Handle Starlette version differences for HTTP status codes
+try:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_CONTENT
+except AttributeError:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 @router.get("/dashboard")
 def get_manager_dashboard(
@@ -60,7 +66,7 @@ def update_manager_ticket(
         )
     if payload.status == TicketStatus.RESOLVED and not (payload.resolution_notes or "").strip():
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422,
             detail="A resolution note is required to resolve a complaint.",
         )
 

@@ -40,7 +40,7 @@ export const ECOBOT_TOPICS = [
   {
     keywords: ["donate", "donation", "community shelf"],
     reply:
-      "Got something still usable? List it on the Community Shelf tab instead of throwing it out — other residents nearby can claim it.",
+      "Got something still usable? List it on the Community Shelf tab instead of throwing it out — other citizens nearby can claim it.",
   },
   {
     keywords: ["missed", "late", "not collected"],

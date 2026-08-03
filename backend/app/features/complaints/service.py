@@ -9,7 +9,7 @@ def _ward_manager_name(ticket: Ticket) -> str | None:
     if ticket.zone.manager:
         return ticket.zone.manager.name
     # Legacy ward assignments keep the officer on users.zone_id rather than
-    # zones.manager_id. Surface that assigned officer to the resident too.
+    # zones.manager_id. Surface that assigned officer to the citizen too.
     manager = next(
         (
             member

@@ -15,25 +15,25 @@ from app.features.bulk_pickups.schemas import (
 )
 from app.features.bulk_pickups.service import (
     build_tracking_response,
-    resident_requests,
+    citizen_requests,
     serialize_request,
 )
 from app.features.manager.service import notify_zone_managers
 from app.features.notifications.models import Notification
 from app.features.sorting_guide.models import WasteCategory
-from app.features.users.dependencies import require_resident
+from app.features.users.dependencies import require_citizen
 from app.features.users.models import User
 from app.models.enums import BulkRequestStatus
 
-router = APIRouter(tags=["Resident Pickups"])
+router = APIRouter(tags=["Citizen Pickups"])
 
 
 @router.get("/pickups", response_model=PickupsResponse)
 def list_pickups(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> PickupsResponse:
     requests = (
-        db.scalars(resident_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
+        db.scalars(citizen_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
         .unique()
         .all()
     )
@@ -45,12 +45,12 @@ def list_pickups(
 @router.post("/pickups", response_model=PickupResponse, status_code=status.HTTP_201_CREATED)
 def create_pickup(
     payload: PickupCreate,
-    current_user: User = Depends(require_resident),
+    current_user: User = Depends(require_citizen),
     db: Session = Depends(get_db),
 ) -> PickupResponse:
     if not current_user.zone_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Assign a ward before scheduling a pickup.",
         )
     category = db.scalar(
@@ -60,11 +60,11 @@ def create_pickup(
     )
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid waste category."
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid waste category."
         )
     if payload.scheduled_date < datetime.now(UTC) + timedelta(hours=24):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Pickup requests require at least 24 hours' notice.",
         )
     request = BulkPickupRequest(
@@ -96,19 +96,17 @@ def create_pickup(
         f"{request.ref_code} needs collection on {request.requested_date:%d %b %Y}.",
     )
     db.commit()
-    request = db.scalar(
-        resident_requests(current_user.id).where(BulkPickupRequest.id == request.id)
-    )
+    request = db.scalar(citizen_requests(current_user.id).where(BulkPickupRequest.id == request.id))
     return serialize_request(request)
 
 
 @router.patch("/pickups/{pickup_id}/cancel", response_model=PickupResponse)
 def cancel_pickup(
     pickup_id: uuid.UUID,
-    current_user: User = Depends(require_resident),
+    current_user: User = Depends(require_citizen),
     db: Session = Depends(get_db),
 ) -> PickupResponse:
-    request = db.scalar(resident_requests(current_user.id).where(BulkPickupRequest.id == pickup_id))
+    request = db.scalar(citizen_requests(current_user.id).where(BulkPickupRequest.id == pickup_id))
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pickup not found.")
     if request.status not in {BulkRequestStatus.PENDING, BulkRequestStatus.APPROVED}:
@@ -123,10 +121,10 @@ def cancel_pickup(
 @router.get("/pickups/{pickup_id}/tracking", response_model=PickupTrackingResponse)
 def pickup_tracking(
     pickup_id: uuid.UUID,
-    current_user: User = Depends(require_resident),
+    current_user: User = Depends(require_citizen),
     db: Session = Depends(get_db),
 ) -> PickupTrackingResponse:
-    request = db.scalar(resident_requests(current_user.id).where(BulkPickupRequest.id == pickup_id))
+    request = db.scalar(citizen_requests(current_user.id).where(BulkPickupRequest.id == pickup_id))
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pickup not found.")
     return build_tracking_response(request)

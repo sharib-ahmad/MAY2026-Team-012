@@ -40,7 +40,7 @@ export default function Tickets() {
       const ticket = await createUserTicket(form);
       setTickets((current) => [ticket, ...current]);
       setSubmitted(ticket);
-      window.dispatchEvent(new Event("resident-notifications-updated"));
+      window.dispatchEvent(new Event("citizen-notifications-updated"));
       setOpenNewComplaint(false);
       setForm({ issue_type: "MISSED_PICKUP", description: "" });
     } catch (requestError) {

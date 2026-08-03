@@ -4,7 +4,7 @@ import { getUserPickupOptions, scheduleUserPickup } from "../../../lib/api";
 import { CheckCircle2 } from "lucide-react";
 
 // Local YYYY-MM-DD for a given date, so the date picker's min (and our own
-// validation) respects the resident's own clock rather than UTC.
+// validation) respects the citizen's own clock rather than UTC.
 function localISODate(date) {
   const offsetMs = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
@@ -87,7 +87,7 @@ export default function SchedulePickup({ onNavigate }) {
         notes: form.notes || null,
       });
       setReference(pickup.ref_code);
-      window.dispatchEvent(new Event("resident-notifications-updated"));
+      window.dispatchEvent(new Event("citizen-notifications-updated"));
       setDone(true);
       setTimeout(() => onNavigate("pickups"), 2500);
     } catch (ex) {

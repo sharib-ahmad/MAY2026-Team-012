@@ -6,21 +6,21 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
-from app.features.bulk_pickups.service import resident_requests, serialize_request
+from app.features.bulk_pickups.service import citizen_requests, serialize_request
 from app.features.collection_ops.models import DailyPickupSchedule, DailyPickupStop, Pickup
 from app.features.credits.models import Credit, UserBadge
 from app.features.sorting_guide.models import WasteCategory
-from app.features.users.dependencies import require_resident
+from app.features.users.dependencies import require_citizen
 from app.features.users.models import User
 from app.features.users.schemas import ImpactResponse
 from app.models.enums import CreditStatus, PickupStatus
 
-router = APIRouter(tags=["Resident"])
+router = APIRouter(tags=["Citizen"])
 
 
 @router.get("/impact", response_model=ImpactResponse)
 def get_impact(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     """Return impact based on completed collection records and confirmed credits."""
 
@@ -28,8 +28,16 @@ def get_impact(
         db.scalars(
             select(Pickup)
             .where(
-                Pickup.resident_id == current_user.id,
-                Pickup.status.in_([PickupStatus.COMPLETED, PickupStatus.COLLECTED]),
+                Pickup.citizen_id == current_user.id,
+                Pickup.status.in_(
+                    [
+                        PickupStatus.COMPLETED,
+                        PickupStatus.COLLECTED,
+                        PickupStatus.RECYCLER_ASSIGNED,
+                        PickupStatus.PROCESSING,
+                        PickupStatus.PROCESSED,
+                    ]
+                ),
             )
             .options(joinedload(Pickup.waste_category))
         )
@@ -110,10 +118,10 @@ def get_impact(
 
 @router.get("/dashboard")
 def get_dashboard(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     requests = (
-        db.scalars(resident_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
+        db.scalars(citizen_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
         .unique()
         .all()
     )
@@ -124,8 +132,16 @@ def get_dashboard(
     ).all()
     completed_pickups = db.scalars(
         select(Pickup).where(
-            Pickup.resident_id == current_user.id,
-            Pickup.status.in_([PickupStatus.COMPLETED, PickupStatus.COLLECTED]),
+            Pickup.citizen_id == current_user.id,
+            Pickup.status.in_(
+                [
+                    PickupStatus.COMPLETED,
+                    PickupStatus.COLLECTED,
+                    PickupStatus.RECYCLER_ASSIGNED,
+                    PickupStatus.PROCESSING,
+                    PickupStatus.PROCESSED,
+                ]
+            ),
         )
     )
     total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)
@@ -142,22 +158,20 @@ def get_dashboard(
                 DailyPickupSchedule.schedule_date < tomorrow_start,
                 DailyPickupSchedule.zone_id == current_user.zone_id,
             )
-            .options(joinedload(DailyPickupStop.resident), joinedload(DailyPickupStop.schedule))
+            .options(joinedload(DailyPickupStop.citizen), joinedload(DailyPickupStop.schedule))
             .order_by(DailyPickupStop.pickup_order)
         )
         .unique()
         .all()
     )
-    resident_stop = next(
-        (stop for stop in today_stops if stop.resident_id == current_user.id), None
-    )
+    citizen_stop = next((stop for stop in today_stops if stop.citizen_id == current_user.id), None)
     queue = (
         {
-            "pickup_number": resident_stop.pickup_order,
-            "status": resident_stop.status.value,
-            "ref_code": resident_stop.pickup.ref_code,
+            "pickup_number": citizen_stop.pickup_order,
+            "status": citizen_stop.status.value,
+            "ref_code": citizen_stop.pickup.ref_code,
         }
-        if resident_stop
+        if citizen_stop
         else None
     )
     badges = (
@@ -193,8 +207,8 @@ def get_dashboard(
                     "id": str(stop.id),
                     "pickup_order": stop.pickup_order,
                     "status": stop.status.value,
-                    "resident_name": (
-                        "You" if stop.resident_id == current_user.id else stop.resident.name
+                    "citizen_name": (
+                        "You" if stop.citizen_id == current_user.id else stop.citizen.name
                     ),
                     "address": "Scheduled collection",
                 }
@@ -206,7 +220,7 @@ def get_dashboard(
 
 @router.get("/pickup-options")
 def pickup_options(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     del current_user
     categories = db.scalars(

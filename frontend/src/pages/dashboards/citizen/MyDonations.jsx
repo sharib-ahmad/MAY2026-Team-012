@@ -3,7 +3,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Empty } from "../../../components/UI";
 import DonationImages from "../../../components/DonationImages";
 import { Package, Search, X } from "lucide-react";
-import { listMyDonations, withdrawDonation } from "../../../lib/mockResidentData";
+import { listMyDonations, withdrawDonation } from "../../../lib/mockCitizenData";
 
 export default function MyDonations({ onNavigate }) {
   const { user } = useAuth();
