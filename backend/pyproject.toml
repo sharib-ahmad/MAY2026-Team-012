@@ -39,6 +39,7 @@ filterwarnings = [
     # DeprecationWarnings from third-party libs we do not control can be added
     # here with a comment explaining why, e.g.:
     # "ignore::DeprecationWarning:passlib.*",
+    "ignore::DeprecationWarning:jose.*",
 ]
 addopts = "-ra --strict-markers --strict-config --cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
 markers = [
