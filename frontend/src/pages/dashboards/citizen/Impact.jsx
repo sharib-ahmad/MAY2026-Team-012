@@ -12,7 +12,7 @@ h1{color:#0B4F4A}.stat{display:inline-block;margin:8px 24px 8px 0}
 .stat b{font-size:24px;display:block}table{border-collapse:collapse;margin-top:16px}
 td,th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}</style>
 </head><body>
-<h1>Sustainability Impact — ${user?.name || "Resident"}</h1>
+<h1>Sustainability Impact — ${user?.name || "Citizen"}</h1>
 <p>Generated ${new Date().toLocaleString()}</p>
 <div class="stat"><b>${data.total_kg_diverted.toFixed(1)} kg</b>Diverted</div>
 <div class="stat"><b>${data.co2_saved_kg.toFixed(1)} kg</b>CO2 saved</div>

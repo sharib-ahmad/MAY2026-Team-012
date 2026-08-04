@@ -113,7 +113,7 @@ export default function Login() {
               </form>
 
               <p className="text-center text-sm text-gray-500 mt-6">
-                New resident?{" "}
+                New citizen?{" "}
                 <Link to="/register" className="text-primary font-medium hover:underline">
                   Create an account
                 </Link>
@@ -145,7 +145,7 @@ export default function Login() {
                 <ShieldCheck size={18} />
               </div>
               <p className="text-sm text-white/90">
-                Every session is tied to a verified account — residents, collectors, and recyclers
+                Every session is tied to a verified account — citizens, collectors, and recyclers
                 each see only what's theirs.
               </p>
             </div>

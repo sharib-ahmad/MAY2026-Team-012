@@ -6,7 +6,7 @@ from app.models.enums import Role, TicketStatus, TicketType, UserStatus
 
 
 def test_serialize_ticket_uses_active_legacy_ward_manager() -> None:
-    """Residents can see managers assigned through the legacy zone membership."""
+    """Citizens can see managers assigned through the legacy zone membership."""
 
     ticket = SimpleNamespace(
         id=uuid4(),
@@ -34,3 +34,40 @@ def test_serialize_ticket_uses_active_legacy_ward_manager() -> None:
     ticket_response = serialize_ticket(ticket)
 
     assert ticket_response.ward_manager_name == "Assigned Manager"
+
+
+def test_serialize_ticket_no_zone() -> None:
+    ticket = SimpleNamespace(
+        id=uuid4(),
+        ref_code="TK-1234",
+        issue_type=TicketType.OVERFLOW,
+        status=TicketStatus.OPEN,
+        description="Bin has overflowed near the entrance.",
+        resolution_notes=None,
+        created_at="2026-08-01T10:00:00Z",
+        zone=None,
+    )
+    res = serialize_ticket(ticket)
+    assert res.ward_code is None
+    assert res.ward_manager_name is None
+
+
+def test_serialize_ticket_direct_manager() -> None:
+    ticket = SimpleNamespace(
+        id=uuid4(),
+        ref_code="TK-1234",
+        issue_type=TicketType.OVERFLOW,
+        status=TicketStatus.OPEN,
+        description="Bin has overflowed near the entrance.",
+        resolution_notes=None,
+        created_at="2026-08-01T10:00:00Z",
+        zone=SimpleNamespace(
+            code="W-04",
+            name="Ward 4",
+            sectors="A, B",
+            manager=SimpleNamespace(name="Direct Manager"),
+            members=[],
+        ),
+    )
+    res = serialize_ticket(ticket)
+    assert res.ward_manager_name == "Direct Manager"

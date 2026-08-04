@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, Empty } from "../../../components/UI";
 import { Recycle, Info } from "lucide-react";
-import { getRecyclingSummary } from "../../../lib/mockResidentData";
+import { getRecyclingSummary } from "../../../lib/mockCitizenData";
 
 export default function RecyclingTransparency() {
   const { user } = useAuth();

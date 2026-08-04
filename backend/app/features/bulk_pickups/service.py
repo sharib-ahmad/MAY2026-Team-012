@@ -12,7 +12,7 @@ from app.features.bulk_pickups.schemas import (
 from app.models.enums import BulkRequestStatus
 
 
-def resident_requests(user_id: uuid.UUID):
+def citizen_requests(user_id: uuid.UUID):
     return (
         select(BulkPickupRequest)
         .where(BulkPickupRequest.requester_id == user_id)

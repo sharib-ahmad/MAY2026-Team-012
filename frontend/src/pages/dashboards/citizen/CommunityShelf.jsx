@@ -4,7 +4,7 @@ import { Card, Empty } from "../../../components/UI";
 import DonationImages from "../../../components/DonationImages";
 import ImageLightbox from "../../../components/ImageLightBox";
 import { Gift } from "lucide-react";
-import { listCommunityShelf, claimDonation } from "../../../lib/mockResidentData";
+import { listCommunityShelf, claimDonation } from "../../../lib/mockCitizenData";
 
 const CATEGORIES = [
   "BOOKS",

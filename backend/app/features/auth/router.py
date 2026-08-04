@@ -28,7 +28,6 @@ router = APIRouter(tags=["Authentication"])
 # Map frontend roles to database Role enums
 ROLE_MAP_FRONTEND_TO_DB = {
     "CITIZEN": Role.CITIZEN,
-    "RESIDENT": Role.CITIZEN,
     "COLLECTOR": Role.COLLECTION_WORKER,
     "RECYCLER": Role.RECYCLER,
     "MANAGER": Role.MUNICIPAL_OFFICER,
@@ -36,7 +35,7 @@ ROLE_MAP_FRONTEND_TO_DB = {
 }
 
 LEGACY_ROLE_MAP_DB_TO_FRONTEND = {
-    Role.CITIZEN: "RESIDENT",
+    Role.CITIZEN: "CITIZEN",
     Role.COLLECTION_WORKER: "COLLECTOR",
     Role.RECYCLER: "RECYCLER",
     Role.MUNICIPAL_OFFICER: "MANAGER",

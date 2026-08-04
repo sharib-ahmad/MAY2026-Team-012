@@ -10,17 +10,23 @@ from app.features.complaints.schemas import TicketCreate, TicketResponse, Ticket
 from app.features.complaints.service import serialize_ticket
 from app.features.manager.service import notify_zone_managers
 from app.features.notifications.models import Notification
-from app.features.users.dependencies import require_resident
+from app.features.users.dependencies import require_citizen
 from app.features.users.models import User
 from app.models.enums import TicketStatus, TicketType
 from app.models.zone import Zone
 
-router = APIRouter(tags=["Resident Complaints"])
+router = APIRouter(tags=["Citizen Complaints"])
+
+# Handle Starlette version differences for HTTP status codes
+try:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_CONTENT
+except AttributeError:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 @router.get("/tickets", response_model=TicketsResponse)
 def list_tickets(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> TicketsResponse:
     tickets = (
         db.scalars(
@@ -43,12 +49,12 @@ def list_tickets(
 @router.post("/tickets", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
 def create_ticket(
     payload: TicketCreate,
-    current_user: User = Depends(require_resident),
+    current_user: User = Depends(require_citizen),
     db: Session = Depends(get_db),
 ) -> TicketResponse:
     if not current_user.zone_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422,
             detail="Assign a ward before raising a complaint.",
         )
     ticket = Ticket(

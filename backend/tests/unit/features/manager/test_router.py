@@ -94,14 +94,18 @@ def test_update_ticket_resolves_ticket_in_manager_ward(monkeypatch, manager) -> 
 
 
 def test_update_ticket_requires_resolution_note(monkeypatch, manager) -> None:
+    import warnings
+
     ticket = SimpleNamespace(id=uuid4(), zone_id=manager.zone_id)
     db = FakeDatabase([ticket])
     monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
 
-    with pytest.raises(HTTPException, match="resolution note") as error:
-        manager_router.update_manager_ticket(
-            str(ticket.id), TicketUpdate(status=TicketStatus.RESOLVED), manager, db
-        )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        with pytest.raises(HTTPException, match="resolution note") as error:
+            manager_router.update_manager_ticket(
+                str(ticket.id), TicketUpdate(status=TicketStatus.RESOLVED), manager, db
+            )
 
     assert error.value.status_code == 422
 

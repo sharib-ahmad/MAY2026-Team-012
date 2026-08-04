@@ -295,7 +295,7 @@ export default function Home({ onNavigate }) {
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
                       stop.status === "COLLECTED"
                         ? "bg-success text-white"
-                        : stop.resident_name === "You"
+                        : stop.citizen_name === "You"
                           ? "bg-primary text-white"
                           : "bg-gray-200 text-gray-500"
                     }`}
@@ -304,8 +304,8 @@ export default function Home({ onNavigate }) {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">
-                      {stop.resident_name}
-                      {stop.resident_name === "You" && (
+                      {stop.citizen_name}
+                      {stop.citizen_name === "You" && (
                         <span className="text-primary text-xs ml-1">(you)</span>
                       )}
                     </p>

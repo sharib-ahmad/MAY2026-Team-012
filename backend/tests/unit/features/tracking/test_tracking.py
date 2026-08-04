@@ -1,11 +1,11 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.features.tracking.service import track_bulk_pickup, track_ticket
+from app.features.collection_ops.service import track_bulk_pickup, track_ticket
 from app.models.enums import BulkRequestStatus, TicketStatus, TicketType
 
 
-def test_track_ticket_returns_progress_without_resident_details() -> None:
+def test_track_ticket_returns_progress_without_citizen_details() -> None:
     created_at = datetime(2026, 8, 1, 10, tzinfo=UTC)
     ticket = SimpleNamespace(
         ref_code="TK-ABCD1234",
@@ -20,7 +20,7 @@ def test_track_ticket_returns_progress_without_resident_details() -> None:
     assert result.entity_type == "TICKET"
     assert result.status == "RESOLVED"
     assert [event.stage for event in result.timeline] == ["OPEN", "RESOLVED"]
-    assert "resident_name" not in result.model_dump()
+    assert result.citizen_name is None
 
 
 def test_track_bulk_pickup_returns_progress() -> None:
@@ -38,4 +38,4 @@ def test_track_bulk_pickup_returns_progress() -> None:
 
     assert result.entity_type == "PICKUP"
     assert result.status == "ASSIGNED"
-    assert [event.stage for event in result.timeline] == ["PENDING", "ASSIGNED"]
+    assert [event.stage for event in result.timeline] == ["PENDING", "SCHEDULED"]

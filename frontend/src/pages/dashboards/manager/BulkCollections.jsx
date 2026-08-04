@@ -14,7 +14,7 @@ export default function BulkCollections({ data }) {
     const needle = query.trim().toLowerCase();
     if (!needle) return requests;
     return requests.filter((request) =>
-      [request.ref_code, request.ward_code, request.resident_name, request.status]
+      [request.ref_code, request.ward_code, request.citizen_name, request.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     );
@@ -47,7 +47,7 @@ export default function BulkCollections({ data }) {
       eyebrow="Bulk collections"
       title="Assign collector"
       actions={
-        <SearchInput value={query} onChange={setQuery} placeholder="Search ref, ward, resident…" />
+        <SearchInput value={query} onChange={setQuery} placeholder="Search ref, ward, citizen…" />
       }
     >
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -66,7 +66,7 @@ export default function BulkCollections({ data }) {
               <span className="text-xs font-semibold text-[#3F5426]">{value}</span>
             ),
           },
-          { key: "resident_name", label: "Resident" },
+          { key: "citizen_name", label: "Citizen" },
           { key: "estimated_weight", label: "Est. weight", render: (value) => `${value} kg` },
           { key: "requested_date", label: "Requested for", render: (value) => formatDate(value) },
           { key: "status", label: "Status", render: (value) => <StatusPill status={value} /> },

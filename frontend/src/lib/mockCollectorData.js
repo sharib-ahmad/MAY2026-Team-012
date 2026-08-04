@@ -1,8 +1,8 @@
 // Backend-free data layer for the Collector portal, scoped to exactly what
 // User Stories 1.2, 1.4, 1.5 and 3.2 require. Daily-waste stops live in the
-// SAME localStorage-backed list the Resident portal (mockResidentData.js)
+// SAME localStorage-backed list the Citizen portal (mockCitizenData.js)
 // reads — marking a stop "collected" here is what makes it show COLLECTED
-// on the resident's side (Story 1.4-AC4) and clears their delay banner
+// on the citizen's side (Story 1.4-AC4) and clears their delay banner
 // (Story 1.2-AC3). Delay logs and mixed-waste flags are appended to their
 // own append-only lists so the Manager's Route Tracking page can show full,
 // per-event history (Story 1.5-AC3, Story 3.2-AC1/AC3/AC4) rather than just
@@ -11,7 +11,7 @@
 // POST /stops/:id/delay, POST /stops/:id/mixed-waste-flag) once a backend
 // exists — Routes.jsx should not need to change.
 
-const PICKUPS_KEY = "gc_resident_pickups";
+const PICKUPS_KEY = "gc_citizen_pickups";
 const USERS_KEY = "gc_users";
 const DELAY_LOGS_KEY = "gc_delay_logs";
 const MIXED_WASTE_FLAGS_KEY = "gc_mixed_waste_flags";
@@ -53,9 +53,9 @@ function jitter(base, spread = 0.02) {
   return base + (Math.random() - 0.5) * spread;
 }
 
-function residentNameFor(userId) {
+function citizenNameFor(userId) {
   const user = readList(USERS_KEY).find((u) => u.id === userId);
-  return user?.name || "Resident";
+  return user?.name || "Citizen";
 }
 
 // Turns "zone-1" / "1" style zone ids into the "WARD-01" codes the
@@ -100,7 +100,7 @@ const DEMO_CATEGORIES = [
 
 /**
  * Populates a starter daily route the first time a given collector opens
- * their dashboard, so the page isn't empty before any resident has logged
+ * their dashboard, so the page isn't empty before any citizen has logged
  * in on this browser. Safe to call on every load — a no-op once seeded.
  */
 function ensureCollectorSeed(collectorUser) {
@@ -117,7 +117,7 @@ function ensureCollectorSeed(collectorUser) {
     const categoryInfo = DEMO_CATEGORIES[i % DEMO_CATEGORIES.length];
     return {
       id: uid(),
-      user_id: `demo-resident-${collectorUser.id}-${i}`,
+      user_id: `demo-citizen-${collectorUser.id}-${i}`,
       ref_code: refCode("PK", n),
       category: categoryInfo.category,
       estimated_weight: categoryInfo.weight,
@@ -127,7 +127,7 @@ function ensureCollectorSeed(collectorUser) {
       status: "PENDING",
       zone_name: zoneName,
       pickup_address: `House #${i + 1}, ${zoneName}`,
-      resident_name: name,
+      citizen_name: name,
       collector_id: collectorUser.id,
       collector_name: collectorUser.name,
       collector_phone: collectorUser.phone || null,
@@ -151,7 +151,7 @@ export function getMyRoute(collectorUser) {
 
   const pickups = readList(PICKUPS_KEY);
 
-  // Auto-claim any unassigned daily stop (e.g. one seeded by a resident
+  // Auto-claim any unassigned daily stop (e.g. one seeded by a citizen
   // logging in on this browser before any collector had) for whoever's
   // dashboard loads first.
   let changed = false;
@@ -185,7 +185,7 @@ export function getMyRoute(collectorUser) {
       status: p.status,
       category: p.category,
       estimated_weight: p.estimated_weight,
-      resident_name: p.resident_name || residentNameFor(p.user_id),
+      citizen_name: p.citizen_name || citizenNameFor(p.user_id),
       address: p.pickup_address,
       latitude: p.latitude,
       longitude: p.longitude,
@@ -246,7 +246,7 @@ const DELAY_MAX_LEN = 200;
  *  Story 1.5-AC3: logged with worker, timestamp, route point and reason —
  *  appended to an event history the Manager portal reads (see
  *  listDelayLogs), not just overwritten as a single "latest" value.
- *  Story 1.2-AC1: also stamped onto the pickup itself so the resident
+ *  Story 1.2-AC1: also stamped onto the pickup itself so the citizen
  *  portal can show a live delay banner; Story 1.2-AC3: clearing/replacing
  *  this on the next status change is what lets that banner update instead
  *  of staying stuck. In-app only for MVP — SMS/push delivery is explicitly
@@ -323,7 +323,7 @@ export function flagMixedWaste(collectorUser, id, { issue_type, description, sev
     id: uid(),
     route_code: pickup.ref_code,
     ward_code: wardCodeFor(collectorUser),
-    point_label: `${pickup.resident_name} — ${pickup.pickup_address}`,
+    point_label: `${pickup.citizen_name} — ${pickup.pickup_address}`,
     issue_type,
     severity,
     note: description,
@@ -356,7 +356,7 @@ export function markStopClean(collectorUser, id) {
     id: uid(),
     route_code: pickup.ref_code,
     ward_code: wardCodeFor(collectorUser),
-    point_label: `${pickup.resident_name} — ${pickup.pickup_address}`,
+    point_label: `${pickup.citizen_name} — ${pickup.pickup_address}`,
     issue_type: null,
     severity: "CLEAN",
     note: null,

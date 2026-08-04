@@ -50,7 +50,7 @@ const DELAY_TYPES = [
   {
     value: "WASTE_NOT_READY",
     label: "Waste Not Ready",
-    template: "Resident was not available at the location.",
+    template: "Citizen was not available at the location.",
   },
   { value: "OTHER", label: "Other", template: "" },
 ];
@@ -158,7 +158,7 @@ export default function CollectorRoutes() {
 
   const handleNavigate = (pickup) => {
     if (pickup.pickup_latitude == null || pickup.pickup_longitude == null) {
-      setActionErr("The resident location is not available for this pickup.");
+      setActionErr("The citizen location is not available for this pickup.");
       return;
     }
     if (route?.collector_latitude == null || route?.collector_longitude == null) {
@@ -206,7 +206,7 @@ export default function CollectorRoutes() {
     setDelaySending(true);
     try {
       await notifyCollectorStop(delayTarget.id, { reason: delayType, message: trimmed });
-      setDelayOk(`Notification sent to ${delayTarget.resident_name || "resident"}.`);
+      setDelayOk(`Notification sent to ${delayTarget.citizen_name || "citizen"}.`);
       setTimeout(() => setDelayTarget(null), 1200);
       load();
     } catch (err) {
@@ -419,7 +419,7 @@ export default function CollectorRoutes() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-serif font-semibold text-[#0B3D38]">
-                        {p.resident_name}
+                        {p.citizen_name}
                       </span>
                       <StatusPill status={p.status} />
                     </div>
@@ -580,7 +580,7 @@ export default function CollectorRoutes() {
             disabled={delaySending}
             className="w-full bg-[#F2A93C] hover:bg-[#e09a2c] text-white py-2.5 rounded-input font-medium disabled:opacity-50 transition-colors"
           >
-            {delaySending ? "Sending…" : `Send to ${delayTarget?.resident_name || "resident"}`}
+            {delaySending ? "Sending…" : `Send to ${delayTarget?.citizen_name || "citizen"}`}
           </button>
         </form>
       </Modal>
