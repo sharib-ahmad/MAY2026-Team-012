@@ -11,6 +11,7 @@ import {
   Bell,
   ChevronDown,
   User,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import Footer from "../../components/Footer";
@@ -19,6 +20,7 @@ import Complaints from "./manager/Complaints";
 import BulkCollections from "./manager/BulkCollections";
 import CrewManagement from "./manager/CrewManagement";
 import BatchManagement from "./manager/BatchManagement";
+import Donations from "./manager/Donations";
 import { getManagerDashboard, markManagerNotificationsRead } from "../../lib/api";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
@@ -45,6 +47,12 @@ const TABS = [
     label: "Batch management",
     icon: Recycle,
     component: BatchManagement,
+  },
+  {
+    key: "donations",
+    label: "Donations Shelf",
+    icon: Gift,
+    component: Donations,
   },
 ];
 
@@ -131,15 +139,22 @@ export default function ManagerDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
-            style={{ color: RAIL }}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
           >
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="font-semibold text-white">Verdeza</div>
-            <div className="text-[11px] text-white/60">Municipal Operations</div>
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
+              style={{ color: RAIL }}
+            >
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="font-semibold text-white">Verdeza</div>
+              <div className="text-[11px] text-white/60">Municipal Operations</div>
+            </div>
           </div>
         </div>
 

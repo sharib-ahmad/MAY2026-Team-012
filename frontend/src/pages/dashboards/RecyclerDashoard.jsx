@@ -155,15 +155,22 @@ export default function RecyclerDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 text-lg font-bold text-[#0B2F2C] shrink-0">
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
-              Verdeza
-            </div>
-            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
-              Recycler Portal
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 text-lg font-bold text-[#0B2F2C] shrink-0">
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
+                Verdeza
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
+                Recycler Portal
+              </div>
             </div>
           </div>
         </div>

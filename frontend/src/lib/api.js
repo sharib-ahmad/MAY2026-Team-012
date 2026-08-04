@@ -209,6 +209,11 @@ export const markUserNotificationRead = async (notificationId) => {
   return data;
 };
 
+export const markAllUserNotificationsRead = async () => {
+  const { data } = await API.patch("/v1/user/notifications/read");
+  return data;
+};
+
 export const getCollectorRoute = async () => (await API.get("/v1/collector/route")).data;
 export const completeCollectorStop = async (stopId) =>
   (await API.post(`/v1/collector/stops/${stopId}/complete`)).data;
@@ -228,3 +233,37 @@ export const markAllCollectorNotificationsRead = async () =>
   (await API.patch("/v1/collector/notifications/read")).data;
 export const getCompletedCollectorCollections = async () =>
   (await API.get("/v1/collector/completed-collections")).data;
+
+// ── Civic Reuse Exchange (Community Shelf) ──────────────────────────────────
+export const listCommunityShelf = async (params) =>
+  (await API.get("/v1/reuse/shelf", { params })).data;
+
+export const listMyDonations = async () => (await API.get("/v1/reuse/donations/my")).data;
+
+export const createDonation = async (payload) =>
+  (await API.post("/v1/reuse/donations", payload)).data;
+
+export const withdrawDonation = async (listingId) =>
+  (await API.post(`/v1/reuse/donations/${listingId}/withdraw`)).data;
+
+export const claimDonation = async (listingId) =>
+  (await API.post(`/v1/reuse/donations/${listingId}/claim`)).data;
+
+export const listMyClaims = async (filter = "") =>
+  (await API.get("/v1/reuse/claims/my", { params: { filter } })).data;
+
+// Manager Review endpoints
+export const getManagerPendingDonations = async () =>
+  (await API.get("/v1/reuse/manager/donations/pending")).data;
+
+export const getManagerPendingClaims = async () =>
+  (await API.get("/v1/reuse/manager/claims/pending")).data;
+
+export const getManagerAllDonations = async () =>
+  (await API.get("/v1/reuse/manager/donations")).data;
+
+export const reviewManagerDonation = async (listingId, payload) =>
+  (await API.post(`/v1/reuse/donations/${listingId}/review`, payload)).data;
+
+export const reviewManagerClaim = async (claimId, payload) =>
+  (await API.post(`/v1/reuse/claims/${claimId}/review`, payload)).data;

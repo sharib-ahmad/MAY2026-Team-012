@@ -18,7 +18,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ensureCitizenSeed } from "../../lib/mockCitizenData";
-import { listUserNotifications, markUserNotificationRead } from "../../lib/api";
+import {
+  listUserNotifications,
+  markUserNotificationRead,
+  markAllUserNotificationsRead,
+} from "../../lib/api";
 import heroBg from "../../assets/eco-banner-bg.webp";
 import Footer from "../../components/Footer";
 
@@ -28,9 +32,6 @@ import MyPickups from "./citizen/MyPickups";
 import CollectionFlow from "./citizen/CollectionFlow";
 import Tickets from "./citizen/Tickets";
 import CommunityShelf from "./citizen/CommunityShelf";
-import MyDonations from "./citizen/MyDonations";
-import CreateDonation from "./citizen/CreateDonation";
-import MyClaims from "./citizen/MyClaims";
 import Impact from "./citizen/Impact";
 import EcoBotChat from "./citizen/EcoBotChat";
 import SortingGuide from "./citizen/SortingGuide";
@@ -51,9 +52,6 @@ const TABS = [
   { key: "tickets", label: "Tickets", icon: AlertCircle, component: Tickets },
   { key: "sorting", label: "Sorting Guide", icon: BookOpen, component: SortingGuide },
   { key: "communityshelf", label: "Community Shelf", icon: Gift, component: CommunityShelf },
-  { key: "donations", label: "My Donations", icon: Package, component: MyDonations },
-  { key: "donate", label: "Donate Item", icon: Gift, component: CreateDonation, hidden: true },
-  { key: "claims", label: "My Claims", icon: Gift, component: MyClaims },
   { key: "impact", label: "My Impact", icon: Leaf, component: Impact },
   { key: "ecobot", label: "EcoBot Chat", icon: Bot, component: EcoBotChat },
   {
@@ -111,6 +109,17 @@ export default function CitizenDashboard() {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      await markAllUserNotificationsRead();
+      setNotifications((current) =>
+        current.map((notification) => ({ ...notification, is_read: true }))
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const goTo = (key) => {
     setActiveTab(key);
     setSidebarOpen(false);
@@ -135,13 +144,20 @@ export default function CitizenDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#0B2F2C] shrink-0">
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="font-display font-semibold text-white">Verdeza</div>
-            <div className="text-[10px] text-white/50 tracking-wide hidden sm:block">
-              Citizen Portal
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#0B2F2C] shrink-0">
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="font-display font-semibold text-white">Verdeza</div>
+              <div className="text-[10px] text-white/50 tracking-wide hidden sm:block">
+                Citizen Portal
+              </div>
             </div>
           </div>
         </div>
@@ -167,9 +183,20 @@ export default function CitizenDashboard() {
 
             {notificationsOpen && (
               <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-3xl border border-white/10 bg-white text-slate-900 shadow-elevated z-40 text-left">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-semibold">Notifications</p>
-                  <p className="text-xs text-slate-500">{notificationCount} new</p>
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Notifications</p>
+                    <p className="text-xs text-slate-500">{notificationCount} new</p>
+                  </div>
+                  {notificationCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={markAllAsRead}
+                      className="text-xs text-primary font-medium hover:underline"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-72 overflow-y-auto">
                   {notifications.length === 0 ? (

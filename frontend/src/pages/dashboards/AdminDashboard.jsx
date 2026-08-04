@@ -105,16 +105,23 @@ export default function AdminDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
-            style={{ color: INK }}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
           >
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="font-display font-semibold text-gray-800">Verdeza</div>
-            <div className="text-[10px] text-gray-400 tracking-wide hidden sm:block">
-              Admin Portal
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
+              style={{ color: INK }}
+            >
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="font-display font-semibold text-gray-800">Verdeza</div>
+              <div className="text-[10px] text-gray-400 tracking-wide hidden sm:block">
+                Admin Portal
+              </div>
             </div>
           </div>
         </div>
