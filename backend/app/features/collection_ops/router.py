@@ -2,13 +2,11 @@ import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from app.core.config import get_settings
-from app.features.collection_ops.ors_client import ORSClient
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import case, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
@@ -18,6 +16,7 @@ from app.features.collection_ops.models import (
     MixedWasteTag,
     Pickup,
 )
+from app.features.collection_ops.ors_client import ORSClient
 from app.features.collection_ops.schemas import (
     CollectorRouteResponse,
     CollectorStopResponse,
