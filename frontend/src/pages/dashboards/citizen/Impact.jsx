@@ -4,31 +4,6 @@ import { Card, StatCard, BarChartCard, PieChartCard, LineChartCard } from "../..
 import { Leaf, Award, TrendingUp, Download, Lock } from "lucide-react";
 import { getUserImpact } from "../../../lib/api";
 
-function buildReportHtml(user, data) {
-  return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Verdeza Impact Report</title>
-<style>body{font-family:sans-serif;padding:32px;color:#14171F}
-h1{color:#0B4F4A}.stat{display:inline-block;margin:8px 24px 8px 0}
-.stat b{font-size:24px;display:block}table{border-collapse:collapse;margin-top:16px}
-td,th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}</style>
-</head><body>
-<h1>Sustainability Impact — ${user?.name || "Citizen"}</h1>
-<p>Generated ${new Date().toLocaleString()}</p>
-<div class="stat"><b>${data.total_kg_diverted.toFixed(1)} kg</b>Diverted</div>
-<div class="stat"><b>${data.co2_saved_kg.toFixed(1)} kg</b>CO2 saved</div>
-<div class="stat"><b>${data.credits_balance.toFixed(1)}</b>Credits</div>
-<div class="stat"><b>${data.total_pickups}</b>Total pickups</div>
-<table><tr><th>Category</th><th>Weight (kg)</th><th>Credits</th><th>CO2 (kg)</th></tr>
-${data.by_category
-  .map(
-    (c) =>
-      `<tr><td>${c.category}</td><td>${c.weight_kg.toFixed(1)}</td><td>${c.credits.toFixed(1)}</td><td>${c.co2_kg.toFixed(1)}</td></tr>`
-  )
-  .join("")}
-</table>
-</body></html>`;
-}
-
 // ── Hexagonal medal badge, in the style of Credly / diploma badges ──
 // pointy-top hexagon, gold rim, circular emblem on top, name banded
 // across the middle. Unearned badges render as a locked, desaturated
@@ -185,32 +160,76 @@ export default function Impact() {
   const earnedBadges = data.badges.filter((b) => b.earned);
   const featuredCode = earnedBadges.length ? earnedBadges[earnedBadges.length - 1].code : null;
 
-  const exportHtml = () => {
-    setExportStatus("Generating report…");
-    const html = buildReportHtml(user, data);
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `verdeza-impact-${user.id.slice(0, 8)}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setExportStatus("Report downloaded!");
+  const exportPdf = () => {
+    setExportStatus("Preparing PDF layout…");
+
+    // Inject print stylesheet dynamically
+    const style = document.createElement("style");
+    style.id = "print-impact-styles";
+    style.innerHTML = `
+      @media print {
+        body {
+          background: #F4F6F1 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        /* Hide layout navigation wrappers and sidebar */
+        header, aside, footer, .fixed, button, .no-print, [title="Ask EcoBot"] {
+          display: none !important;
+        }
+        main {
+          margin: 0 !important;
+          padding: 20px !important;
+          background: #F4F6F1 !important;
+        }
+        .max-w-7xl {
+          max-width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        /* Prevent graphs and badge cards from getting cut off across page boundaries */
+        .rounded-card, .shadow-soft, svg, .bg-white {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    setTimeout(() => {
+      window.print();
+      // Clean up styles
+      document.getElementById("print-impact-styles")?.remove();
+      setExportStatus("PDF print complete.");
+    }, 350);
   };
 
   return (
-    <div className="space-y-6 fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 fade-in print-container">
+      {/* Print-only professional header banner */}
+      <div className="hidden print:flex items-center justify-between border-b pb-4 mb-6 border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0B4F4A]">Verdeza Sustainability Report</h1>
+          <p className="text-xs text-slate-500">
+            Citizen: {user?.name || "Citizen"} · Generated {new Date().toLocaleString()}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-bold text-[#A16207]">Green City Initiative</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between no-print">
         <h1 className="text-xl font-bold">My Sustainability Impact</h1>
         <button
           type="button"
-          onClick={exportHtml}
+          onClick={exportPdf}
           className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-input text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
         >
-          <Download size={14} /> Export to HTML
+          <Download size={14} /> Export to PDF
         </button>
       </div>
-      {exportStatus && <p className="text-sm text-gray-500">{exportStatus}</p>}
+      {exportStatus && <p className="text-sm text-gray-500 no-print">{exportStatus}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

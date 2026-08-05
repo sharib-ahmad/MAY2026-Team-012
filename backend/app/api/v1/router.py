@@ -19,6 +19,7 @@ from app.features.materials.models import Batch
 from app.features.materials.router import manager_router as materials_manager_router
 from app.features.materials.router import recycler_router as materials_recycler_router
 from app.features.notifications.router import router as notifications_router
+from app.features.reuse.router import router as reuse_router
 from app.features.users.router import router as user_router
 from app.features.wards.router import router as wards_router
 from app.models.zone import Zone
@@ -36,6 +37,7 @@ router.include_router(admin_router, prefix="/admin")
 router.include_router(manager_router)
 router.include_router(materials_manager_router)
 router.include_router(materials_recycler_router)
+router.include_router(reuse_router)
 
 
 @router.get("/track/{reference}", response_model=PublicTrackingResponse)

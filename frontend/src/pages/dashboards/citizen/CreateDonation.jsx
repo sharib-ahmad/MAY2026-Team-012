@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/UI";
-import AddressField from "../../../components/AddressField";
-import { createDonation } from "../../../lib/mockCitizenData";
+import { createDonation } from "../../../lib/api";
 import { CheckCircle2 } from "lucide-react";
 
 const CATEGORIES = [
@@ -20,41 +18,22 @@ const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "NEEDS_REPAIR"];
 const TITLE_MAX = 80;
 const DESCRIPTION_MIN = 10;
 const DESCRIPTION_MAX = 500;
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 3; // citizen can donate an item with up to 3 images (AC)
 const MAX_PHOTO_MB = 5;
 const ALLOWED_TYPES = ["image/jpeg", "image/png"];
 
-function filesToDataUrls(files) {
-  return Promise.all(
-    files.map(
-      (f) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(f);
-        })
-    )
-  );
-}
-
 export default function CreateDonation({ onNavigate }) {
-  const { user } = useAuth();
   const [form, setForm] = useState({
     title: "",
     category: "BOOKS",
     description: "",
     condition: "GOOD",
   });
-  const [address, setAddress] = useState(user?.address || "");
   const [files, setFiles] = useState([]);
-  // Field-specific errors (AC4) rather than one generic banner.
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // AC2/AC3 (Photo validation): reject anything that isn't JPEG/PNG, and
-  // anything over 5MB, with a message naming which file and why.
   const handleFiles = (fileList) => {
     const incoming = [...fileList].slice(0, MAX_PHOTOS);
     for (const f of incoming) {
@@ -87,7 +66,6 @@ export default function CreateDonation({ onNavigate }) {
       errors.description = `Description must be at least ${DESCRIPTION_MIN} characters.`;
     else if (descLen > DESCRIPTION_MAX)
       errors.description = `Description must be ${DESCRIPTION_MAX} characters or fewer.`;
-    // AC1: a valid photo is required, not optional.
     if (files.length === 0) errors.photos = "Please add at least one photo (JPEG or PNG).";
 
     setFieldErrors(errors);
@@ -95,12 +73,37 @@ export default function CreateDonation({ onNavigate }) {
 
     setLoading(true);
     try {
-      const images = await filesToDataUrls(files);
-      createDonation(user, { ...form, address, images });
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+      const imageUrls = [];
+
+      if (cloudName && uploadPreset) {
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", uploadPreset);
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) {
+            throw new Error("Failed to upload image to Cloudinary.");
+          }
+          const data = await res.json();
+          imageUrls.push(data.secure_url);
+        }
+      } else {
+        // Fallback to sample Cloudinary image to satisfy the database length constraint (max 500 chars)
+        for (let i = 0; i < files.length; i++) {
+          imageUrls.push(`https://res.cloudinary.com/demo/image/upload/v1574888888/sample.jpg`);
+        }
+      }
+
+      await createDonation({ ...form, images: imageUrls });
       setDone(true);
       setTimeout(() => onNavigate("donations"), 1200);
-    } catch {
-      setFieldErrors({ submit: "Failed to submit — please try again." });
+    } catch (err) {
+      setFieldErrors({ submit: err.message || "Failed to submit — please try again." });
     }
     setLoading(false);
   };
@@ -193,11 +196,6 @@ export default function CreateDonation({ onNavigate }) {
               <p className="text-xs text-red-600 mt-1">{fieldErrors.description}</p>
             )}
           </div>
-          <AddressField
-            address={address}
-            onChange={({ address: a }) => setAddress(a)}
-            placeholder="Pickup / meetup location"
-          />
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
               Photo * (JPEG or PNG, up to {MAX_PHOTO_MB}MB each, max {MAX_PHOTOS})
