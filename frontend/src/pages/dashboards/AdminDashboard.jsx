@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Users,
   MapPin,
-  AlertTriangle,
   LogOut,
   Landmark,
   UserPlus,
@@ -10,12 +9,10 @@ import {
   BookOpen,
   Coins,
   Menu,
-  Bell,
   ChevronDown,
   User,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import DATA from "../../data/admin_portal_data.json";
 import Accounts from "./admin/Accounts";
 import Wards from "./admin/Wards";
 import Logs from "./admin/Logs";
@@ -45,43 +42,14 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(TABS[0].key);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
 
-  const { stats } = DATA;
   const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
 
   const goToTab = (tab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
-    setShowNotifications(false);
   };
-
-  // No separate activity feed in this dataset — the bell surfaces the
-  // same stats the title band already shows, each deep-linking to the
-  // tab that explains it.
-  const notifications = useMemo(
-    () =>
-      [
-        stats.pending_users > 0 && {
-          title: `${stats.pending_users} account${stats.pending_users === 1 ? "" : "s"} pending approval`,
-          tab: "accounts",
-          icon: UserPlus,
-        },
-        stats.errors_last_24h > 0 && {
-          title: `${stats.errors_last_24h} error${stats.errors_last_24h === 1 ? "" : "s"} in the last 24h`,
-          tab: "logs",
-          icon: AlertTriangle,
-          tone: "danger",
-        },
-        {
-          title: `${stats.total_zones} wards configured, ${stats.active_users} active users`,
-          tab: "wards",
-          icon: MapPin,
-        },
-      ].filter(Boolean),
-    [stats]
-  );
 
   return (
     <div className="min-h-screen bg-[#F7F5F0]">
@@ -131,63 +99,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => {
-                setShowNotifications((v) => !v);
-                setShowAccountMenu(false);
-              }}
-              className="relative text-gray-500 hover:text-amber-600 transition"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              {notifications.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500" />
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
-                <div className="px-3.5 py-1.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
-                  Platform Status
-                </div>
-                {notifications.length === 0 ? (
-                  <div className="px-3.5 py-3 text-sm text-gray-400">
-                    Nothing to flag right now.
-                  </div>
-                ) : (
-                  notifications.map((n, i) => {
-                    const Icon = n.icon;
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => goToTab(n.tab)}
-                        className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-black/[0.03] transition"
-                      >
-                        <span
-                          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                          style={{
-                            backgroundColor: n.tone === "danger" ? "#FEE2E2" : "#FDF3D8",
-                            color: n.tone === "danger" ? "#DC2626" : "#8A6A10",
-                          }}
-                        >
-                          <Icon size={13} />
-                        </span>
-                        <span className="text-sm font-medium text-gray-800 leading-snug">
-                          {n.title}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
                 setShowAccountMenu((v) => !v);
-                setShowNotifications(false);
               }}
               className="flex items-center gap-2"
               aria-label="Account menu"
@@ -226,11 +138,10 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {(showNotifications || showAccountMenu) && (
+        {showAccountMenu && (
           <div
             className="fixed inset-0 z-20"
             onClick={() => {
-              setShowNotifications(false);
               setShowAccountMenu(false);
             }}
           />

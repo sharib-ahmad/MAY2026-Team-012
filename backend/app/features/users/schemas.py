@@ -30,4 +30,32 @@ class ImpactResponse(BaseModel):
     badges: list[ImpactBadge]
 
 
-__all__ = ["ImpactBadge", "ImpactCategory", "ImpactMonth", "ImpactResponse"]
+class DeleteAccountRequest(BaseModel):
+    reason: str | None = None
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user", "bot", "model"
+    text: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    history: list[ChatMessage]
+
+
+__all__ = [
+    "ImpactBadge",
+    "ImpactCategory",
+    "ImpactMonth",
+    "ImpactResponse",
+    "DeleteAccountRequest",
+    "ChatMessage",
+    "ChatRequest",
+    "ChatResponse",
+]

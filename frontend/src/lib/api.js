@@ -147,6 +147,16 @@ export const getUserDashboard = async () => {
   return data;
 };
 
+export const chatbotMessage = async (message, history = []) => {
+  const { data } = await API.post("/v1/user/chatbot/message", { message, history });
+  return data;
+};
+
+export const deleteUserAccount = async (reason) => {
+  const { data } = await API.delete("/v1/user/account", { data: { reason } });
+  return data;
+};
+
 export const getUserImpact = async () => {
   const { data } = await API.get("/v1/user/impact");
   return data;
