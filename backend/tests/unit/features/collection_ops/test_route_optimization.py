@@ -4,9 +4,6 @@ from datetime import datetime, UTC
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-
-import pytest
-
 from app.features.collection_ops import router as collector_module
 from app.features.collection_ops.ors_client import ORSClient, decode_polyline
 from app.features.collection_ops.router import get_collector_route
