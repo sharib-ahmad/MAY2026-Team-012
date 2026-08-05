@@ -40,14 +40,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const collectorIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+const collectorIcon = L.divIcon({
+  html: `<div style="width: 32px; height: 32px; background-color: #E53E3E; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; pointer-events: none;">🚚</div>`,
+  className: "custom-collector-icon",
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
 });
 
 const stopIcon = new L.Icon({
@@ -68,6 +65,13 @@ const completedIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
+});
+
+const depotIcon = L.divIcon({
+  html: `<div style="font-size: 28px; line-height: 1; display: flex; align-items: center; justify-content: center; pointer-events: none;">🏢</div>`,
+  className: "custom-depot-icon",
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
 });
 
 function FitMapBounds({ points }) {
@@ -492,19 +496,33 @@ export default function CollectorRoutes() {
                     ...(route.collector_latitude
                       ? [[route.collector_latitude, route.collector_longitude]]
                       : []),
+                    ...(route.depot_latitude
+                      ? [[route.depot_latitude, route.depot_longitude]]
+                      : []),
                     ...route.ordered_pickups
                       .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
                       .map((p) => [p.pickup_latitude, p.pickup_longitude]),
                   ]}
                 />
 
+                {route.depot_latitude && route.depot_longitude && (
+                  <Marker position={[route.depot_latitude, route.depot_longitude]} icon={depotIcon}>
+                    <Popup>
+                      <div className="text-xs font-semibold">Municipal Office (Depot)</div>
+                    </Popup>
+                  </Marker>
+                )}
+
                 {route.collector_latitude && route.collector_longitude && (
                   <Marker
                     position={[route.collector_latitude, route.collector_longitude]}
                     icon={collectorIcon}
+                    zIndexOffset={1000}
                   >
                     <Popup>
-                      <div className="text-xs font-semibold">Your Location (Collector)</div>
+                      <div className="text-xs font-semibold">
+                        Your Location (Collector / Vehicle)
+                      </div>
                     </Popup>
                   </Marker>
                 )}
@@ -525,7 +543,7 @@ export default function CollectorRoutes() {
                         <Popup>
                           <div className="text-xs">
                             <div className="font-semibold text-[#1F3259]">
-                              Stop #{idx + 1}: {p.citizen_name}
+                              Stop #{p.pickup_order}: {p.citizen_name}
                             </div>
                             <div className="text-gray-500 mt-0.5">
                               Ref: {p.ref_code} ({p.category})

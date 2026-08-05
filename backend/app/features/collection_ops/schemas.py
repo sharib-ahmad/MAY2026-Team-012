@@ -41,6 +41,8 @@ class CollectorRouteResponse(BaseModel):
     flagged_count: int
     collector_latitude: float | None = None
     collector_longitude: float | None = None
+    depot_latitude: float | None = None
+    depot_longitude: float | None = None
     route_geometry: list[list[float]] | None = None
     ordered_pickups: list[CollectorStopResponse]
 

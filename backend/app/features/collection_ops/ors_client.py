@@ -50,6 +50,7 @@ class ORSClient:
         self,
         start_coords: tuple[float, float],
         stop_coords: list[tuple[float, float]],
+        end_coords: tuple[float, float] | None = None,
     ) -> dict:
         """
         Calls OpenRouteService Optimization API to get optimized route and polyline geometry.
@@ -62,14 +63,13 @@ class ORSClient:
 
         # Convert coordinates to [lon, lat] for ORS
         start_lon_lat = [start_coords[1], start_coords[0]]
+        end_lon_lat = [end_coords[1], end_coords[0]] if end_coords else start_lon_lat
 
         jobs = []
         for idx, (lat, lon) in enumerate(stop_coords):
             jobs.append({"id": idx, "location": [lon, lat]})
 
-        vehicles = [
-            {"id": 0, "profile": "driving-car", "start": start_lon_lat, "end": start_lon_lat}
-        ]
+        vehicles = [{"id": 0, "profile": "driving-car", "start": start_lon_lat, "end": end_lon_lat}]
 
         payload = {"jobs": jobs, "vehicles": vehicles, "options": {"g": True}}
 
@@ -115,5 +115,7 @@ class ORSClient:
             geometry_coords = [list(start_coords)]
             for idx in optimized_indices:
                 geometry_coords.append(list(stop_coords[idx]))
+            if end_coords:
+                geometry_coords.append(list(end_coords))
 
         return {"optimized_indices": optimized_indices, "geometry": geometry_coords}

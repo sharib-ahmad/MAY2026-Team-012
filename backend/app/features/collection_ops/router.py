@@ -330,10 +330,27 @@ def get_collector_route(
     pending_stops = [s for s in stops if s.status != PickupStopStatus.COLLECTED]
     completed_stops = [s for s in stops if s.status == PickupStopStatus.COLLECTED]
 
-    # Find starting location (collector coords or first pending with coordinates)
-    start_coords = None
+    # Depot location is the collector's registered coordinates
+    depot_coords = None
     if current_user.latitude is not None and current_user.longitude is not None:
-        start_coords = (current_user.latitude, current_user.longitude)
+        depot_coords = (current_user.latitude, current_user.longitude)
+
+    # Start coordinates default to depot_coords
+    start_coords = depot_coords
+
+    # If the collector has completed one or more stops, set start_coords
+    # to the last completed stop's coordinates
+    if completed_stops:
+        completed_with_coords = [
+            s
+            for s in completed_stops
+            if s.completed_at is not None and s.latitude is not None and s.longitude is not None
+        ]
+        if completed_with_coords:
+            # Sort by completed_at desc to find the most recent completed stop
+            completed_with_coords.sort(key=lambda s: s.completed_at, reverse=True)
+            last_completed = completed_with_coords[0]
+            start_coords = (last_completed.latitude, last_completed.longitude)
 
     pending_with_coords = [
         s for s in pending_stops if s.latitude is not None and s.longitude is not None
@@ -342,6 +359,9 @@ def get_collector_route(
 
     if start_coords is None and pending_with_coords:
         start_coords = (pending_with_coords[0].latitude, pending_with_coords[0].longitude)
+
+    if depot_coords is None:
+        depot_coords = start_coords
 
     route_geometry = None
     optimized_pending = list(pending_stops)
@@ -355,7 +375,7 @@ def get_collector_route(
             client = ORSClient(api_key=api_key)
             try:
                 stop_coords = [(s.latitude, s.longitude) for s in pending_with_coords]
-                res = client.optimize_route(start_coords, stop_coords)
+                res = client.optimize_route(start_coords, stop_coords, end_coords=depot_coords)
                 optimized_indices = res["optimized_indices"]
                 route_geometry = res["geometry"]
 
@@ -400,12 +420,21 @@ def get_collector_route(
                 current = (nearest_stop.latitude, nearest_stop.longitude)
                 geometry_coords.append([nearest_stop.latitude, nearest_stop.longitude])
 
-            # Return to start coords at the end of the route to complete the depot loop
-            if geometry_coords and len(geometry_coords) > 1:
-                geometry_coords.append(list(start_coords))
+            # Return to depot coords at the end of the route to complete the depot loop
+            if geometry_coords and len(geometry_coords) > 1 and depot_coords is not None:
+                geometry_coords.append(list(depot_coords))
 
             pending_with_coords = sorted_stops
             route_geometry = geometry_coords
+
+        # Ensure the geometry completes the loop back to the depot
+        if route_geometry and depot_coords is not None:
+            last_coord = route_geometry[-1]
+            dist_sq = (last_coord[0] - depot_coords[0]) ** 2 + (
+                last_coord[1] - depot_coords[1]
+            ) ** 2
+            if dist_sq > 1e-6:
+                route_geometry.append(list(depot_coords))
 
         optimized_pending = pending_with_coords + pending_no_coords
 
@@ -438,8 +467,10 @@ def get_collector_route(
         pickup_count=len(stops),
         completed_count=sum(stop.status == PickupStopStatus.COLLECTED for stop in stops),
         flagged_count=sum(bool(stop.mixed_waste_tags) for stop in stops),
-        collector_latitude=current_user.latitude,
-        collector_longitude=current_user.longitude,
+        collector_latitude=start_coords[0] if start_coords else current_user.latitude,
+        collector_longitude=start_coords[1] if start_coords else current_user.longitude,
+        depot_latitude=current_user.latitude,
+        depot_longitude=current_user.longitude,
         route_geometry=route_geometry,
         ordered_pickups=[
             _collector_stop(stop, pickup_order=index) for index, stop in enumerate(stops, start=1)
