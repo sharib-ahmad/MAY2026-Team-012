@@ -9,11 +9,20 @@ from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.bulk_pickups.service import citizen_requests, serialize_request
 from app.features.collection_ops.models import DailyPickupSchedule, DailyPickupStop, Pickup
 from app.features.credits.models import Credit, UserBadge
+from app.features.notifications.models import Notification
 from app.features.sorting_guide.models import WasteCategory
 from app.features.users.dependencies import require_citizen
 from app.features.users.models import User
-from app.features.users.schemas import ImpactResponse
-from app.models.enums import CreditStatus, PickupStatus
+from app.features.users.schemas import (
+    ChatRequest,
+    ChatResponse,
+    DeleteAccountRequest,
+    ImpactResponse,
+)
+from app.features.users.service import execute_chatbot_turn
+from app.models.audit import create_audit_log
+from app.models.enums import CreditStatus, PickupStatus, UserStatus
+from app.models.zone import Zone
 
 router = APIRouter(tags=["Citizen"])
 
@@ -231,3 +240,75 @@ def pickup_options(
     return {
         "categories": [{"code": category.code, "label": category.label} for category in categories]
     }
+
+
+@router.delete("/account")
+def delete_account(
+    payload: DeleteAccountRequest,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Soft delete citizen account, notify manager, and create audit log."""
+    import uuid
+
+    # 1. Notify manager if user has a zone manager
+    if current_user.zone_id:
+        manager_id = db.scalar(select(Zone.manager_id).where(Zone.id == current_user.zone_id))
+        if manager_id:
+            notification = Notification(
+                user_id=manager_id,
+                title="Citizen Account Deleted",
+                body=(
+                    f"Citizen {current_user.name} ({current_user.email}) has "
+                    f"deleted their account. Reason: {payload.reason or 'No reason provided.'}"
+                ),
+            )
+            db.add(notification)
+
+    # Store original identifiers for the audit log
+    original_email = current_user.email
+    original_phone = current_user.phone
+
+    # 2. Anonymize identifiers to free up unique constraints for re-registration
+    short_id = uuid.uuid4().hex[:8]
+    current_user.email = f"{original_email}-deleted-{short_id}"
+    current_user.phone = f"del-{short_id}"
+
+    # 3. Soft delete and disable user session
+    current_user.deleted_at = datetime.now(UTC)
+    current_user.status = UserStatus.DISABLED
+    current_user.token_version += 1
+
+    # 4. Create Audit Log
+    create_audit_log(
+        db=db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value
+        if hasattr(current_user.role, "value")
+        else str(current_user.role),
+        action="DELETE_ACCOUNT",
+        entity_type="USER",
+        entity_id=str(current_user.id),
+        description=(
+            f"Citizen deleted their account (Email: {original_email}, "
+            f"Phone: {original_phone}). "
+            f"Reason: {payload.reason or 'No reason provided.'}"
+        ),
+        commit=False,
+    )
+
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/chatbot/message", response_model=ChatResponse)
+async def chat_message(
+    payload: ChatRequest,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> ChatResponse:
+    result = await execute_chatbot_turn(
+        message=payload.message, history=payload.history, current_user=current_user, db=db
+    )
+    return ChatResponse(reply=result["reply"], history=result["history"])

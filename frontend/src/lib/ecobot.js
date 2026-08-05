@@ -1,6 +1,5 @@
 // Local, backend-free knowledge base for EcoBot. Keyword-matched replies
 // stand in for a real AI backend until one is connected.
-
 export const ECOBOT_TOPICS = [
   {
     keywords: ["plastic"],
@@ -64,16 +63,70 @@ export const ECOBOT_TOPICS = [
   },
 ];
 
-export const ECOBOT_SUGGESTIONS = [
-  "How do I recycle e-waste?",
-  "How do credits work?",
-  "What can I donate?",
-  "My pickup was missed",
-];
-
 export function ecoBotReply(message) {
   const lower = message.toLowerCase();
   const match = ECOBOT_TOPICS.find((t) => t.keywords.some((k) => lower.includes(k)));
   if (match) return match.reply;
   return "Good question! For now I can help most with segregation tips (plastic, paper, glass, metal, e-waste), scheduling pickups, credits, tracking, or the donation community shelf — try asking about one of those.";
+}
+
+/**
+ * Safely parse a basic markdown string and output styled HTML.
+ * Supports bold (**text**), inline code (`code`), lists (- item or * item), and line breaks.
+ */
+export function formatMarkdown(text) {
+  if (!text) return "";
+
+  // 1. Escape HTML entities to prevent XSS
+  let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // 2. Format bold: **text** -> <strong>text</strong>
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // 3. Format inline code: `code` -> <code class="bg-black/[0.08] px-1.5 py-0.5 rounded font-mono text-[11px]">$1</code>
+  html = html.replace(
+    /`(.*?)`/g,
+    '<code class="bg-black/[0.08] px-1.5 py-0.5 rounded font-mono text-[11px]">$1</code>'
+  );
+
+  // 4. Format list items: Lines starting with * or -
+  const lines = html.split("\n");
+  let inList = false;
+  const processedLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^(\s*)([-*]|\d+\.)\s+(.*)$/);
+    if (match) {
+      if (!inList) {
+        processedLines.push('<ul class="list-disc list-inside pl-2 space-y-1 my-1.5">');
+        inList = true;
+      }
+      processedLines.push(`<li class="text-sm text-gray-700">${match[3]}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push("</ul>");
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+  if (inList) {
+    processedLines.push("</ul>");
+  }
+
+  html = processedLines.join("\n");
+
+  // 5. Break paragraphs on double newlines, replace single newlines with <br/>
+  const paragraphs = html.split("\n\n");
+  const processedParagraphs = paragraphs.map((p) => {
+    const trimmed = p.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("<ul") || trimmed.startsWith("<ol") || trimmed.startsWith("</ul")) {
+      return trimmed;
+    }
+    return `<p class="mb-2 last:mb-0">${trimmed.replace(/\n/g, "<br/>")}</p>`;
+  });
+
+  return processedParagraphs.filter(Boolean).join("");
 }
