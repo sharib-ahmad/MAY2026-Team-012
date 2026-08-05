@@ -41,7 +41,8 @@ L.Icon.Default.mergeOptions({
 });
 
 const collectorIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -50,7 +51,8 @@ const collectorIcon = new L.Icon({
 });
 
 const stopIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -59,7 +61,8 @@ const stopIcon = new L.Icon({
 });
 
 const completedIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -329,7 +332,7 @@ export default function CollectorRoutes() {
   const routeGeometry = route?.route_geometry || [];
   const arrowInterval = 8; // Place an arrow every 8 coordinates
   const pathArrows = [];
-  
+
   if (routeGeometry.length > 1) {
     for (let i = 0; i < routeGeometry.length - 1; i += arrowInterval) {
       const p1 = routeGeometry[i];
@@ -338,19 +341,19 @@ export default function CollectorRoutes() {
       const lon1 = p1[1];
       const lat2 = p2[0];
       const lon2 = p2[1];
-      
+
       const midLat = (lat1 + lat2) / 2;
       const midLon = (lon1 + lon2) / 2;
-      
+
       const dy = lat2 - lat1;
       const dx = lon2 - lon1;
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
       const rotation = -angle; // Convert to CSS rotation
-      
+
       pathArrows.push({
         id: `arrow-${i}`,
         position: [midLat, midLon],
-        rotation: rotation
+        rotation: rotation,
       });
     }
   }
@@ -456,90 +459,114 @@ export default function CollectorRoutes() {
         </Card>
       )}
 
-      {route && (route.collector_latitude || route.ordered_pickups.some(p => p.pickup_latitude)) && (
-        <Card className="!p-4">
-          <div className="mb-3">
-            <h3 className="font-serif font-semibold text-[#1F3259]">Optimized Duty Route Map</h3>
-            <p className="text-xs text-gray-500">Live optimized path connecting your assigned pickup stops.</p>
-          </div>
-          <div style={{ height: "350px", width: "100%", borderRadius: "8px", overflow: "hidden" }} className="border border-gray-200 shadow-sm">
-            <MapContainer
-              center={route.collector_latitude ? [route.collector_latitude, route.collector_longitude] : [26.8467, 80.9462]}
-              zoom={13}
-              scrollWheelZoom={true}
-              style={{ height: "100%", width: "100%" }}
+      {route &&
+        (route.collector_latitude || route.ordered_pickups.some((p) => p.pickup_latitude)) && (
+          <Card className="!p-4">
+            <div className="mb-3">
+              <h3 className="font-serif font-semibold text-[#1F3259]">Optimized Duty Route Map</h3>
+              <p className="text-xs text-gray-500">
+                Live optimized path connecting your assigned pickup stops.
+              </p>
+            </div>
+            <div
+              style={{ height: "350px", width: "100%", borderRadius: "8px", overflow: "hidden" }}
+              className="border border-gray-200 shadow-sm"
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              <FitMapBounds
-                points={[
-                  ...(route.collector_latitude ? [[route.collector_latitude, route.collector_longitude]] : []),
-                  ...route.ordered_pickups
-                    .filter(p => p.pickup_latitude != null && p.pickup_longitude != null)
-                    .map(p => [p.pickup_latitude, p.pickup_longitude])
-                ]}
-              />
+              <MapContainer
+                center={
+                  route.collector_latitude
+                    ? [route.collector_latitude, route.collector_longitude]
+                    : [26.8467, 80.9462]
+                }
+                zoom={13}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
 
-              {route.collector_latitude && route.collector_longitude && (
-                <Marker position={[route.collector_latitude, route.collector_longitude]} icon={collectorIcon}>
-                  <Popup>
-                    <div className="text-xs font-semibold">Your Location (Collector)</div>
-                  </Popup>
-                </Marker>
-              )}
+                <FitMapBounds
+                  points={[
+                    ...(route.collector_latitude
+                      ? [[route.collector_latitude, route.collector_longitude]]
+                      : []),
+                    ...route.ordered_pickups
+                      .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                      .map((p) => [p.pickup_latitude, p.pickup_longitude]),
+                  ]}
+                />
 
-              {route.ordered_pickups
-                .filter(p => p.pickup_latitude != null && p.pickup_longitude != null)
-                .map((p, idx) => {
-                  const isCollected = p.status === "COLLECTED" || p.status === "VERIFIED" || p.status === "CREDITED";
-                  return (
-                    <Marker
-                      key={p.id}
-                      position={[p.pickup_latitude, p.pickup_longitude]}
-                      icon={isCollected ? completedIcon : stopIcon}
-                    >
-                      <Popup>
-                        <div className="text-xs">
-                          <div className="font-semibold text-[#1F3259]">Stop #{idx + 1}: {p.citizen_name}</div>
-                          <div className="text-gray-500 mt-0.5">Ref: {p.ref_code} ({p.category})</div>
-                          <div className="text-gray-500">{p.pickup_address}</div>
-                          <div className="mt-1"><StatusPill status={p.status} /></div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
+                {route.collector_latitude && route.collector_longitude && (
+                  <Marker
+                    position={[route.collector_latitude, route.collector_longitude]}
+                    icon={collectorIcon}
+                  >
+                    <Popup>
+                      <div className="text-xs font-semibold">Your Location (Collector)</div>
+                    </Popup>
+                  </Marker>
+                )}
 
-              {route.route_geometry && route.route_geometry.length > 0 && (
-                <>
-                  <Polyline
-                    positions={route.route_geometry}
-                    color="#16214D"
-                    weight={4}
-                    opacity={0.8}
-                  />
-                  {pathArrows.map((arrow) => (
-                    <Marker
-                      key={arrow.id}
-                      position={arrow.position}
-                      icon={L.divIcon({
-                        html: `<div style="transform: rotate(${arrow.rotation}deg); font-size: 13px; color: #F2A93C; text-shadow: 0 0 3px #16214D, 0 0 1px #16214D; font-weight: bold; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; pointer-events: none;">➤</div>`,
-                        className: "custom-route-arrow-icon",
-                        iconSize: [14, 14],
-                        iconAnchor: [7, 7]
-                      })}
-                      interactive={false}
+                {route.ordered_pickups
+                  .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                  .map((p, idx) => {
+                    const isCollected =
+                      p.status === "COLLECTED" ||
+                      p.status === "VERIFIED" ||
+                      p.status === "CREDITED";
+                    return (
+                      <Marker
+                        key={p.id}
+                        position={[p.pickup_latitude, p.pickup_longitude]}
+                        icon={isCollected ? completedIcon : stopIcon}
+                      >
+                        <Popup>
+                          <div className="text-xs">
+                            <div className="font-semibold text-[#1F3259]">
+                              Stop #{idx + 1}: {p.citizen_name}
+                            </div>
+                            <div className="text-gray-500 mt-0.5">
+                              Ref: {p.ref_code} ({p.category})
+                            </div>
+                            <div className="text-gray-500">{p.pickup_address}</div>
+                            <div className="mt-1">
+                              <StatusPill status={p.status} />
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
+
+                {route.route_geometry && route.route_geometry.length > 0 && (
+                  <>
+                    <Polyline
+                      positions={route.route_geometry}
+                      color="#16214D"
+                      weight={4}
+                      opacity={0.8}
                     />
-                  ))}
-                </>
-              )}
-            </MapContainer>
-          </div>
-        </Card>
-      )}
+                    {pathArrows.map((arrow) => (
+                      <Marker
+                        key={arrow.id}
+                        position={arrow.position}
+                        icon={L.divIcon({
+                          html: `<div style="transform: rotate(${arrow.rotation}deg); font-size: 13px; color: #F2A93C; text-shadow: 0 0 3px #16214D, 0 0 1px #16214D; font-weight: bold; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; pointer-events: none;">➤</div>`,
+                          className: "custom-route-arrow-icon",
+                          iconSize: [14, 14],
+                          iconAnchor: [7, 7],
+                        })}
+                        interactive={false}
+                      />
+                    ))}
+                  </>
+                )}
+              </MapContainer>
+            </div>
+          </Card>
+        )}
 
       {loading && !route && (
         <div className="text-center py-12 text-gray-400">
