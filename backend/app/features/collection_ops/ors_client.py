@@ -23,21 +23,21 @@ def decode_polyline(polyline_str: str) -> list[list[float]]:
             while True:
                 byte = ord(polyline_str[index]) - 63
                 index += 1
-                result |= (byte & 0x1f) << shift
+                result |= (byte & 0x1F) << shift
                 shift += 5
                 if byte < 0x20:
                     break
-            
+
             if result & 1:
                 results.append(~(result >> 1))
             else:
                 results.append(result >> 1)
-        
+
         lat += results[0]
         lng += results[1]
-        
+
         coordinates.append([lat / 100000.0, lng / 100000.0])
-        
+
     return coordinates
 
 
@@ -62,37 +62,22 @@ class ORSClient:
 
         # Convert coordinates to [lon, lat] for ORS
         start_lon_lat = [start_coords[1], start_coords[0]]
-        
+
         jobs = []
         for idx, (lat, lon) in enumerate(stop_coords):
-            jobs.append({
-                "id": idx,
-                "location": [lon, lat]
-            })
+            jobs.append({"id": idx, "location": [lon, lat]})
 
-        vehicles = [{
-            "id": 0,
-            "profile": "driving-car",
-            "start": start_lon_lat,
-            "end": start_lon_lat
-        }]
+        vehicles = [
+            {"id": 0, "profile": "driving-car", "start": start_lon_lat, "end": start_lon_lat}
+        ]
 
-        payload = {
-            "jobs": jobs,
-            "vehicles": vehicles,
-            "options": {
-                "g": True
-            }
-        }
+        payload = {"jobs": jobs, "vehicles": vehicles, "options": {"g": True}}
 
         req = urllib.request.Request(
             self.base_url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": self.api_key,
-                "Content-Type": "application/json"
-            },
-            method="POST"
+            headers={"Authorization": self.api_key, "Content-Type": "application/json"},
+            method="POST",
         )
 
         try:
@@ -113,7 +98,7 @@ class ORSClient:
 
         route = routes[0]
         steps = route.get("steps", [])
-        
+
         # Extract job IDs in visit order
         optimized_indices = []
         for step in steps:
@@ -131,7 +116,4 @@ class ORSClient:
             for idx in optimized_indices:
                 geometry_coords.append(list(stop_coords[idx]))
 
-        return {
-            "optimized_indices": optimized_indices,
-            "geometry": geometry_coords
-        }
+        return {"optimized_indices": optimized_indices, "geometry": geometry_coords}

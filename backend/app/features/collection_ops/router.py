@@ -336,7 +336,9 @@ def get_collector_route(
     if current_user.latitude is not None and current_user.longitude is not None:
         start_coords = (current_user.latitude, current_user.longitude)
 
-    pending_with_coords = [s for s in pending_stops if s.latitude is not None and s.longitude is not None]
+    pending_with_coords = [
+        s for s in pending_stops if s.latitude is not None and s.longitude is not None
+    ]
     pending_no_coords = [s for s in pending_stops if s.latitude is None or s.longitude is None]
 
     if start_coords is None and pending_with_coords:
@@ -348,7 +350,7 @@ def get_collector_route(
     if start_coords is not None and pending_with_coords:
         settings = get_settings()
         api_key = settings.ORS_API_KEY
-        
+
         ors_success = False
         if api_key:
             client = ORSClient(api_key=api_key)
@@ -357,20 +359,22 @@ def get_collector_route(
                 res = client.optimize_route(start_coords, stop_coords)
                 optimized_indices = res["optimized_indices"]
                 route_geometry = res["geometry"]
-                
+
                 # Reorder pending_with_coords based on optimization result
                 sorted_coords_stops = [pending_with_coords[i] for i in optimized_indices]
-                
+
                 # If some stops are unassigned or missed by ORS, append them
                 visited_ids = {s.id for s in sorted_coords_stops}
                 for s in pending_with_coords:
                     if s.id not in visited_ids:
                         sorted_coords_stops.append(s)
-                
+
                 pending_with_coords = sorted_coords_stops
                 ors_success = True
             except Exception as e:
-                logging.getLogger(__name__).warning(f"ORS route optimization failed, falling back: {e}")
+                logging.getLogger(__name__).warning(
+                    f"ORS route optimization failed, falling back: {e}"
+                )
 
         # Fallback to Nearest Neighbor if ORS was not run or failed
         if not ors_success:
@@ -378,46 +382,46 @@ def get_collector_route(
             sorted_stops = []
             current = start_coords
             geometry_coords = [list(start_coords)]
-            
+
             while unvisited:
                 nearest_stop = None
                 min_dist = float("inf")
                 for s in unvisited:
-                    dist = (s.latitude - current[0])**2 + (s.longitude - current[1])**2
+                    dist = (s.latitude - current[0]) ** 2 + (s.longitude - current[1]) ** 2
                     if dist < min_dist:
                         min_dist = dist
                         nearest_stop = s
-                
+
                 if nearest_stop is None:
                     sorted_stops.extend(unvisited)
                     break
-                
+
                 sorted_stops.append(nearest_stop)
                 unvisited.remove(nearest_stop)
                 current = (nearest_stop.latitude, nearest_stop.longitude)
                 geometry_coords.append([nearest_stop.latitude, nearest_stop.longitude])
-            
+
             # Return to start coords at the end of the route to complete the depot loop
             if geometry_coords and len(geometry_coords) > 1:
                 geometry_coords.append(list(start_coords))
-                
+
             pending_with_coords = sorted_stops
             route_geometry = geometry_coords
 
         optimized_pending = pending_with_coords + pending_no_coords
-        
+
         # Persist updated pickup_order in the database
         order_changed = False
         for index, stop in enumerate(optimized_pending, start=1):
             if stop.pickup_order != index:
                 stop.pickup_order = index
                 order_changed = True
-                
+
         for index, stop in enumerate(completed_stops, start=len(optimized_pending) + 1):
             if stop.pickup_order != index:
                 stop.pickup_order = index
                 order_changed = True
-                
+
         if order_changed:
             db.commit()
 

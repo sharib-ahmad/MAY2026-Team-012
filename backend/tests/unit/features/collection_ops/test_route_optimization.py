@@ -70,24 +70,27 @@ def test_decode_polyline():
 def test_ors_client_optimize_route(mock_urlopen):
     # Mock ORS API response
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps({
-        "routes": [{
-            "steps": [
-                {"type": "start"},
-                {"type": "job", "id": "1"},
-                {"type": "job", "id": "0"},
-                {"type": "end"}
-            ],
-            "geometry": "_p~iF~ps|U_ulLnnqC"
-        }]
-    }).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        {
+            "routes": [
+                {
+                    "steps": [
+                        {"type": "start"},
+                        {"type": "job", "id": "1"},
+                        {"type": "job", "id": "0"},
+                        {"type": "end"},
+                    ],
+                    "geometry": "_p~iF~ps|U_ulLnnqC",
+                }
+            ]
+        }
+    ).encode("utf-8")
     mock_response.__enter__.return_value = mock_response
     mock_urlopen.return_value = mock_response
 
     client = ORSClient(api_key="test-api-key")
     res = client.optimize_route(
-        start_coords=(26.8, 80.9),
-        stop_coords=[(26.9, 81.0), (26.85, 80.95)]
+        start_coords=(26.8, 80.9), stop_coords=[(26.9, 81.0), (26.85, 80.95)]
     )
 
     assert res["optimized_indices"] == [1, 0]
@@ -97,12 +100,12 @@ def test_ors_client_optimize_route(mock_urlopen):
 def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
     # Mock _materialize_assigned_bulk_stops to do nothing
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    
+
     # Mock settings to have no ORS key
     monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
 
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
-    
+
     # Create two stops
     # Stop 1 is further away: lat=26.2, lon=80.2
     # Stop 2 is closer: lat=26.1, lon=80.1
@@ -114,10 +117,16 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
         completed_stops=0,
         completed_at=None,
     )
-    
+
     stop1 = SimpleNamespace(
         id=uuid4(),
-        pickup=SimpleNamespace(ref_code="COL-BULK-001", category="DRY", estimated_weight=8, time_slot="09:00", status=PickupStatus.ASSIGNED),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
         citizen_id=uuid4(),
         citizen=SimpleNamespace(name="Riya Citizen"),
         schedule=schedule,
@@ -130,10 +139,16 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
         completed_at=None,
         mixed_waste_tags=[],
     )
-    
+
     stop2 = SimpleNamespace(
         id=uuid4(),
-        pickup=SimpleNamespace(ref_code="COL-BULK-002", category="WET", estimated_weight=5, time_slot="09:00", status=PickupStatus.ASSIGNED),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-002",
+            category="WET",
+            estimated_weight=5,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
         citizen_id=uuid4(),
         citizen=SimpleNamespace(name="Amit Citizen"),
         schedule=schedule,
@@ -153,6 +168,6 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
     # Since Stop 2 is closer to collector (26.0, 80.0), it should be first in optimized order
     assert response.ordered_pickups[0].id == stop2.id
     assert response.ordered_pickups[1].id == stop1.id
-    
+
     # Geometry should start at collector, then stop2, then stop1, then return to collector
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
