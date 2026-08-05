@@ -529,7 +529,7 @@ export default function CollectorRoutes() {
 
                 {route.ordered_pickups
                   .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
-                  .map((p, idx) => {
+                  .map((p) => {
                     const isCollected =
                       p.status === "COLLECTED" ||
                       p.status === "VERIFIED" ||
