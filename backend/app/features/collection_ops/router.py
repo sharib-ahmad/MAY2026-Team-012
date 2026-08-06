@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import case, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
@@ -14,6 +16,7 @@ from app.features.collection_ops.models import (
     MixedWasteTag,
     Pickup,
 )
+from app.features.collection_ops.ors_client import ORSClient
 from app.features.collection_ops.schemas import (
     CollectorRouteResponse,
     CollectorStopResponse,
@@ -323,6 +326,136 @@ def get_collector_route(
         .unique()
         .all()
     )
+    # Separate pending and completed stops
+    pending_stops = [s for s in stops if s.status != PickupStopStatus.COLLECTED]
+    completed_stops = [s for s in stops if s.status == PickupStopStatus.COLLECTED]
+
+    # Depot location is the collector's registered coordinates
+    depot_coords = None
+    if current_user.latitude is not None and current_user.longitude is not None:
+        depot_coords = (current_user.latitude, current_user.longitude)
+
+    # Start coordinates default to depot_coords
+    start_coords = depot_coords
+
+    # If the collector has completed one or more stops, set start_coords
+    # to the last completed stop's coordinates
+    if completed_stops:
+        completed_with_coords = [
+            s
+            for s in completed_stops
+            if s.completed_at is not None and s.latitude is not None and s.longitude is not None
+        ]
+        if completed_with_coords:
+            # Sort by completed_at desc to find the most recent completed stop
+            completed_with_coords.sort(key=lambda s: s.completed_at, reverse=True)
+            last_completed = completed_with_coords[0]
+            start_coords = (last_completed.latitude, last_completed.longitude)
+
+    pending_with_coords = [
+        s for s in pending_stops if s.latitude is not None and s.longitude is not None
+    ]
+    pending_no_coords = [s for s in pending_stops if s.latitude is None or s.longitude is None]
+
+    if start_coords is None and pending_with_coords:
+        start_coords = (pending_with_coords[0].latitude, pending_with_coords[0].longitude)
+
+    if depot_coords is None:
+        depot_coords = start_coords
+
+    route_geometry = None
+    optimized_pending = list(pending_stops)
+
+    if start_coords is not None and pending_with_coords:
+        settings = get_settings()
+        api_key = settings.ORS_API_KEY
+
+        ors_success = False
+        if api_key:
+            client = ORSClient(api_key=api_key)
+            try:
+                stop_coords = [(s.latitude, s.longitude) for s in pending_with_coords]
+                res = client.optimize_route(start_coords, stop_coords, end_coords=depot_coords)
+                optimized_indices = res["optimized_indices"]
+                route_geometry = res["geometry"]
+
+                # Reorder pending_with_coords based on optimization result
+                sorted_coords_stops = [pending_with_coords[i] for i in optimized_indices]
+
+                # If some stops are unassigned or missed by ORS, append them
+                visited_ids = {s.id for s in sorted_coords_stops}
+                for s in pending_with_coords:
+                    if s.id not in visited_ids:
+                        sorted_coords_stops.append(s)
+
+                pending_with_coords = sorted_coords_stops
+                ors_success = True
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    f"ORS route optimization failed, falling back: {e}"
+                )
+
+        # Fallback to Nearest Neighbor if ORS was not run or failed
+        if not ors_success:
+            unvisited = list(pending_with_coords)
+            sorted_stops = []
+            current = start_coords
+            geometry_coords = [list(start_coords)]
+
+            while unvisited:
+                nearest_stop = None
+                min_dist = float("inf")
+                for s in unvisited:
+                    dist = (s.latitude - current[0]) ** 2 + (s.longitude - current[1]) ** 2
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_stop = s
+
+                if nearest_stop is None:
+                    sorted_stops.extend(unvisited)
+                    break
+
+                sorted_stops.append(nearest_stop)
+                unvisited.remove(nearest_stop)
+                current = (nearest_stop.latitude, nearest_stop.longitude)
+                geometry_coords.append([nearest_stop.latitude, nearest_stop.longitude])
+
+            # Return to depot coords at the end of the route to complete the depot loop
+            if geometry_coords and len(geometry_coords) > 1 and depot_coords is not None:
+                geometry_coords.append(list(depot_coords))
+
+            pending_with_coords = sorted_stops
+            route_geometry = geometry_coords
+
+        # Ensure the geometry completes the loop back to the depot
+        if route_geometry and depot_coords is not None:
+            last_coord = route_geometry[-1]
+            dist_sq = (last_coord[0] - depot_coords[0]) ** 2 + (
+                last_coord[1] - depot_coords[1]
+            ) ** 2
+            if dist_sq > 1e-6:
+                route_geometry.append(list(depot_coords))
+
+        optimized_pending = pending_with_coords + pending_no_coords
+
+        # Persist updated pickup_order in the database
+        order_changed = False
+        for index, stop in enumerate(optimized_pending, start=1):
+            if stop.pickup_order != index:
+                stop.pickup_order = index
+                order_changed = True
+
+        for index, stop in enumerate(completed_stops, start=len(optimized_pending) + 1):
+            if stop.pickup_order != index:
+                stop.pickup_order = index
+                order_changed = True
+
+        if order_changed:
+            db.commit()
+
+        # Re-assemble stops list in the optimized/persisted order
+        stops = optimized_pending + completed_stops
+
     zone_name = (
         f"{stops[0].schedule.zone.code} - {stops[0].schedule.zone.name}"
         if stops
@@ -334,8 +467,11 @@ def get_collector_route(
         pickup_count=len(stops),
         completed_count=sum(stop.status == PickupStopStatus.COLLECTED for stop in stops),
         flagged_count=sum(bool(stop.mixed_waste_tags) for stop in stops),
-        collector_latitude=current_user.latitude,
-        collector_longitude=current_user.longitude,
+        collector_latitude=start_coords[0] if start_coords else current_user.latitude,
+        collector_longitude=start_coords[1] if start_coords else current_user.longitude,
+        depot_latitude=current_user.latitude,
+        depot_longitude=current_user.longitude,
+        route_geometry=route_geometry,
         ordered_pickups=[
             _collector_stop(stop, pickup_order=index) for index, stop in enumerate(stops, start=1)
         ],

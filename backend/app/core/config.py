@@ -85,6 +85,7 @@ class Settings(DatabaseSettings):
     """Complete FastAPI application configuration."""
 
     SECRET_KEY: str = Field(default="")
+    ORS_API_KEY: str = Field(default="")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=480, ge=5, le=1440)
     ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
 

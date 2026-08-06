@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Modal } from "../../../components/UI";
 import {
@@ -24,6 +24,72 @@ import {
   notifyCollectorStop,
   undoCollectorStop,
 } from "../../../lib/api";
+
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+const collectorIcon = L.divIcon({
+  html: `<div style="width: 32px; height: 32px; background-color: #E53E3E; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; pointer-events: none;">🚚</div>`,
+  className: "custom-collector-icon",
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+const stopIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const completedIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const depotIcon = L.divIcon({
+  html: `<div style="font-size: 28px; line-height: 1; display: flex; align-items: center; justify-content: center; pointer-events: none;">🏢</div>`,
+  className: "custom-depot-icon",
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
+
+function FitMapBounds({ points }) {
+  const map = useMap();
+  const lastPointsRef = useRef("");
+
+  useEffect(() => {
+    if (points && points.length > 0) {
+      const serialized = JSON.stringify(points);
+      if (lastPointsRef.current !== serialized) {
+        lastPointsRef.current = serialized;
+        const bounds = L.latLngBounds(points);
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+  }, [points, map]);
+  return null;
+}
 
 // Story 1.5-AC1: a standard set of reasons plus a mandatory-free-text "Other".
 const DELAY_TYPES = [
@@ -266,6 +332,36 @@ export default function CollectorRoutes() {
     return `00:${String(seconds).padStart(2, "0")}`;
   };
 
+  // Calculate direction arrows along the polyline path
+  const routeGeometry = route?.route_geometry || [];
+  const arrowInterval = 8; // Place an arrow every 8 coordinates
+  const pathArrows = [];
+
+  if (routeGeometry.length > 1) {
+    for (let i = 0; i < routeGeometry.length - 1; i += arrowInterval) {
+      const p1 = routeGeometry[i];
+      const p2 = routeGeometry[Math.min(i + 2, routeGeometry.length - 1)];
+      const lat1 = p1[0];
+      const lon1 = p1[1];
+      const lat2 = p2[0];
+      const lon2 = p2[1];
+
+      const midLat = (lat1 + lat2) / 2;
+      const midLon = (lon1 + lon2) / 2;
+
+      const dy = lat2 - lat1;
+      const dx = lon2 - lon1;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const rotation = -angle; // Convert to CSS rotation
+
+      pathArrows.push({
+        id: `arrow-${i}`,
+        position: [midLat, midLon],
+        rotation: rotation,
+      });
+    }
+  }
+
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col space-y-8 fade-in">
       {/* Section I — Field Operations */}
@@ -366,6 +462,129 @@ export default function CollectorRoutes() {
           </div>
         </Card>
       )}
+
+      {route &&
+        (route.collector_latitude || route.ordered_pickups.some((p) => p.pickup_latitude)) && (
+          <Card className="!p-4">
+            <div className="mb-3">
+              <h3 className="font-serif font-semibold text-[#1F3259]">Optimized Duty Route Map</h3>
+              <p className="text-xs text-gray-500">
+                Live optimized path connecting your assigned pickup stops.
+              </p>
+            </div>
+            <div
+              style={{ height: "350px", width: "100%", borderRadius: "8px", overflow: "hidden" }}
+              className="border border-gray-200 shadow-sm"
+            >
+              <MapContainer
+                center={
+                  route.collector_latitude
+                    ? [route.collector_latitude, route.collector_longitude]
+                    : [26.8467, 80.9462]
+                }
+                zoom={13}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                <FitMapBounds
+                  points={[
+                    ...(route.collector_latitude
+                      ? [[route.collector_latitude, route.collector_longitude]]
+                      : []),
+                    ...(route.depot_latitude
+                      ? [[route.depot_latitude, route.depot_longitude]]
+                      : []),
+                    ...route.ordered_pickups
+                      .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                      .map((p) => [p.pickup_latitude, p.pickup_longitude]),
+                  ]}
+                />
+
+                {route.depot_latitude && route.depot_longitude && (
+                  <Marker position={[route.depot_latitude, route.depot_longitude]} icon={depotIcon}>
+                    <Popup>
+                      <div className="text-xs font-semibold">Municipal Office (Depot)</div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {route.collector_latitude && route.collector_longitude && (
+                  <Marker
+                    position={[route.collector_latitude, route.collector_longitude]}
+                    icon={collectorIcon}
+                    zIndexOffset={1000}
+                  >
+                    <Popup>
+                      <div className="text-xs font-semibold">
+                        Your Location (Collector / Vehicle)
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {route.ordered_pickups
+                  .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                  .map((p) => {
+                    const isCollected =
+                      p.status === "COLLECTED" ||
+                      p.status === "VERIFIED" ||
+                      p.status === "CREDITED";
+                    return (
+                      <Marker
+                        key={p.id}
+                        position={[p.pickup_latitude, p.pickup_longitude]}
+                        icon={isCollected ? completedIcon : stopIcon}
+                      >
+                        <Popup>
+                          <div className="text-xs">
+                            <div className="font-semibold text-[#1F3259]">
+                              Stop #{p.pickup_order}: {p.citizen_name}
+                            </div>
+                            <div className="text-gray-500 mt-0.5">
+                              Ref: {p.ref_code} ({p.category})
+                            </div>
+                            <div className="text-gray-500">{p.pickup_address}</div>
+                            <div className="mt-1">
+                              <StatusPill status={p.status} />
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
+
+                {route.route_geometry && route.route_geometry.length > 0 && (
+                  <>
+                    <Polyline
+                      positions={route.route_geometry}
+                      color="#16214D"
+                      weight={4}
+                      opacity={0.8}
+                    />
+                    {pathArrows.map((arrow) => (
+                      <Marker
+                        key={arrow.id}
+                        position={arrow.position}
+                        icon={L.divIcon({
+                          html: `<div style="transform: rotate(${arrow.rotation}deg); font-size: 13px; color: #F2A93C; text-shadow: 0 0 3px #16214D, 0 0 1px #16214D; font-weight: bold; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; pointer-events: none;">➤</div>`,
+                          className: "custom-route-arrow-icon",
+                          iconSize: [14, 14],
+                          iconAnchor: [7, 7],
+                        })}
+                        interactive={false}
+                      />
+                    ))}
+                  </>
+                )}
+              </MapContainer>
+            </div>
+          </Card>
+        )}
 
       {loading && !route && (
         <div className="text-center py-12 text-gray-400">
