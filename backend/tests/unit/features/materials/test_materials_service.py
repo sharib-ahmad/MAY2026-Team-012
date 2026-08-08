@@ -101,7 +101,10 @@ def test_pickup_weight_without_actual_weight():
     assert weight == 10.0
 
 
-def test_build_batch_groups_with_enough_weight():
+def test_build_batch_groups_with_enough_weight(monkeypatch):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "BATCH_THRESHOLD_KG", 30.0)
     pickup1 = SimpleNamespace(estimated_weight=15.0, actual_weight=None)
     pickup2 = SimpleNamespace(estimated_weight=20.0, actual_weight=None)
     pickup3 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
@@ -112,7 +115,10 @@ def test_build_batch_groups_with_enough_weight():
     assert len(groups[0]) == 2
 
 
-def test_build_batch_groups_without_enough_weight():
+def test_build_batch_groups_without_enough_weight(monkeypatch):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "BATCH_THRESHOLD_KG", 30.0)
     pickup1 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
     pickup2 = SimpleNamespace(estimated_weight=5.0, actual_weight=None)
 
@@ -149,3 +155,14 @@ def test_resolve_collector_id_not_found():
 
     with pytest.raises(HTTPException):  # Should raise when no collector found
         _resolve_collector_id(db, zone_id, [pickup])
+
+
+def test_build_batch_groups_with_multiple_small_pickups():
+    pickup1 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+    pickup2 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+    pickup3 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+
+    groups = _build_batch_groups([pickup1, pickup2, pickup3])
+
+    assert len(groups) == 1
+    assert len(groups[0]) == 3

@@ -47,6 +47,46 @@ Local API documentation:
 http://localhost:8000/docs
 ```
 
+## Running Celery and Redis
+
+For daily collection scheduling, the application uses Celery with Redis as the message broker.
+
+### 1. Start Redis Broker
+
+Ensure Redis is installed and running.
+
+- **Using WSL/Ubuntu (Native)**:
+  ```bash
+  sudo service redis-server start
+  ```
+- **Using Docker Compose**:
+  If you prefer running Redis inside Docker, start the service:
+  ```bash
+  docker compose up -d redis
+  ```
+
+Make sure the `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` variables in your `.env` are configured correctly (defaults to `redis://localhost:6379/0`).
+
+### 2. Start Celery Worker
+
+Open a new terminal, activate the virtual environment, navigate to the `backend/` directory, and start the Celery worker process:
+
+```bash
+celery -A app.core.celery_app worker --loglevel=info
+```
+
+### 3. Start Celery Beat Scheduler
+
+Open another terminal, activate the virtual environment, navigate to the `backend/` directory, and start the Celery beat scheduler:
+
+```bash
+celery -A app.core.celery_app beat --loglevel=info
+```
+
+> [!NOTE]
+> For manual local testing and verification, the beat schedule is set to run every 300 seconds. For production, configure it to daily (`crontab(hour=0, minute=0)`) in `app/core/celery_app.py`.
+
+
 Windows PowerShell activation:
 
 ```powershell

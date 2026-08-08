@@ -62,12 +62,11 @@ def _build_batch_groups(pickups: list[Pickup]) -> list[list[Pickup]]:
 
         for pickup in sorted(remaining, key=_pickup_weight, reverse=True):
             weight = _pickup_weight(pickup)
-            if total + weight >= BATCH_THRESHOLD_KG or not group:
-                group.append(pickup)
-                total += weight
-                remaining.remove(pickup)
-                if total >= BATCH_THRESHOLD_KG:
-                    break
+            group.append(pickup)
+            total += weight
+            remaining.remove(pickup)
+            if total >= BATCH_THRESHOLD_KG:
+                break
 
         if total >= BATCH_THRESHOLD_KG:
             groups.append(group)
