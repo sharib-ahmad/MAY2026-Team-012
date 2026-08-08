@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import Pickup
 from app.features.credits.models import Credit, CreditFactor
@@ -23,8 +24,6 @@ from app.models.enums import (
     Role,
     UserStatus,
 )
-
-BATCH_THRESHOLD_KG = 10.0
 
 
 def _sync_bulk_pickup_status(db: Session, pickup: Pickup, status: BulkRequestStatus) -> None:
@@ -52,9 +51,10 @@ def _pickup_weight(pickup: Pickup) -> float:
 
 
 def _build_batch_groups(pickups: list[Pickup]) -> list[list[Pickup]]:
-    """Create batches when total weight reaches 30kg or more."""
+    """Create batches when total weight reaches BATCH_THRESHOLD_KG or more."""
     remaining = list(pickups)
     groups: list[list[Pickup]] = []
+    threshold = get_settings().BATCH_THRESHOLD_KG
 
     while remaining:
         group = []
@@ -62,14 +62,14 @@ def _build_batch_groups(pickups: list[Pickup]) -> list[list[Pickup]]:
 
         for pickup in sorted(remaining, key=_pickup_weight, reverse=True):
             weight = _pickup_weight(pickup)
-            if total + weight >= BATCH_THRESHOLD_KG or not group:
+            if total + weight >= threshold or not group:
                 group.append(pickup)
                 total += weight
                 remaining.remove(pickup)
-                if total >= BATCH_THRESHOLD_KG:
+                if total >= threshold:
                     break
 
-        if total >= BATCH_THRESHOLD_KG:
+        if total >= threshold:
             groups.append(group)
         else:
             break

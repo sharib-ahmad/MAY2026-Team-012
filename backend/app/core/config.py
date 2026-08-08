@@ -101,6 +101,7 @@ class Settings(DatabaseSettings):
 
     CREDIT_ROUNDING_DP: int = Field(default=2, ge=0, le=6)
     CO2_ROUNDING_DP: int = Field(default=3, ge=0, le=6)
+    BATCH_THRESHOLD_KG: float = Field(default=30.0, ge=0.1, le=1000.0)
 
     @field_validator("SECRET_KEY")
     @classmethod
