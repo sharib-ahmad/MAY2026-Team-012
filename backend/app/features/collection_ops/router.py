@@ -161,8 +161,16 @@ def _refresh_schedule_completion(schedule: DailyPickupSchedule, db: Session) -> 
 
 
 def _day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    from zoneinfo import ZoneInfo
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    tz = ZoneInfo(settings.PILOT_TIMEZONE)
     now = now or datetime.now(UTC)
-    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    local_now = now.astimezone(tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
 
 
@@ -224,6 +232,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
     changed = False
     for request in requests:
         ref_code = f"COL-{request.ref_code}"
+        req_start, _ = _day_bounds(request.requested_date)
         pickup = db.scalar(select(Pickup).where(Pickup.ref_code == ref_code))
         if pickup and db.scalar(
             select(DailyPickupStop.id)
@@ -231,7 +240,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             .where(
                 DailyPickupStop.pickup_id == pickup.id,
                 DailyPickupSchedule.collector_id == collector.id,
-                DailyPickupSchedule.schedule_date == request.requested_date,
+                DailyPickupSchedule.schedule_date == req_start,
                 DailyPickupSchedule.is_active.is_(True),
             )
         ):
@@ -261,7 +270,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             select(DailyPickupSchedule).where(
                 DailyPickupSchedule.collector_id == collector.id,
                 DailyPickupSchedule.zone_id == request.zone_id,
-                DailyPickupSchedule.schedule_date == request.requested_date,
+                DailyPickupSchedule.schedule_date == req_start,
                 DailyPickupSchedule.is_active.is_(True),
             )
         )
@@ -269,7 +278,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             schedule = DailyPickupSchedule(
                 collector_id=collector.id,
                 zone_id=request.zone_id,
-                schedule_date=request.requested_date,
+                schedule_date=req_start,
             )
             db.add(schedule)
             db.flush()

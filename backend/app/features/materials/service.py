@@ -24,7 +24,7 @@ from app.models.enums import (
     UserStatus,
 )
 
-BATCH_THRESHOLD_KG = 30.0
+BATCH_THRESHOLD_KG = 10.0
 
 
 def _sync_bulk_pickup_status(db: Session, pickup: Pickup, status: BulkRequestStatus) -> None:
