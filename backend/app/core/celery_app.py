@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from celery import Celery
 from sqlalchemy import select
@@ -36,7 +37,7 @@ celery_app.conf.beat_schedule = {
     "generate-daily-pickup-schedules": {
         "task": "app.core.celery_app.generate_daily_schedules",
         # For manual testing: runs every 5 minutes (300 seconds)
-        "schedule": 70.0,
+        "schedule": 300.0,
         # To set for 1 day or daily (production), use crontab instead:
         # "schedule": crontab(hour=0, minute=0),
     }
@@ -51,11 +52,9 @@ def generate_daily_schedules():
     engine = make_engine(settings.DATABASE_URL)
     session_factory = make_session_factory(engine)
 
-    # Convert now to the local timezone first to find local midnight, then cast back to UTC
-    from zoneinfo import ZoneInfo
-
-    tz = ZoneInfo(settings.PILOT_TIMEZONE)
-    local_now = datetime.now(tz)
+    # Use midnight of today in pilot local timezone converted to UTC
+    pilot_tz = ZoneInfo(settings.PILOT_TIMEZONE)
+    local_now = datetime.now(pilot_tz)
     local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_start = local_midnight.astimezone(UTC)
 
@@ -87,86 +86,9 @@ def generate_daily_schedules():
             today_end = today_start + timedelta(days=1)
 
             for collector in collectors:
-                # Reset BulkPickupRequests for today in this collector's ward to PENDING
-                # and clear today's schedules/stops/pickups to demonstrate
-                # re-assignment on each run. Exclude terminal/completed statuses to avoid
-                # destructive deletion of completed collections.
-                from app.features.collection_ops.models import (
-                    DailyPickupStop,
-                    DelayLog,
-                    MixedWasteTag,
-                    Pickup,
-                )
-                from app.models.enums import PickupStatus, PickupStopStatus
-
-                bulk_requests = db.scalars(
-                    select(BulkPickupRequest).where(
-                        BulkPickupRequest.zone_id == collector.zone_id,
-                        BulkPickupRequest.requested_date >= today_start,
-                        BulkPickupRequest.requested_date < today_end,
-                        BulkPickupRequest.status.notin_(
-                            [
-                                BulkRequestStatus.COLLECTED,
-                                BulkRequestStatus.RECYCLER_ASSIGNED,
-                                BulkRequestStatus.PROCESSING,
-                                BulkRequestStatus.PROCESSED,
-                                BulkRequestStatus.CANCELLED,
-                                BulkRequestStatus.EXPIRED,
-                                BulkRequestStatus.REJECTED,
-                            ]
-                        ),
-                    )
-                ).all()
-                for req in bulk_requests:
-                    req.status = BulkRequestStatus.PENDING
-                    req.assigned_collector_id = None
-                    req.decided_at = None
-
-                schedules = db.scalars(
-                    select(DailyPickupSchedule).where(
-                        DailyPickupSchedule.collector_id == collector.id,
-                        DailyPickupSchedule.schedule_date >= today_start,
-                        DailyPickupSchedule.schedule_date < today_end,
-                    )
-                ).all()
-                for sched in schedules:
-                    stops = db.scalars(
-                        select(DailyPickupStop).where(DailyPickupStop.schedule_id == sched.id)
-                    ).all()
-
-                    has_completed_stops = any(
-                        stop.status in (PickupStopStatus.COLLECTED, PickupStopStatus.SKIPPED)
-                        for stop in stops
-                    )
-
-                    for stop in stops:
-                        if stop.status in (PickupStopStatus.COLLECTED, PickupStopStatus.SKIPPED):
-                            continue
-
-                        delay_logs = db.scalars(
-                            select(DelayLog).where(DelayLog.stop_id == stop.id)
-                        ).all()
-                        for log in delay_logs:
-                            db.delete(log)
-                        tags = db.scalars(
-                            select(MixedWasteTag).where(MixedWasteTag.stop_id == stop.id)
-                        ).all()
-                        for tag in tags:
-                            db.delete(tag)
-
-                        pickup = db.scalar(select(Pickup).where(Pickup.id == stop.pickup_id))
-                        db.delete(stop)
-                        if pickup and pickup.status not in (
-                            PickupStatus.COLLECTED,
-                            PickupStatus.PROCESSED,
-                            PickupStatus.COMPLETED,
-                            PickupStatus.CANCELLED,
-                        ):
-                            db.delete(pickup)
-
-                    if not has_completed_stops:
-                        db.delete(sched)
-                db.flush()
+                # We no longer delete or reset assignments here to prevent changing stop UUIDs
+                # and breaking active routes/UI for collectors when the task runs periodically.
+                pass
 
                 # 1. Automatically assign any PENDING bulk pickup requests for today
                 # in this collector's ward to them

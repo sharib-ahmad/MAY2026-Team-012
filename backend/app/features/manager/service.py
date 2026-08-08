@@ -49,7 +49,16 @@ def get_managed_zone_ids(db: Session, manager: User) -> list:
 
 
 def _day_bounds(now: datetime) -> tuple[datetime, datetime]:
-    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    from zoneinfo import ZoneInfo
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
 
 

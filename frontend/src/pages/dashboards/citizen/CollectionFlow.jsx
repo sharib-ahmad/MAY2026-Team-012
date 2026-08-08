@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
-import { useAuth } from "../../../context/AuthContext";
+import { useEffect, useMemo, useState } from "react";
 import { Card, StatusPill } from "../../../components/UI";
 import { MapPin, CheckCircle2, Clock, User, Truck } from "lucide-react";
-import { getZoneFlow, getMyTodayStop } from "../../../lib/mockCitizenData";
+import { getUserDashboard } from "../../../lib/api";
 
 // Smooth a series of points into a single SVG path using Catmull-Rom -> Bezier.
 function smoothPath(points) {
@@ -30,10 +29,34 @@ const WAVE_AMPLITUDE = 55;
 const SVG_HEIGHT = 300;
 
 export default function CollectionFlow() {
-  const { user } = useAuth();
-  const flow = useMemo(() => getZoneFlow(user.id), [user.id]);
-  const myStop = useMemo(() => getMyTodayStop(user.id), [user.id]);
+  const [flow, setFlow] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
+
+  useEffect(() => {
+    getUserDashboard()
+      .then((data) => {
+        setFlow(data.flow);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const myStop = useMemo(() => {
+    if (!flow || !flow.stops) return null;
+    return flow.stops.find((s) => s.citizen_name === "You") || null;
+  }, [flow]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto text-center py-12 text-gray-500">
+        <Clock size={32} className="animate-spin mx-auto mb-2 opacity-50" />
+        <p>Loading collection flow...</p>
+      </div>
+    );
+  }
 
   if (!flow || flow.stops.length === 0) {
     return (
@@ -48,7 +71,8 @@ export default function CollectionFlow() {
 
   const completedCount = flow.stops.filter((s) => s.status === "COLLECTED").length;
   const pendingCount = flow.stops.filter((s) => s.status === "PENDING").length;
-  const completionPercentage = Math.round((completedCount / flow.total_stops) * 100);
+  const totalStops = flow.total_stops || flow.stops.length;
+  const completionPercentage = totalStops > 0 ? Math.round((completedCount / totalStops) * 100) : 0;
 
   const myStopIndex = myStop ? flow.stops.findIndex((s) => s.id === myStop.id) : -1;
   const pickupsBeforeMe = myStopIndex >= 0 ? myStopIndex : 0;
@@ -97,7 +121,7 @@ export default function CollectionFlow() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="!p-3 text-center">
-          <p className="text-2xl font-bold text-accent">{flow.total_stops}</p>
+          <p className="text-2xl font-bold text-accent">{totalStops}</p>
           <p className="text-xs text-gray-500">Total Pickups</p>
         </Card>
         <Card className="!p-3 text-center">

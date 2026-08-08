@@ -155,8 +155,17 @@ def get_dashboard(
     )
     total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)
 
+    from zoneinfo import ZoneInfo
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
     now = datetime.now(UTC)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = local_midnight.astimezone(UTC)
     tomorrow_start = today_start + timedelta(days=1)
     today_stops = (
         db.scalars(

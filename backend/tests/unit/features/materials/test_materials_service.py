@@ -155,3 +155,14 @@ def test_resolve_collector_id_not_found():
 
     with pytest.raises(HTTPException):  # Should raise when no collector found
         _resolve_collector_id(db, zone_id, [pickup])
+
+
+def test_build_batch_groups_with_multiple_small_pickups():
+    pickup1 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+    pickup2 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+    pickup3 = SimpleNamespace(estimated_weight=10.0, actual_weight=None)
+
+    groups = _build_batch_groups([pickup1, pickup2, pickup3])
+
+    assert len(groups) == 1
+    assert len(groups[0]) == 3

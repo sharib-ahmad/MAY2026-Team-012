@@ -163,12 +163,11 @@ def _refresh_schedule_completion(schedule: DailyPickupSchedule, db: Session) -> 
 def _day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
     from zoneinfo import ZoneInfo
 
-    from app.core.config import get_settings
-
     settings = get_settings()
-    tz = ZoneInfo(settings.PILOT_TIMEZONE)
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
     now = now or datetime.now(UTC)
-    local_now = now.astimezone(tz)
+    local_now = now.astimezone(pilot_tz)
     local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
@@ -232,8 +231,8 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
     changed = False
     for request in requests:
         ref_code = f"COL-{request.ref_code}"
-        req_start, _ = _day_bounds(request.requested_date)
         pickup = db.scalar(select(Pickup).where(Pickup.ref_code == ref_code))
+        req_start, _ = _day_bounds(request.requested_date)
         if pickup and db.scalar(
             select(DailyPickupStop.id)
             .join(DailyPickupStop.schedule)
