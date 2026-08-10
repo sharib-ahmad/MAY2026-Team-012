@@ -72,6 +72,12 @@ export default function ManagerDashboard() {
 
   const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
 
+  const refreshDashboard = () => {
+    getManagerDashboard()
+      .then(setDashboardData)
+      .catch(() => {});
+  };
+
   useEffect(() => {
     let active = true;
     getManagerDashboard()
@@ -355,7 +361,7 @@ export default function ManagerDashboard() {
                 Loading live ward operations data…
               </div>
             ) : (
-              <ActivePanel data={dashboardData} />
+              <ActivePanel data={dashboardData} onRefresh={refreshDashboard} />
             )}
           </div>
           <Footer />

@@ -6,7 +6,6 @@ import {
   Landmark,
   UserPlus,
   ScrollText,
-  BookOpen,
   Coins,
   Menu,
   ChevronDown,
@@ -17,7 +16,6 @@ import Accounts from "./admin/Accounts";
 import Wards from "./admin/Wards";
 import Logs from "./admin/Logs";
 import CreateAccount from "./admin/CreateAccount";
-import SortingGuideEditor from "./admin/SortingGuideEditor";
 import CreditRates from "./admin/CreditRates";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
@@ -31,7 +29,6 @@ const TABS = [
   { key: "wards", label: "Wards", icon: MapPin, component: Wards },
   { key: "logs", label: "Logs", icon: ScrollText, component: Logs },
   { key: "create", label: "Create Account", icon: UserPlus, component: CreateAccount },
-  { key: "sorting-guide", label: "Sorting Guide", icon: BookOpen, component: SortingGuideEditor },
   { key: "credit-rates", label: "Credit Rates", icon: Coins, component: CreditRates },
 ];
 
