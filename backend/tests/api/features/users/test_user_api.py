@@ -4,10 +4,18 @@ import pytest
 from fastapi import status
 from sqlalchemy import select
 
+from app.core.security import create_access_token, get_password_hash
 from app.features.notifications.models import Notification
 from app.features.users.models import User
 from app.models.audit import AuditLog
 from app.models.enums import Role, UserStatus
+
+# R1: both endpoints are citizen-only. Requests through them without a valid
+# citizen session must be rejected server-side, not merely hidden in the UI.
+CITIZEN_ONLY_ENDPOINTS = [
+    ("DELETE", "/api/v1/user/account", {"reason": "test"}),
+    ("POST", "/api/v1/user/chatbot/message", {"message": "hi", "history": []}),
+]
 
 
 @pytest.mark.integration
@@ -129,3 +137,35 @@ def test_chatbot_api_workflow(mock_execute_chatbot_turn, db_client, db, ward_a):
     assert len(data["history"]) == 2
     assert data["history"][0]["role"] == "user"
     assert data["history"][1]["role"] == "bot"
+
+
+@pytest.mark.security
+@pytest.mark.api
+@pytest.mark.parametrize("method,path,json_body", CITIZEN_ONLY_ENDPOINTS)
+def test_citizen_only_endpoints_reject_unauthenticated(db_client, method, path, json_body):
+    response = db_client.request(method, path, json=json_body)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.security
+@pytest.mark.api
+@pytest.mark.parametrize("method,path,json_body", CITIZEN_ONLY_ENDPOINTS)
+def test_citizen_only_endpoints_reject_non_citizen_role(
+    db_client, db, ward_a, method, path, json_body
+):
+    worker = User(
+        name="Wrong Role Worker",
+        email="wrong.role.worker@example.com",
+        password_hash=get_password_hash("password123"),
+        phone="+919876540099",
+        role=Role.COLLECTION_WORKER,
+        status=UserStatus.ACTIVE,
+        zone_id=ward_a.id,
+    )
+    db.add(worker)
+    db.commit()
+
+    token = create_access_token(worker.id, token_version=worker.token_version)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = db_client.request(method, path, json=json_body, headers=headers)
+    assert response.status_code == status.HTTP_403_FORBIDDEN

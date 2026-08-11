@@ -64,3 +64,41 @@ def test_delete_account_logic(mock_create_audit_log):
 
     db.commit.assert_called_once()
     assert res == {"status": "ok"}
+
+
+@patch("app.features.users.router.create_audit_log")
+def test_delete_account_without_zone_manager(mock_create_audit_log):
+    """PR-derived: a citizen whose zone has no assigned manager still gets
+    soft-deleted/anonymized correctly; the manager-notification step is a
+    no-op rather than a crash."""
+    db = MagicMock()
+    db.scalar.return_value = None  # zone exists but has no assigned manager
+
+    current_user = MagicMock(spec=User)
+    current_user.id = "fake-user-id"
+    current_user.name = "No Manager User"
+    current_user.email = "nomanager@example.com"
+    current_user.phone = "+919876543215"
+    current_user.zone_id = "fake-zone-id"
+    current_user.status = UserStatus.ACTIVE
+    current_user.token_version = 1
+    current_user.deleted_at = None
+    current_user.role.value = "CITIZEN"
+
+    payload = DeleteAccountRequest(reason="No longer needed")
+
+    res = delete_account(payload, current_user, db)
+
+    # Zone lookup happens, but no manager means no notification is created.
+    db.scalar.assert_called_once()
+    db.add.assert_not_called()
+
+    assert current_user.status == UserStatus.DISABLED
+    assert current_user.token_version == 2
+    assert current_user.deleted_at is not None
+    assert current_user.email.startswith("nomanager@example.com-deleted-")
+    assert current_user.phone.startswith("del-")
+
+    mock_create_audit_log.assert_called_once()
+    db.commit.assert_called_once()
+    assert res == {"status": "ok"}
