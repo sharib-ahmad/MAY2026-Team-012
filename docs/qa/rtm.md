@@ -32,6 +32,42 @@ canonical inventory (`endpoint-inventory.md`). Route optimisation is
 
 ---
 
+## Reconciliation against `api-doc.yaml` (docs/sprint1-2-openapi-final)
+
+The `Endpoint (canonical)` column in Part A below records the **original,
+pre-implementation API proposal**. It was written before Sprint 1/2
+implementation and was never updated afterward — several proposed paths were
+never built as named, and several implemented paths were never proposed under
+these names. **`api-doc.yaml` is the authoritative source for what actually
+ships on `main`; this table's endpoint column should not be relied on for that
+purpose.** Individual `Status` values are not affected — they already read
+`Planned`, not `Implemented`/`Tested`, so no row here asserts something false.
+
+Concrete divergences found while reconciling `api-doc.yaml` against `main`
+(see that file's `x-traceability` and per-operation descriptions for full
+detail):
+
+| Area | This table proposed | `main` actually implements |
+|---|---|---|
+| 1.1 Schedule look-up | `GET /api/v1/schedules` (ward-code search, no login) | No such endpoint exists. `GET /api/v1/user/daily-pickup-schedules` returns the *authenticated citizen's own* stops only — no ward-code search. |
+| 1.4 / 7.2 / 7.3 Route, map, optimise | `GET /api/v1/routes/me`, `PATCH /api/v1/route-stops/{id}/progress`, `POST /api/v1/routes/me/optimize` | One combined `GET /api/v1/collector/route` (optimises via OpenRouteService on every call — no separate "Optimize" action, no minimum-point guard); stop actions are `POST /api/v1/collector/stops/{id}/complete`\|`undo`\|`notify`\|`flag`\|`clean`. |
+| 1.5 Delay log | `POST /api/v1/route-stops/{id}/delays` | `POST /api/v1/collector/stops/{id}/notify` |
+| 3.1 Sorting guide | `GET /api/v1/sorting-guide`, `PUT /api/v1/admin/sorting-guide` | Not implemented — `sorting_guide/router.py` is an empty stub. No sorting-guide endpoint exists at all. |
+| 3.2 Waste issues | `POST /api/v1/route-stops/{id}/waste-issues`, `GET /api/v1/waste-issues` | `POST /api/v1/collector/stops/{id}/flag`; there is no standalone list endpoint — flags surface in `GET /api/v1/manager/dashboard`'s `mixed_waste_flags`. |
+| 2.1/2.2/2.3 Complaints | `POST/GET /api/v1/complaints`, `PATCH /api/v1/complaints/{id}/resolution` | `POST/GET /api/v1/complaints/tickets` (also mounted at `/api/v1/user/tickets`); resolution is `PATCH /api/v1/manager/tickets/{id}`. No server-side "Aging" flag or pagination on the officer grid. |
+| 4.1/4.2/4.3 Material batches | Open, filterable `GET /api/v1/material-batches`, recycler `.../claim`, `PATCH .../quality`, `PATCH .../pickup-status` | Manager-push model only: `GET /api/v1/manager/batches`, `POST /api/v1/manager/batches/{id}/assign`, `GET /api/v1/recycler/batches`, `.../accept`, `.../reject`, `.../process`. There is no recycler "claim" action and **no endpoint at all** to set batch quality status or a granular pickup-status transition. |
+| 6.1/6.2/6.3/6.4 Reuse | `POST/PATCH /api/v1/reuse-listings`, `POST/PATCH /api/v1/reuse-claims/{id}` | `/api/v1/reuse/donations` and `/api/v1/reuse/claims` naming throughout (e.g. `POST /api/v1/reuse/donations`, `POST /api/v1/reuse/donations/{id}/review`, `POST /api/v1/reuse/claims/{id}/review`). `GET /api/v1/reuse/shelf` requires citizen login — AC1's "no login to view" is not implemented. |
+| 7.1 Location registration | `PUT /api/v1/users/me/location` | Not implemented — no endpoint updates a citizen's coordinates after registration. |
+| 8.1/8.2/8.3 Credits & badges | `GET /api/v1/credits/me`, `GET /api/v1/badges`, `GET /api/v1/badges/me`, `PATCH /api/v1/pickups/{id}/verification`, `PUT /api/v1/admin/credit-factors/{category}` | Credits/badges are read-only fields inside `GET /api/v1/user/impact` and `GET /api/v1/user/dashboard` — no dedicated endpoints. Credit factor config is real, at `GET`/`PATCH /api/v1/admin/credit-factors/{category}`. Credit award triggers on recycler batch *processing* (`POST /api/v1/recycler/batches/{id}/process`), not on pickup completion; no `actual_weight` entry point exists; badges are computed live from hardcoded thresholds, never persisted to the `badges`/`user_badges` tables. |
+
+Story 5.1 and platform/auth rows are broadly accurate against `main` (paths
+differ only in that `POST /api/v1/admin/users` also has a role-restricted
+sibling `POST /api/v1/admin/account`, and a public, unauthenticated
+`POST /api/v1/auth/register` exists outside this table — see
+`docs/qa/defect-log.md` DEF-004 for its authorization defect).
+
+---
+
 ## Part A — Master RTM (all 137 criteria)
 
 | Story | AC | Kind (from source) | Endpoint (canonical) | Type | Sprint | Status |
