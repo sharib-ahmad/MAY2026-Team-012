@@ -101,14 +101,21 @@ export default function CollectorDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#16214D] shrink-0">
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="text-base sm:text-lg font-semibold tracking-wide text-white">
-              ◈Verdeza◈
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold text-[#16214D] shrink-0">
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="text-base sm:text-lg font-semibold tracking-wide text-white">
+                ◈Verdeza◈
+              </div>
+              <div className="text-[10px] sm:text-xs text-white/60">Collector Portal</div>
             </div>
-            <div className="text-[10px] sm:text-xs text-white/60">Collector Portal</div>
           </div>
         </div>
 

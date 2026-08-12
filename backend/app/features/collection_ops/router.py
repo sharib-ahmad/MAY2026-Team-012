@@ -1,3 +1,5 @@
+import logging
+import math
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -5,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import case, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
@@ -14,6 +17,7 @@ from app.features.collection_ops.models import (
     MixedWasteTag,
     Pickup,
 )
+from app.features.collection_ops.ors_client import ORSClient
 from app.features.collection_ops.schemas import (
     CollectorRouteResponse,
     CollectorStopResponse,
@@ -22,24 +26,38 @@ from app.features.collection_ops.schemas import (
     MixedWasteRequest,
 )
 from app.features.manager.service import notify_zone_managers
+from app.features.materials.service import pool_and_maybe_create_batches
 from app.features.notifications.models import Notification
 from app.features.notifications.service import list_for_user, mark_read
-from app.features.users.dependencies import require_collector, require_resident
+from app.features.users.dependencies import require_citizen, require_collector
 from app.features.users.models import User
 from app.models.enums import BulkRequestStatus, PickupStatus, PickupStopStatus, WasteSeverity
 
-router = APIRouter(tags=["Resident Collection Schedules"])
+
+def _calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
+
+router = APIRouter(tags=["Citizen Collection Schedules"])
 collector_router = APIRouter(prefix="/collector", tags=["Collector Operations"])
 
 
 @router.get("/daily-pickup-schedules", response_model=list[DailyPickupScheduleResponse])
 def list_daily_pickup_schedules(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> list[DailyPickupScheduleResponse]:
     stops = (
         db.scalars(
             select(DailyPickupStop)
-            .where(DailyPickupStop.resident_id == current_user.id)
+            .where(DailyPickupStop.citizen_id == current_user.id)
             .join(DailyPickupStop.schedule)
             .options(joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.collector))
             .order_by(DailyPickupSchedule.schedule_date.desc())
@@ -69,7 +87,7 @@ def _collector_stop(
         ref_code=stop.pickup.ref_code,
         status=stop.status.value,
         pickup_order=pickup_order if pickup_order is not None else stop.pickup_order,
-        resident_name=stop.resident.name,
+        citizen_name=stop.citizen.name,
         category=stop.pickup.category,
         estimated_weight=float(stop.pickup.estimated_weight),
         pickup_address=stop.notes,
@@ -92,7 +110,7 @@ def _bulk_pickup_response(
         ref_code=pickup.ref_code,
         status=pickup.status.value,
         pickup_order=pickup_order,
-        resident_name=pickup.requester.name,
+        citizen_name=pickup.requester.name,
         category=pickup.category,
         estimated_weight=float(pickup.estimated_weight or 0),
         pickup_address=pickup.notes,
@@ -134,7 +152,7 @@ def _owned_stop(db: Session, stop_id: UUID, collector_id: UUID) -> DailyPickupSt
         )
         .options(
             joinedload(DailyPickupStop.pickup),
-            joinedload(DailyPickupStop.resident),
+            joinedload(DailyPickupStop.citizen),
             joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
         )
     )
@@ -157,8 +175,15 @@ def _refresh_schedule_completion(schedule: DailyPickupSchedule, db: Session) -> 
 
 
 def _day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    from zoneinfo import ZoneInfo
+
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
     now = now or datetime.now(UTC)
-    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
 
 
@@ -221,13 +246,14 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
     for request in requests:
         ref_code = f"COL-{request.ref_code}"
         pickup = db.scalar(select(Pickup).where(Pickup.ref_code == ref_code))
+        req_start, _ = _day_bounds(request.requested_date)
         if pickup and db.scalar(
             select(DailyPickupStop.id)
             .join(DailyPickupStop.schedule)
             .where(
                 DailyPickupStop.pickup_id == pickup.id,
                 DailyPickupSchedule.collector_id == collector.id,
-                DailyPickupSchedule.schedule_date == request.requested_date,
+                DailyPickupSchedule.schedule_date == req_start,
                 DailyPickupSchedule.is_active.is_(True),
             )
         ):
@@ -235,7 +261,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
         if not pickup:
             pickup = Pickup(
                 ref_code=ref_code,
-                resident_id=request.requester_id,
+                citizen_id=request.requester_id,
                 collector_id=collector.id,
                 zone_id=request.zone_id,
                 category=request.category,
@@ -257,7 +283,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             select(DailyPickupSchedule).where(
                 DailyPickupSchedule.collector_id == collector.id,
                 DailyPickupSchedule.zone_id == request.zone_id,
-                DailyPickupSchedule.schedule_date == request.requested_date,
+                DailyPickupSchedule.schedule_date == req_start,
                 DailyPickupSchedule.is_active.is_(True),
             )
         )
@@ -265,7 +291,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             schedule = DailyPickupSchedule(
                 collector_id=collector.id,
                 zone_id=request.zone_id,
-                schedule_date=request.requested_date,
+                schedule_date=req_start,
             )
             db.add(schedule)
             db.flush()
@@ -274,7 +300,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
             DailyPickupStop(
                 pickup_id=pickup.id,
                 schedule_id=schedule.id,
-                resident_id=request.requester_id,
+                citizen_id=request.requester_id,
                 pickup_order=schedule.total_stops,
                 status=PickupStopStatus.PENDING,
                 latitude=request.requester.latitude,
@@ -309,7 +335,7 @@ def get_collector_route(
             )
             .options(
                 joinedload(DailyPickupStop.pickup),
-                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.citizen),
                 joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
                 joinedload(DailyPickupStop.mixed_waste_tags),
             )
@@ -322,22 +348,182 @@ def get_collector_route(
         .unique()
         .all()
     )
+    # Separate pending and completed stops
+    pending_stops = [s for s in stops if s.status != PickupStopStatus.COLLECTED]
+    completed_stops = [s for s in stops if s.status == PickupStopStatus.COLLECTED]
+
+    # Depot location is the collector's registered coordinates
+    depot_coords = None
+    if current_user.latitude is not None and current_user.longitude is not None:
+        depot_coords = (current_user.latitude, current_user.longitude)
+
+    # Start coordinates default to depot_coords
+    start_coords = depot_coords
+
+    # If the collector has completed one or more stops, set start_coords
+    # to the last completed stop's coordinates
+    if completed_stops:
+        completed_with_coords = [
+            s
+            for s in completed_stops
+            if s.completed_at is not None and s.latitude is not None and s.longitude is not None
+        ]
+        if completed_with_coords:
+            # Sort by completed_at desc to find the most recent completed stop
+            completed_with_coords.sort(key=lambda s: s.completed_at, reverse=True)
+            last_completed = completed_with_coords[0]
+            start_coords = (last_completed.latitude, last_completed.longitude)
+
+    pending_with_coords = [
+        s for s in pending_stops if s.latitude is not None and s.longitude is not None
+    ]
+    pending_no_coords = [s for s in pending_stops if s.latitude is None or s.longitude is None]
+
+    if start_coords is None and pending_with_coords:
+        start_coords = (pending_with_coords[0].latitude, pending_with_coords[0].longitude)
+
+    if depot_coords is None:
+        depot_coords = start_coords
+
+    route_geometry = None
+    optimized_pending = list(pending_stops)
+    ors_success = False
+
+    if start_coords is not None and pending_with_coords:
+        settings = get_settings()
+        api_key = settings.ORS_API_KEY
+
+        if api_key:
+            client = ORSClient(api_key=api_key)
+            try:
+                stop_coords = [(s.latitude, s.longitude) for s in pending_with_coords]
+                res = client.optimize_route(start_coords, stop_coords, end_coords=depot_coords)
+                optimized_indices = res["optimized_indices"]
+                route_geometry = res["geometry"]
+
+                # Reorder pending_with_coords based on optimization result
+                sorted_coords_stops = [pending_with_coords[i] for i in optimized_indices]
+
+                # If some stops are unassigned or missed by ORS, append them
+                visited_ids = {s.id for s in sorted_coords_stops}
+                for s in pending_with_coords:
+                    if s.id not in visited_ids:
+                        sorted_coords_stops.append(s)
+
+                pending_with_coords = sorted_coords_stops
+                ors_success = True
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    f"ORS route optimization failed, falling back: {e}"
+                )
+
+        # Fallback to Nearest Neighbor if ORS was not run or failed
+        if not ors_success:
+            unvisited = list(pending_with_coords)
+            sorted_stops = []
+            current = start_coords
+            geometry_coords = [list(start_coords)]
+
+            while unvisited:
+                nearest_stop = None
+                min_dist = float("inf")
+                for s in unvisited:
+                    dist = (s.latitude - current[0]) ** 2 + (s.longitude - current[1]) ** 2
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_stop = s
+
+                if nearest_stop is None:
+                    sorted_stops.extend(unvisited)
+                    break
+
+                sorted_stops.append(nearest_stop)
+                unvisited.remove(nearest_stop)
+                current = (nearest_stop.latitude, nearest_stop.longitude)
+                geometry_coords.append([nearest_stop.latitude, nearest_stop.longitude])
+
+            # Return to depot coords at the end of the route to complete the depot loop
+            if geometry_coords and len(geometry_coords) > 1 and depot_coords is not None:
+                geometry_coords.append(list(depot_coords))
+
+            pending_with_coords = sorted_stops
+            route_geometry = geometry_coords
+
+        # Ensure the geometry completes the loop back to the depot
+        if route_geometry and depot_coords is not None:
+            last_coord = route_geometry[-1]
+            dist_sq = (last_coord[0] - depot_coords[0]) ** 2 + (
+                last_coord[1] - depot_coords[1]
+            ) ** 2
+            if dist_sq > 1e-6:
+                route_geometry.append(list(depot_coords))
+
+        optimized_pending = pending_with_coords + pending_no_coords
+
+        # Persist updated pickup_order in the database
+        order_changed = False
+        for index, stop in enumerate(optimized_pending, start=1):
+            if stop.pickup_order != index:
+                stop.pickup_order = index
+                order_changed = True
+
+        for index, stop in enumerate(completed_stops, start=len(optimized_pending) + 1):
+            if stop.pickup_order != index:
+                stop.pickup_order = index
+                order_changed = True
+
+        if order_changed:
+            db.commit()
+
+        # Re-assemble stops list in the optimized/persisted order
+        stops = optimized_pending + completed_stops
+
     zone_name = (
         f"{stops[0].schedule.zone.code} - {stops[0].schedule.zone.name}"
         if stops
         else "No assigned zone"
     )
+
+    is_degraded = not ors_success if (start_coords is not None and pending_with_coords) else False
+    degraded_notice = (
+        "Road routing service unavailable. Degraded fallback route is active."
+        if is_degraded
+        else None
+    )
+
+    total_distance_km = 0.0
+    if route_geometry and len(route_geometry) > 1:
+        for i in range(len(route_geometry) - 1):
+            p1 = route_geometry[i]
+            p2 = route_geometry[i + 1]
+            total_distance_km += _calculate_haversine_distance(p1[0], p1[1], p2[0], p2[1])
+    total_distance_km = round(total_distance_km, 2)
+
+    if total_distance_km > 0:
+        estimated_duration_min = round(
+            (total_distance_km / 25.0) * 60.0 + len(pending_stops) * 3.0, 1
+        )
+    else:
+        estimated_duration_min = 0.0
+
     return CollectorRouteResponse(
         schedule_id=stops[0].schedule_id if stops else None,
         zone_name=zone_name,
         pickup_count=len(stops),
         completed_count=sum(stop.status == PickupStopStatus.COLLECTED for stop in stops),
         flagged_count=sum(bool(stop.mixed_waste_tags) for stop in stops),
-        collector_latitude=current_user.latitude,
-        collector_longitude=current_user.longitude,
+        collector_latitude=start_coords[0] if start_coords else current_user.latitude,
+        collector_longitude=start_coords[1] if start_coords else current_user.longitude,
+        depot_latitude=current_user.latitude,
+        depot_longitude=current_user.longitude,
+        route_geometry=route_geometry,
         ordered_pickups=[
             _collector_stop(stop, pickup_order=index) for index, stop in enumerate(stops, start=1)
         ],
+        total_distance_km=total_distance_km,
+        estimated_duration_min=estimated_duration_min,
+        is_degraded=is_degraded,
+        degraded_notice=degraded_notice,
     )
 
 
@@ -356,11 +542,12 @@ def complete_stop(
     _refresh_schedule_completion(stop.schedule, db)
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup collected",
             body=f"{stop.pickup.ref_code} was collected.",
         )
     )
+    pool_and_maybe_create_batches(db, stop.schedule.zone_id)
     db.commit()
     db.refresh(stop)
     return _collector_stop(stop)
@@ -412,7 +599,7 @@ def list_completed_collections(
             )
             .options(
                 joinedload(DailyPickupStop.pickup),
-                joinedload(DailyPickupStop.resident),
+                joinedload(DailyPickupStop.citizen),
                 joinedload(DailyPickupStop.schedule).joinedload(DailyPickupSchedule.zone),
                 joinedload(DailyPickupStop.mixed_waste_tags),
             )
@@ -425,7 +612,7 @@ def list_completed_collections(
 
 
 @collector_router.post("/stops/{stop_id}/notify")
-def notify_resident_of_delay(
+def notify_citizen_of_delay(
     stop_id: UUID,
     payload: DelayStopRequest,
     current_user: User = Depends(require_collector),
@@ -444,13 +631,13 @@ def notify_resident_of_delay(
     )
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup update",
             body=payload.message.strip(),
         )
     )
     db.commit()
-    return {"message": "Resident notified."}
+    return {"message": "Citizen notified."}
 
 
 @collector_router.post("/stops/{stop_id}/flag")
@@ -487,7 +674,7 @@ def flag_mixed_waste(
     )
     db.add(
         Notification(
-            user_id=stop.resident_id,
+            user_id=stop.citizen_id,
             title="Pickup completed with a waste-quality flag",
             body=f"{stop.pickup.ref_code} was collected and needs a waste-quality review.",
         )
@@ -501,6 +688,7 @@ def flag_mixed_waste(
             f"by {current_user.name}."
         ),
     )
+    pool_and_maybe_create_batches(db, stop.schedule.zone_id)
     db.commit()
     return {"message": "Flag recorded for manager review."}
 

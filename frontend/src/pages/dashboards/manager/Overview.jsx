@@ -1,7 +1,6 @@
 import { AlertCircle, AlertTriangle, BadgeCheck, MapPinned, Users } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { ClusteredBarChartCard } from "../../../components/UI";
-import DATA from "../../../data/municipal_officer_data.json";
 import { listMixedWasteFlags } from "../../../lib/mockCollectorData";
 import { Section, SeverityPill } from "./shared";
 import { formatDate } from "./format";
@@ -10,20 +9,6 @@ import { formatDate } from "./format";
 const GOLD = "#B8860B";
 const OLIVE = "#3F5426";
 const THEME = "#14171F"; // hero card — matches the dashboard shell's single theme color
-
-const openByWard = DATA.wards.map((w) => ({
-  ward: w.code,
-  open: DATA.complaints.filter((c) => c.ward_code === w.code && c.status !== "RESOLVED").length,
-}));
-void openByWard;
-
-// Escalated first, then high-severity open tickets — the queue an
-// officer should look at before anything else.
-const needsAttention = DATA.complaints
-  .filter((c) => c.status === "ESCALATED" || (c.status !== "RESOLVED" && c.severity === "HIGH"))
-  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-  .slice(0, 5);
-void needsAttention;
 
 // Story 3.2-AC3: Hazardous mixed-waste flags need to appear prominently
 // and take priority over Routine ones for officer review.
@@ -124,10 +109,14 @@ export default function Overview({ data }) {
           ]}
         />
         <ClusteredBarChartCard
-          title="Open complaints by ward"
+          title="Complaints by ward — open vs resolved"
           data={openByWardLive}
           nameKey="ward"
-          bars={[{ key: "open", name: "Open complaints", color: GOLD }]}
+          bars={[
+            { key: "open", name: "Open", color: GOLD },
+            { key: "resolved", name: "Resolved", color: OLIVE },
+          ]}
+          isStacked={true}
         />
       </div>
 

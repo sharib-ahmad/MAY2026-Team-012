@@ -85,6 +85,9 @@ class Settings(DatabaseSettings):
     """Complete FastAPI application configuration."""
 
     SECRET_KEY: str = Field(default="")
+    ORS_API_KEY: str = Field(default="")
+    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/0")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=480, ge=5, le=1440)
     ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
 
@@ -98,6 +101,7 @@ class Settings(DatabaseSettings):
 
     CREDIT_ROUNDING_DP: int = Field(default=2, ge=0, le=6)
     CO2_ROUNDING_DP: int = Field(default=3, ge=0, le=6)
+    BATCH_THRESHOLD_KG: float = Field(default=30.0, ge=0.1, le=1000.0)
 
     @field_validator("SECRET_KEY")
     @classmethod

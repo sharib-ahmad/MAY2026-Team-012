@@ -180,7 +180,7 @@ function greeting() {
 
 const HERO_SLIDES = [heroSortingLine, heroPaperConveyor, heroBaledMaterials];
 
-// Mirrors the resident portal's welcome banner (greeting + CTA over a
+// Mirrors the citizen portal's welcome banner (greeting + CTA over a
 // photo, with dot indicators bottom-right) — same interaction pattern,
 // recycler's own facility photos and single brand color for overlay/dots.
 function HeroBanner({ name, onBrowseCommunityShelf }) {

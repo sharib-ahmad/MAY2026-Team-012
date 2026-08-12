@@ -28,26 +28,11 @@ router = APIRouter(tags=["Authentication"])
 # Map frontend roles to database Role enums
 ROLE_MAP_FRONTEND_TO_DB = {
     "CITIZEN": Role.CITIZEN,
-    "RESIDENT": Role.CITIZEN,
     "COLLECTOR": Role.COLLECTION_WORKER,
     "RECYCLER": Role.RECYCLER,
     "MANAGER": Role.MUNICIPAL_OFFICER,
     "ADMIN": Role.SYSTEM_ADMIN,
 }
-
-LEGACY_ROLE_MAP_DB_TO_FRONTEND = {
-    Role.CITIZEN: "RESIDENT",
-    Role.COLLECTION_WORKER: "COLLECTOR",
-    Role.RECYCLER: "RECYCLER",
-    Role.MUNICIPAL_OFFICER: "MANAGER",
-    Role.SYSTEM_ADMIN: "ADMIN",
-}
-
-
-def _response_role(role: Role, legacy: bool = False) -> str:
-    """Return the documented role, preserving deprecated root-route responses."""
-    mapping = LEGACY_ROLE_MAP_DB_TO_FRONTEND if legacy else ROLE_MAP_DB_TO_FRONTEND
-    return mapping.get(role, role.name)
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -133,19 +118,22 @@ def register(request: UserRegisterRequest, req: Request, db: Session = Depends(g
         # Completely ignore audit logging errors - don't affect registration
         pass
 
-    # Find ward code if user is associated with a zone
+    # Find ward code and zone name if user is associated with a zone
     ward_code = None
+    zone_name = None
     if user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     auth_user = AuthenticatedUser(
         id=user.id,
         name=user.name,
         email=user.email,
-        role=_response_role(user.role, legacy=not req.url.path.startswith("/api/v1/auth/")),
+        role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )
 
     return {
@@ -214,19 +202,22 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
         # Completely ignore audit logging errors - don't affect login
         pass
 
-    # Find ward code
+    # Find ward code and zone name
     ward_code = None
+    zone_name = None
     if user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     auth_user = AuthenticatedUser(
         id=user.id,
         name=user.name,
         email=user.email,
-        role=_response_role(user.role, legacy=not req.url.path.startswith("/api/v1/auth/")),
+        role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )
 
     return {
@@ -239,24 +230,23 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
 
 @router.get("/me", response_model=AuthenticatedUser)
 def get_me(
-    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
     """Return the authenticated caller's profile details."""
     ward_code = None
+    zone_name = None
     if current_user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == current_user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == current_user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     return AuthenticatedUser(
         id=current_user.id,
         name=current_user.name,
         email=current_user.email,
-        role=_response_role(
-            current_user.role,
-            legacy=not request.url.path.startswith("/api/v1/auth/"),
-        ),
+        role=ROLE_MAP_DB_TO_FRONTEND.get(current_user.role, current_user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )

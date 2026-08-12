@@ -2,10 +2,12 @@
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
     DailyPickupSchedule,
@@ -49,7 +51,12 @@ def get_managed_zone_ids(db: Session, manager: User) -> list:
 
 
 def _day_bounds(now: datetime) -> tuple[datetime, datetime]:
-    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
 
 
@@ -270,8 +277,8 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
             "id": str(ticket.id),
             "ref_code": ticket.ref_code,
             "ward_code": ticket.zone.code if ticket.zone else "Unassigned",
-            "citizen_name": ticket.raised_by.name if ticket.raised_by else "Unknown resident",
-            "citizen_type": "RESIDENT",
+            "citizen_name": ticket.raised_by.name if ticket.raised_by else "Unknown citizen",
+            "citizen_type": "CITIZEN",
             "issue_type": ticket.issue_type.value,
             "severity": _ticket_severity(ticket),
             "status": ticket.status.value,
@@ -287,6 +294,13 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         db.execute(
             select(Ticket.zone_id, func.count(Ticket.id))
             .where(Ticket.status.in_(OPEN_TICKET_STATUSES))
+            .group_by(Ticket.zone_id)
+        ).all()
+    )
+    all_resolved_counts = dict(
+        db.execute(
+            select(Ticket.zone_id, func.count(Ticket.id))
+            .where(Ticket.status == TicketStatus.RESOLVED)
             .group_by(Ticket.zone_id)
         ).all()
     )
@@ -320,16 +334,23 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
             }
         )
 
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+
     filed_by_day: dict[datetime.date, int] = defaultdict(int)
     resolved_by_day: dict[datetime.date, int] = defaultdict(int)
     for ticket in tickets:
+        local_created = ticket.created_at.astimezone(pilot_tz)
         if ticket.created_at >= today_start - timedelta(days=6):
-            filed_by_day[ticket.created_at.date()] += 1
+            filed_by_day[local_created.date()] += 1
         if ticket.resolved_at and ticket.resolved_at >= today_start - timedelta(days=6):
-            resolved_by_day[ticket.resolved_at.date()] += 1
+            local_resolved = ticket.resolved_at.astimezone(pilot_tz)
+            resolved_by_day[local_resolved.date()] += 1
     trend = []
+    local_today = now.astimezone(pilot_tz).date()
     for days_ago in range(6, -1, -1):
-        day = (today_start - timedelta(days=days_ago)).date()
+        day = local_today - timedelta(days=days_ago)
         trend.append(
             {
                 "day": day.strftime("%a"),
@@ -411,7 +432,12 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         "complaints_trend": trend,
         "routes": route_rows,
         "all_ward_open_complaints": [
-            {"ward": zone.code, "open": all_open_counts.get(zone.id, 0)} for zone in all_zones
+            {
+                "ward": zone.code,
+                "open": all_open_counts.get(zone.id, 0),
+                "resolved": all_resolved_counts.get(zone.id, 0),
+            }
+            for zone in all_zones
         ],
         "delay_logs": [
             {
@@ -443,7 +469,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "id": str(request.id),
                 "ref_code": request.ref_code,
                 "ward_code": request.zone.code,
-                "resident_name": request.requester.name,
+                "citizen_name": request.requester.name,
                 "requested_date": request.requested_date,
                 "time_slot": request.time_slot,
                 "estimated_weight": float(request.estimated_weight or 0),

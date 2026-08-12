@@ -174,3 +174,16 @@ class LogsResponse(BaseModel):
 
     logs: list[LogEntry]
     total: int
+
+
+class CreditFactorResponse(BaseModel):
+    category: str
+    category_label: str
+    credit_rate: float
+    co2_factor: float
+    description: str | None = None
+
+
+class CreditFactorUpdate(AdminRequest):
+    credit_rate: float = Field(ge=0, le=100_000)
+    co2_factor: float = Field(ge=0, le=100_000)

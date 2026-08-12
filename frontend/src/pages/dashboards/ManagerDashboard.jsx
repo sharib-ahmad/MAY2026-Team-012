@@ -5,11 +5,13 @@ import {
   Landmark,
   LogOut,
   MapPinned,
+  Recycle,
   Users,
   Menu,
   Bell,
   ChevronDown,
   User,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import Footer from "../../components/Footer";
@@ -17,6 +19,8 @@ import Overview from "./manager/Overview";
 import Complaints from "./manager/Complaints";
 import BulkCollections from "./manager/BulkCollections";
 import CrewManagement from "./manager/CrewManagement";
+import BatchManagement from "./manager/BatchManagement";
+import Donations from "./manager/Donations";
 import { getManagerDashboard, markManagerNotificationsRead } from "../../lib/api";
 
 // Shell mirrors the recycler portal's app frame — sticky top bar +
@@ -38,6 +42,18 @@ const TABS = [
   },
   { key: "complaints", label: "Complaints", icon: AlertCircle, component: Complaints },
   { key: "crew-management", label: "Crew management", icon: Users, component: CrewManagement },
+  {
+    key: "batch-management",
+    label: "Batch management",
+    icon: Recycle,
+    component: BatchManagement,
+  },
+  {
+    key: "donations",
+    label: "Donations Shelf",
+    icon: Gift,
+    component: Donations,
+  },
 ];
 
 const RAIL = "#14171F"; // single theme color — top bar & sidebar
@@ -55,6 +71,12 @@ export default function ManagerDashboard() {
   const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
 
   const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
+
+  const refreshDashboard = () => {
+    getManagerDashboard()
+      .then(setDashboardData)
+      .catch(() => {});
+  };
 
   useEffect(() => {
     let active = true;
@@ -74,11 +96,16 @@ export default function ManagerDashboard() {
 
   const notifications = useMemo(
     () =>
-      (dashboardData?.notifications || []).map((notification) => ({
-        ...notification,
-        tab: notification.title.toLowerCase().includes("complaint") ? "complaints" : "overview",
-        icon: notification.title.toLowerCase().includes("complaint") ? AlertCircle : MapPinned,
-      })),
+      (dashboardData?.notifications || []).map((notification) => {
+        const title = notification.title.toLowerCase();
+        const isBatch = title.includes("batch");
+        const isComplaint = title.includes("complaint");
+        return {
+          ...notification,
+          tab: isBatch ? "batch-management" : isComplaint ? "complaints" : "overview",
+          icon: isBatch ? Recycle : isComplaint ? AlertCircle : MapPinned,
+        };
+      }),
     [dashboardData]
   );
 
@@ -118,15 +145,22 @@ export default function ManagerDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
-            style={{ color: RAIL }}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
           >
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="font-semibold text-white">Verdeza</div>
-            <div className="text-[11px] text-white/60">Municipal Operations</div>
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 font-display text-lg font-bold shrink-0"
+              style={{ color: RAIL }}
+            >
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="font-semibold text-white">Verdeza</div>
+              <div className="text-[11px] text-white/60">Municipal Operations</div>
+            </div>
           </div>
         </div>
 
@@ -327,7 +361,7 @@ export default function ManagerDashboard() {
                 Loading live ward operations data…
               </div>
             ) : (
-              <ActivePanel data={dashboardData} />
+              <ActivePanel data={dashboardData} onRefresh={refreshDashboard} />
             )}
           </div>
           <Footer />

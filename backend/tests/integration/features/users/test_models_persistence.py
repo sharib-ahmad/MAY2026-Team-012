@@ -62,7 +62,7 @@ def test_delay_log_check_constraint(db, ward_a):
 
     pickup = Pickup(
         ref_code="PK-0001",
-        resident_id=user.id,
+        citizen_id=user.id,
         zone_id=ward_a.id,
         category="WET_TEST",
         estimated_weight=12.5,
@@ -81,7 +81,7 @@ def test_delay_log_check_constraint(db, ward_a):
     stop = DailyPickupStop(
         pickup_id=pickup.id,
         schedule_id=schedule.id,
-        resident_id=user.id,
+        citizen_id=user.id,
         pickup_order=1,
     )
     db.add(stop)
