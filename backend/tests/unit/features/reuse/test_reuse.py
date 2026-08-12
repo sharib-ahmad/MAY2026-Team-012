@@ -154,6 +154,21 @@ def test_review_donation_reject_missing_reason(manager, listing):
     assert exc.value.status_code == 422
 
 
+def test_manager_without_ward_cannot_review_donation(listing, monkeypatch):
+    unassigned_manager = SimpleNamespace(
+        id=uuid4(), name="No Ward Manager", role=Role.SYSTEM_ADMIN, zone_id=None
+    )
+    db = FakeDatabase(listing=listing)
+    payload = SimpleNamespace(status="AVAILABLE", rejection_reason=None)
+
+    monkeypatch.setattr("app.features.reuse.service.get_managed_zone_ids", lambda *_: [])
+
+    with pytest.raises(HTTPException) as exc:
+        review_donation(db, unassigned_manager, listing.id, payload)
+    assert exc.value.status_code == 403
+    assert "supervised wards" in exc.value.detail
+
+
 def test_claim_donation(citizen, listing):
     listing.status = ReuseStatus.AVAILABLE
     claimant = SimpleNamespace(
@@ -188,6 +203,35 @@ def test_review_claim_approve(manager, listing):
     assert res.status == ReuseClaimStatus.APPROVED
     assert listing.status == ReuseStatus.COMPLETED
     assert db.commits == 1
+
+
+def test_manager_without_ward_cannot_review_claim(listing, monkeypatch):
+    unassigned_manager = SimpleNamespace(
+        id=uuid4(), name="No Ward Manager", role=Role.SYSTEM_ADMIN, zone_id=None
+    )
+    claimant = SimpleNamespace(
+        id=uuid4(), name="Claimer Citizen", role=Role.CITIZEN, zone_id=listing.zone_id
+    )
+    claim = SimpleNamespace(
+        id=uuid4(),
+        listing_id=listing.id,
+        listing=listing,
+        claimant_id=claimant.id,
+        claimant=claimant,
+        status=ReuseClaimStatus.PENDING,
+        decided_by_id=None,
+        decided_at=None,
+        note=None,
+    )
+    db = FakeDatabase(claim=claim)
+    payload = SimpleNamespace(status="APPROVED", note=None)
+
+    monkeypatch.setattr("app.features.reuse.service.get_managed_zone_ids", lambda *_: [])
+
+    with pytest.raises(HTTPException) as exc:
+        review_claim(db, unassigned_manager, claim.id, payload)
+    assert exc.value.status_code == 403
+    assert "supervised wards" in exc.value.detail
 
 
 # ── Integration tests for Router + Endpoints ──
@@ -351,3 +395,15 @@ def test_reuse_api_workflow(db_client, db, ward_a):
         select(Notification).where(Notification.user_id == claimant_id, not Notification.is_read)
     ).all()
     assert len(unread_notifs) == 0
+
+
+def test_empty_title_is_rejected():
+    from pydantic import ValidationError
+
+    from app.features.reuse.schemas import DonationCreate
+
+    with pytest.raises(ValidationError):
+        DonationCreate(title="", category="FURNITURE", condition="GOOD")
+
+    with pytest.raises(ValidationError):
+        DonationCreate(title="   ", category="FURNITURE", condition="GOOD")

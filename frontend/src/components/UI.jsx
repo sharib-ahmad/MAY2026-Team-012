@@ -171,7 +171,7 @@ export function BarChartCard({ data, dataKey, nameKey, title }) {
   );
 }
 
-export function ClusteredBarChartCard({ data, bars, nameKey, title }) {
+export function ClusteredBarChartCard({ data, bars, nameKey, title, isStacked }) {
   return (
     <Card title={title}>
       <ResponsiveContainer width="100%" height={250}>
@@ -187,7 +187,8 @@ export function ClusteredBarChartCard({ data, bars, nameKey, title }) {
               dataKey={bar.key}
               name={bar.name}
               fill={bar.color || COLORS[i % COLORS.length]}
-              radius={[4, 4, 0, 0]}
+              radius={isStacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
+              stackId={isStacked ? "a" : undefined}
             />
           ))}
         </BarChart>

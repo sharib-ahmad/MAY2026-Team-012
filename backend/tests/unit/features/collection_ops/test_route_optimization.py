@@ -168,3 +168,100 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
 
     # Geometry should start at collector, then stop2, then stop1, then return to collector
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
+
+
+def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch):
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+
+    # 1. Zero stops
+    db_empty = FakeDatabase(scalars=[[]])
+    res_empty = get_collector_route(collector, db_empty)
+    assert res_empty.pickup_count == 0
+    assert res_empty.ordered_pickups == []
+
+    # 2. Only 1 stop with geocoded points
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=SimpleNamespace(
+            id=uuid4(),
+            zone_id=uuid4(),
+            zone=SimpleNamespace(code="W-04", name="Ward Four"),
+            completed_stops=0,
+            completed_at=None,
+        ),
+        schedule_id=uuid4(),
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.2,
+        longitude=80.2,
+        notes="Single Stop",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+    db_single = FakeDatabase(scalars=[[stop1]])
+    res_single = get_collector_route(collector, db_single)
+    assert res_single.pickup_count == 1
+    assert len(res_single.ordered_pickups) == 1
+    assert res_single.ordered_pickups[0].id == stop1.id
+
+
+def test_collector_route_response_reports_distance_duration_and_degraded_notice(monkeypatch):
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
+
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+
+    schedule = SimpleNamespace(
+        id=uuid4(),
+        zone_id=uuid4(),
+        zone=SimpleNamespace(code="W-04", name="Ward Four"),
+        completed_stops=0,
+        completed_at=None,
+    )
+
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=schedule,
+        schedule_id=schedule.id,
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.1,
+        longitude=80.1,
+        notes="Stop 1",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+
+    db = FakeDatabase(scalars=[[stop1]])
+    response = get_collector_route(collector, db)
+
+    # Verify total_distance_km, estimated_duration_min, is_degraded, and degraded_notice
+    # exist and match expectations
+    assert hasattr(response, "total_distance_km")
+    assert response.total_distance_km > 0
+    assert hasattr(response, "estimated_duration_min")
+    assert response.estimated_duration_min > 0
+    assert hasattr(response, "is_degraded")
+    assert response.is_degraded is True
+    assert response.degraded_notice is not None
+    assert "Road routing service unavailable" in response.degraded_notice

@@ -223,59 +223,56 @@ def seed_database(session_factory) -> None:
 
     with session_factory() as db:
         # 1. Seed Waste Categories if none exist
-        if db.scalar(select(WasteCategory)) is None:
-            categories = [
-                WasteCategory(code="WET", label="Wet Waste", sort_order=1, is_active=True),
-                WasteCategory(code="DRY", label="Dry Waste", sort_order=2, is_active=True),
-                WasteCategory(
-                    code="HAZARDOUS", label="Hazardous Waste", sort_order=3, is_active=True
-                ),
-            ]
-            db.add_all(categories)
+        existing_categories = set(db.scalars(select(WasteCategory.code)).all())
+        new_categories = []
+        for code, label, order in [
+            ("WET", "Wet Waste", 1),
+            ("DRY", "Dry Waste", 2),
+            ("HAZARDOUS", "Hazardous Waste", 3),
+            ("Daily Waste", "Daily Waste", 4),
+        ]:
+            if code not in existing_categories:
+                new_categories.append(
+                    WasteCategory(code=code, label=label, sort_order=order, is_active=True)
+                )
+        if new_categories:
+            db.add_all(new_categories)
             db.flush()
 
         # 1b. Seed credit factors per waste category
-        if db.scalar(select(CreditFactor)) is None:
-            factors = [
-                CreditFactor(
-                    category="WET",
-                    credit_rate=0.5,
-                    co2_factor=0.3,
-                    description="Wet waste recycling rate",
-                ),
-                CreditFactor(
-                    category="DRY",
-                    credit_rate=1.0,
-                    co2_factor=0.8,
-                    description="Dry waste recycling rate",
-                ),
-                CreditFactor(
-                    category="HAZARDOUS",
-                    credit_rate=2.0,
-                    co2_factor=1.5,
-                    description="Hazardous waste safe disposal rate",
-                ),
-            ]
-            db.add_all(factors)
+        existing_factors = set(db.scalars(select(CreditFactor.category)).all())
+        new_factors = []
+        for cat, rate, co2, desc in [
+            ("WET", 0.5, 0.3, "Wet waste recycling rate"),
+            ("DRY", 1.0, 0.8, "Dry waste recycling rate"),
+            ("HAZARDOUS", 2.0, 1.5, "Hazardous waste safe disposal rate"),
+            ("Daily Waste", 0.5, 0.3, "Daily household waste collection rate"),
+        ]:
+            if cat not in existing_factors:
+                new_factors.append(
+                    CreditFactor(category=cat, credit_rate=rate, co2_factor=co2, description=desc)
+                )
+        if new_factors:
+            db.add_all(new_factors)
             db.flush()
 
         # 2. Seed Zones if they don't exist
         default_zones = [
-            ("Gomti Nagar", "W-01", "Sector 1, Sector 2"),
-            ("Hazratganj", "W-02", "Sector 3, Sector 4"),
-            ("Alambagh", "W-03", "Sector 5"),
-            ("Indira Nagar", "W-04", "Sector 6"),
-            ("Chowk", "W-05", "Sector 7"),
+            ("Gomti Nagar", "WARD-01", "Sector 1, Sector 2"),
+            ("Hazratganj", "WARD-02", "Sector 3, Sector 4"),
+            ("Alambagh", "WARD-03", "Sector 5"),
+            ("Indira Nagar", "WARD-04", "Sector 6"),
+            ("Chowk", "WARD-05", "Sector 7"),
         ]
         for name, code, sectors in default_zones:
-            zone = db.scalar(select(Zone).where(Zone.code == code))
+            zone = db.scalar(select(Zone).where(Zone.code.in_([code, code.replace("WARD-", "W-")])))
             if not zone:
                 new_zone = Zone(name=name, code=code, sectors=sectors)
                 db.add(new_zone)
         db.flush()
 
-        # Get W-01 zone for linking users
-        zone_w01 = db.scalar(select(Zone).where(Zone.code == "W-01"))
+        # Get WARD-01 zone for linking users
+        zone_w01 = db.scalar(select(Zone).where(Zone.code.in_(["WARD-01", "W-01"])))
         zone_id = zone_w01.id if zone_w01 else None
 
         # 3. Seed Users if email doesn't exist

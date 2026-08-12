@@ -35,3 +35,24 @@ def serialize_ticket(ticket: Ticket) -> TicketResponse:
         ward_manager_name=_ward_manager_name(ticket),
         created_at=ticket.created_at,
     )
+
+
+def auto_close_resolved_tickets(db) -> int:
+    """Automatically transition tickets resolved more than 24 hours ago to CLOSED."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from app.models.enums import TicketStatus
+
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
+    result = db.execute(
+        update(Ticket)
+        .where(
+            Ticket.status == TicketStatus.RESOLVED,
+            Ticket.resolved_at <= cutoff,
+        )
+        .values(status=TicketStatus.CLOSED)
+    )
+    db.commit()
+    return result.rowcount

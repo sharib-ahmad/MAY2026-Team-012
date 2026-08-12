@@ -127,13 +127,17 @@ export default function Register() {
       lastSearchedAddressRef.current = trimmed;
       let query = trimmed;
       const lowerQuery = query.toLowerCase();
-      if (!lowerQuery.includes("lucknow") && !lowerQuery.includes("uttar pradesh")) {
-        query += ", Lucknow, Uttar Pradesh";
+      if (
+        !lowerQuery.includes("uttar pradesh") &&
+        !lowerQuery.includes(" u.p") &&
+        !lowerQuery.includes(" up")
+      ) {
+        query += ", Uttar Pradesh";
       }
 
       const fetchGeocode = (q) => {
         return fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(
             q
           )}`
         )

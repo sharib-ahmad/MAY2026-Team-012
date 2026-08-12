@@ -10,6 +10,7 @@ from app.features.materials.service import (
     _pickup_weight,
     _resolve_collector_id,
     _sync_bulk_pickup_status,
+    assign_batch,
 )
 from app.models.enums import BulkRequestStatus
 
@@ -166,3 +167,22 @@ def test_build_batch_groups_with_multiple_small_pickups():
 
     assert len(groups) == 1
     assert len(groups[0]) == 3
+
+
+def test_manager_without_managed_ward_cannot_assign_batch(monkeypatch):
+    batch_id = uuid4()
+    recycler_id = uuid4()
+    batch_zone_id = uuid4()
+    manager = SimpleNamespace(id=uuid4(), zone_id=None)
+    batch = SimpleNamespace(id=batch_id, zone_id=batch_zone_id)
+
+    db = FakeDatabase()
+
+    monkeypatch.setattr("app.features.materials.service._load_batch", lambda _db, b_id: batch)
+    monkeypatch.setattr("app.features.materials.service.get_managed_zone_ids", lambda _db, mgr: [])
+
+    with pytest.raises(HTTPException) as exc_info:
+        assign_batch(db, manager, batch_id, recycler_id)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "Batch is outside your wards."

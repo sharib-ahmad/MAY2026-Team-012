@@ -1,9 +1,7 @@
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -50,35 +48,6 @@ if TYPE_CHECKING:
 
 # Admin requests use the canonical database role names.
 ROLE_MAP_FRONTEND_TO_DB = {role.value: role for role in Role}
-
-
-class CreateAccountRequest(BaseModel):
-    name: str
-    email: str
-    phone: str | None = None
-    role: str
-    zone_id: str | None = None
-    password: str
-
-
-class UserStatusUpdate(BaseModel):
-    status: UserStatus
-
-
-class UserCreate(BaseModel):
-    name: str
-    email: str
-    phone: str
-    role: str
-    zone_id: str | None = None
-    password: str
-
-
-class UserUpdate(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    role: str | None = None
 
 
 router = APIRouter(tags=["Admin"])
@@ -245,21 +214,19 @@ def delete_ward_endpoint(
         ) from e
 
 
-@router.post("/account", response_model=dict)
+@router.post("/account", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_account(
-    account_data: CreateAccountRequest,
+    account_data: AdminUserCreate,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     """Create a new MUNICIPAL_OFFICER or SYSTEM_ADMIN account."""
-    import uuid
-
     from app.features.users.models import User
 
-    # Check if email is already registered
+    # Email is already normalised by the schema field_validator
     existing_user_email = db.scalar(
-        select(User).where(User.email == account_data.email.lower(), User.deleted_at.is_(None))
+        select(User).where(User.email == account_data.email, User.deleted_at.is_(None))
     )
     if existing_user_email:
         raise HTTPException(
@@ -268,15 +235,14 @@ def create_account(
         )
 
     # Check if phone is already registered
-    if account_data.phone:
-        existing_user_phone = db.scalar(
-            select(User).where(User.phone == account_data.phone, User.deleted_at.is_(None))
+    existing_user_phone = db.scalar(
+        select(User).where(User.phone == account_data.phone, User.deleted_at.is_(None))
+    )
+    if existing_user_phone:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this phone number already exists.",
         )
-        if existing_user_phone:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An account with this phone number already exists.",
-            )
 
     # Resolve database Role enum from input
     db_role = ROLE_MAP_FRONTEND_TO_DB.get(account_data.role)
@@ -286,7 +252,7 @@ def create_account(
             detail=f"Unsupported role: {account_data.role}",
         )
 
-    # Only allow municipal-officer and system-admin roles.
+    # Only allow municipal-officer and system-admin roles via this route.
     if db_role not in [Role.MUNICIPAL_OFFICER, Role.SYSTEM_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -295,16 +261,9 @@ def create_account(
             ),
         )
 
-    # If zone_id is provided, verify it exists
-    zone_uuid = None
-    if account_data.zone_id:
-        try:
-            zone_uuid = uuid.UUID(account_data.zone_id)
-        except ValueError as err:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid zone ID format.",
-            ) from err
+    # zone_id is already a UUID | None from the schema
+    zone_uuid = account_data.zone_id
+    if zone_uuid:
         zone = db.scalar(select(Zone).where(Zone.id == zone_uuid))
         if not zone:
             raise HTTPException(
@@ -313,40 +272,39 @@ def create_account(
             )
 
     # Hash the password and create the user
+    # last_login_at intentionally omitted — user has not logged in yet
     hashed_password = get_password_hash(account_data.password)
     user = User(
         name=account_data.name,
-        email=account_data.email.lower(),
+        email=account_data.email,
         password_hash=hashed_password,
         phone=account_data.phone,
         role=db_role,
         zone_id=zone_uuid,
         status=UserStatus.ACTIVE,
-        last_login_at=datetime.now(UTC),
     )
 
     db.add(user)
+    db.flush()  # get user.id before audit log references it
+
+    # Required audit log — failure rolls back the transaction
+    client_ip = req.client.host if req.client else None
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="ACCOUNT_CREATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
+        description=f"Admin created {user.role.name} account: {user.email}",
+        ip_address=client_ip,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(user)
-
-    # Log account creation (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="ACCOUNT_CREATED",
-            entity_type="User",
-            entity_id=str(user.id),
-            module="admin",
-            description=f"Admin created {user.role.name} account: {user.email}",
-            ip_address=client_ip,
-        )
-    except Exception:
-        # Ignore audit logging errors
-        pass
 
     # Find ward code if user is associated with a zone
     ward_code = None
@@ -632,6 +590,7 @@ def update_user(
             )
         changes.append(f"email from '{user.email}' to '{user_update.email}'")
         user.email = user_update.email.lower()
+        user.token_version += 1  # revoke existing sessions on identity change
     if user_update.phone is not None and user_update.phone != user.phone:
         # Check if phone is already used by another user
         existing_user = db.scalar(

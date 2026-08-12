@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -62,10 +62,27 @@ def create_pickup(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid waste category."
         )
-    if payload.scheduled_date < datetime.now(UTC) + timedelta(hours=24):
+    from zoneinfo import ZoneInfo
+
+    from app.core.config import get_settings
+
+    now_utc = datetime.now(UTC)
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+
+    today_local_date = now_utc.astimezone(pilot_tz).date()
+
+    scheduled_dt = payload.scheduled_date
+    if scheduled_dt.tzinfo is None:
+        scheduled_local_date = scheduled_dt.date()
+    else:
+        scheduled_local_date = scheduled_dt.astimezone(pilot_tz).date()
+
+    if scheduled_local_date <= today_local_date:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Pickup requests require at least 24 hours' notice.",
+            detail="Pickup requests must be scheduled for at least the next day.",
         )
     request = BulkPickupRequest(
         ref_code=f"BPR-{uuid.uuid4().hex[:8].upper()}",

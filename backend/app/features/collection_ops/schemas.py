@@ -45,6 +45,10 @@ class CollectorRouteResponse(BaseModel):
     depot_longitude: float | None = None
     route_geometry: list[list[float]] | None = None
     ordered_pickups: list[CollectorStopResponse]
+    total_distance_km: float = 0.0
+    estimated_duration_min: float = 0.0
+    is_degraded: bool = False
+    degraded_notice: str | None = None
 
 
 class DelayStopRequest(BaseModel):

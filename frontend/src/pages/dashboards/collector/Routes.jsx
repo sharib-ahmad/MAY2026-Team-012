@@ -15,6 +15,7 @@ import {
   Flag,
   Clock,
   BadgeCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { usePolling } from "../../../hooks/usePolling";
 import {
@@ -321,7 +322,6 @@ export default function CollectorRoutes() {
   const completionPercentage =
     route?.pickup_count > 0 ? Math.round((completedCount / route.pickup_count) * 100) : 0;
   const totalLoadKg = pickups.reduce((sum, p) => sum + (p.estimated_weight || 0), 0);
-  const wetRecycStops = pickups.filter((p) => p.category && p.category !== "Daily Waste").length;
   const canUndoWithinOneMinute = (iso) =>
     Boolean(currentTime && iso) && currentTime - new Date(iso).getTime() <= 60_000;
   const undoTimeRemaining = (iso) => {
@@ -450,16 +450,31 @@ export default function CollectorRoutes() {
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <MiniStat
-              icon={<Recycle size={13} />}
-              label="Wet + Recyc"
-              value={`${wetRecycStops} stops`}
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <MiniStat icon={<Weight size={13} />} label="Total Load" value={`${totalLoadKg} kg`} />
+            <MiniStat
+              icon={<MapPin size={13} />}
+              label="Total Distance"
+              value={`${route.total_distance_km ?? 0} km`}
+            />
+            <MiniStat
+              icon={<Clock size={13} />}
+              label="Est. Duration"
+              value={`${route.estimated_duration_min ?? 0} min`}
+            />
             <MiniStat icon={<Flag size={13} />} label="Flagged" value={flaggedCount} />
             <MiniStat icon={<Clock size={13} />} label="Duty Hrs" value={DUTY_HOURS} />
           </div>
+
+          {route.is_degraded && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3 rounded-lg flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-600 flex-shrink-0" />
+              <span>
+                {route.degraded_notice ||
+                  "Road routing service unavailable. Degraded fallback route is active."}
+              </span>
+            </div>
+          )}
         </Card>
       )}
 

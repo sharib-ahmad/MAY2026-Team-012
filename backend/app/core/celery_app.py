@@ -60,10 +60,16 @@ def generate_daily_schedules():
 
     with session_factory() as db:
         try:
-            from app.features.collection_ops.models import DailyPickupSchedule
+            import uuid
+
+            from app.features.collection_ops.models import (
+                DailyPickupSchedule,
+                DailyPickupStop,
+                Pickup,
+            )
             from app.features.collection_ops.router import _materialize_assigned_bulk_stops
             from app.features.users.models import User
-            from app.models.enums import Role, UserStatus
+            from app.models.enums import PickupStatus, PickupStopStatus, Role, UserStatus
 
             # Query active collectors who are assigned to a ward (zone_id is not null)
             collectors = db.scalars(
@@ -159,6 +165,65 @@ def generate_daily_schedules():
                     logger.info(
                         f"Celery: Materialized assigned bulk stops for collector {collector.name}"
                     )
+
+                # 4. Generate a 3kg daily stop for each active citizen in this zone/ward
+                active_citizens = db.scalars(
+                    select(User).where(
+                        User.role == Role.CITIZEN,
+                        User.status == UserStatus.ACTIVE,
+                        User.deleted_at.is_(None),
+                        User.zone_id == collector.zone_id,
+                    )
+                ).all()
+
+                for citizen in active_citizens:
+                    # Check if a daily stop already exists for this citizen on today's schedule
+                    existing_stop = db.scalar(
+                        select(DailyPickupStop).where(
+                            DailyPickupStop.schedule_id == schedule.id,
+                            DailyPickupStop.citizen_id == citizen.id,
+                            DailyPickupStop.notes == "Daily garbage collection",
+                        )
+                    )
+                    if not existing_stop:
+                        # Create unique ref code (max 20 chars, must start with
+                        # COL- to pass _owned_stop filter)
+                        ref_code = f"COL-DAILY-{uuid.uuid4().hex[:8].upper()}"
+
+                        # Create a Pickup object for the daily waste
+                        pickup = Pickup(
+                            ref_code=ref_code,
+                            citizen_id=citizen.id,
+                            collector_id=collector.id,
+                            zone_id=collector.zone_id,
+                            category="Daily Waste",
+                            estimated_weight=3.0,
+                            status=PickupStatus.ASSIGNED,
+                            scheduled_date=today_start,
+                            notes="Daily garbage collection",
+                        )
+                        db.add(pickup)
+                        db.flush()
+
+                        # Increment total stops on schedule
+                        schedule.total_stops += 1
+
+                        # Create DailyPickupStop
+                        stop = DailyPickupStop(
+                            pickup_id=pickup.id,
+                            schedule_id=schedule.id,
+                            citizen_id=citizen.id,
+                            pickup_order=schedule.total_stops,
+                            status=PickupStopStatus.PENDING,
+                            latitude=citizen.latitude,
+                            longitude=citizen.longitude,
+                            notes="Daily garbage collection",
+                        )
+                        db.add(stop)
+                        logger.info(
+                            f"Celery: Generated 3kg daily stop for citizen {citizen.name} "
+                            f"in schedule {schedule.id}"
+                        )
 
             db.commit()
             logger.info("Celery: Daily pickup schedule generation task completed successfully.")

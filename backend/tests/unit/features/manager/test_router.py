@@ -26,6 +26,9 @@ class FakeDatabase:
     def execute(self, _statement):
         return SimpleNamespace(rowcount=self.rowcount)
 
+    def flush(self):
+        """No-op flush for unit tests — real sessions flush to obtain IDs."""
+
     def commit(self):
         self.commits += 1
 
@@ -137,7 +140,7 @@ def test_assign_bulk_pickup_sets_assignment_and_notifies(monkeypatch, manager) -
     assert request.assigned_collector_id == collector.id
     assert request.decided_by_id == manager.id
     assert request.status == BulkRequestStatus.ASSIGNED
-    assert len(db.added) == 2
+    assert len(db.added) == 3  # 2 notifications + 1 audit log
     assert db.commits == 1
 
 
@@ -180,8 +183,10 @@ def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> N
         status=UserStatus.ACTIVE,
         role=Role.COLLECTION_WORKER,
         zone_id=manager.zone_id,
+        token_version=0,
     )
-    db = FakeDatabase([worker, worker])
+    # scalars: update_worker lookup, delete_worker lookup, delete_worker active-pickup check (None)
+    db = FakeDatabase([worker, worker, None])
     audit_events = []
     monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
     monkeypatch.setattr(
