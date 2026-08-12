@@ -351,3 +351,15 @@ def test_reuse_api_workflow(db_client, db, ward_a):
         select(Notification).where(Notification.user_id == claimant_id, not Notification.is_read)
     ).all()
     assert len(unread_notifs) == 0
+
+
+def test_empty_title_is_rejected():
+    from pydantic import ValidationError
+
+    from app.features.reuse.schemas import DonationCreate
+
+    with pytest.raises(ValidationError):
+        DonationCreate(title="", category="FURNITURE", condition="GOOD")
+
+    with pytest.raises(ValidationError):
+        DonationCreate(title="   ", category="FURNITURE", condition="GOOD")
