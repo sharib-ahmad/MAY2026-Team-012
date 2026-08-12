@@ -27,7 +27,7 @@ router = APIRouter(tags=["Authentication"])
 
 # Map frontend roles to database Role enums
 ROLE_MAP_FRONTEND_TO_DB = {
-    "RESIDENT": Role.CITIZEN,
+    "CITIZEN": Role.CITIZEN,
     "COLLECTOR": Role.COLLECTION_WORKER,
     "RECYCLER": Role.RECYCLER,
     "MANAGER": Role.MUNICIPAL_OFFICER,
@@ -118,12 +118,14 @@ def register(request: UserRegisterRequest, req: Request, db: Session = Depends(g
         # Completely ignore audit logging errors - don't affect registration
         pass
 
-    # Find ward code if user is associated with a zone
+    # Find ward code and zone name if user is associated with a zone
     ward_code = None
+    zone_name = None
     if user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     auth_user = AuthenticatedUser(
         id=user.id,
@@ -131,6 +133,7 @@ def register(request: UserRegisterRequest, req: Request, db: Session = Depends(g
         email=user.email,
         role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )
 
     return {
@@ -167,8 +170,8 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
     # Verify status is Active
     if user.status == UserStatus.DISABLED:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account has been suspended by an administrator.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
         )
 
     # Update last login timestamp
@@ -199,12 +202,14 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
         # Completely ignore audit logging errors - don't affect login
         pass
 
-    # Find ward code
+    # Find ward code and zone name
     ward_code = None
+    zone_name = None
     if user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     auth_user = AuthenticatedUser(
         id=user.id,
@@ -212,6 +217,7 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
         email=user.email,
         role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )
 
     return {
@@ -223,13 +229,18 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)) ->
 
 
 @router.get("/me", response_model=AuthenticatedUser)
-def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Any:
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
     """Return the authenticated caller's profile details."""
     ward_code = None
+    zone_name = None
     if current_user.zone_id:
-        zone_code = db.scalar(select(Zone.code).where(Zone.id == current_user.zone_id))
-        if zone_code:
-            ward_code = zone_code
+        zone = db.scalar(select(Zone).where(Zone.id == current_user.zone_id))
+        if zone:
+            ward_code = zone.code
+            zone_name = zone.name
 
     return AuthenticatedUser(
         id=current_user.id,
@@ -237,4 +248,5 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         email=current_user.email,
         role=ROLE_MAP_DB_TO_FRONTEND.get(current_user.role, current_user.role.name),
         ward_code=ward_code,
+        zone_name=zone_name,
     )

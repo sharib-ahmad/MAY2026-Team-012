@@ -1,7 +1,83 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.features.auth.schemas import validate_email_format
+from app.models.enums import UserStatus
+
+AdminRole = Literal[
+    "CITIZEN",
+    "COLLECTION_WORKER",
+    "MUNICIPAL_OFFICER",
+    "RECYCLER",
+    "SYSTEM_ADMIN",
+]
+
+
+class AdminRequest(BaseModel):
+    """Base schema that rejects fields administrators must never set directly."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+def _required_text(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("must not be blank")
+    return value
+
+
+def _password_within_bcrypt_limit(value: str) -> str:
+    if len(value.encode("utf-8")) > 72:
+        raise ValueError("must not exceed 72 UTF-8 bytes")
+    return value
+
+
+class UserCreate(AdminRequest):
+    name: str = Field(..., min_length=1, max_length=120)
+    email: str = Field(..., max_length=255)
+    phone: str = Field(..., min_length=5, max_length=20)
+    role: AdminRole
+    zone_id: uuid.UUID | None = None
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("name", "phone")
+    @classmethod
+    def strip_required_fields(cls, value: str) -> str:
+        return _required_text(value)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return validate_email_format(value).lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        return _password_within_bcrypt_limit(value)
+
+
+class UserUpdate(AdminRequest):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    email: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, min_length=5, max_length=20)
+    role: AdminRole | None = None
+
+    @field_validator("name", "phone")
+    @classmethod
+    def strip_optional_fields(cls, value: str | None) -> str | None:
+        return _required_text(value) if value is not None else value
+
+    @field_validator("email")
+    @classmethod
+    def normalize_optional_email(cls, value: str | None) -> str | None:
+        return validate_email_format(value).lower() if value is not None else value
+
+
+class UserStatusUpdate(AdminRequest):
+    status: UserStatus
 
 
 class UserSummary(BaseModel):
@@ -14,7 +90,6 @@ class UserSummary(BaseModel):
     role: str
     zone_code: str | None = None
     zone_name: str | None = None
-    zone_id: uuid.UUID | None = None
     last_login_at: datetime | None = None
     status: str
 
@@ -99,3 +174,16 @@ class LogsResponse(BaseModel):
 
     logs: list[LogEntry]
     total: int
+
+
+class CreditFactorResponse(BaseModel):
+    category: str
+    category_label: str
+    credit_rate: float
+    co2_factor: float
+    description: str | None = None
+
+
+class CreditFactorUpdate(AdminRequest):
+    credit_rate: float = Field(ge=0, le=100_000)
+    co2_factor: float = Field(ge=0, le=100_000)

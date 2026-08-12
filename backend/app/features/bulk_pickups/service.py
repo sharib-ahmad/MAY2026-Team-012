@@ -12,7 +12,7 @@ from app.features.bulk_pickups.schemas import (
 from app.models.enums import BulkRequestStatus
 
 
-def resident_requests(user_id: uuid.UUID):
+def citizen_requests(user_id: uuid.UUID):
     return (
         select(BulkPickupRequest)
         .where(BulkPickupRequest.requester_id == user_id)
@@ -38,6 +38,9 @@ def serialize_request(request: BulkPickupRequest) -> PickupResponse:
         zone_name=f"{request.zone.code} - {request.zone.name}" if request.zone else None,
         collector_name=request.assigned_collector.name if request.assigned_collector else None,
         collector_phone=request.assigned_collector.phone if request.assigned_collector else None,
+        is_flagged=request.is_flagged,
+        flag_severity=request.flag_severity.value if request.flag_severity else None,
+        flag_note=request.flag_note,
         created_at=request.created_at,
     )
 

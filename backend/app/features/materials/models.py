@@ -34,9 +34,9 @@ class Batch(Base, UUIDPrimaryKey, Timestamps):
         ForeignKey("users.id", name="fk_batches_collector_id_users"),
         nullable=False,
     )
-    assigned_by_id: Mapped[uuid.UUID] = mapped_column(
+    assigned_by_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", name="fk_batches_assigned_by_id_users"),
-        nullable=False,
+        nullable=True,
     )
     zone_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("zones.id", name="fk_batches_zone_id_zones"),
@@ -81,6 +81,18 @@ class Batch(Base, UUIDPrimaryKey, Timestamps):
         DateTime(timezone=True),
         nullable=True,
     )
+    assigned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     processed_quantity: Mapped[float | None] = mapped_column(Numeric(10, 3), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     remarks: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -90,7 +102,7 @@ class Batch(Base, UUIDPrimaryKey, Timestamps):
         "User",
         foreign_keys=[collector_id],
     )
-    assigned_by: Mapped["User"] = relationship(
+    assigned_by: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[assigned_by_id],
     )

@@ -2,10 +2,12 @@
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.collection_ops.models import (
     DailyPickupSchedule,
@@ -49,7 +51,12 @@ def get_managed_zone_ids(db: Session, manager: User) -> list:
 
 
 def _day_bounds(now: datetime) -> tuple[datetime, datetime]:
-    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = local_midnight.astimezone(UTC)
     return start, start + timedelta(days=1)
 
 
@@ -202,6 +209,19 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
+    bulk_mixed_waste_rows = [
+        {
+            "id": str(request.id),
+            "route_code": request.ref_code,
+            "ward_code": request.zone.code,
+            "point_label": request.requester.name,
+            "severity": request.flag_severity.value if request.flag_severity else "ROUTINE",
+            "note": request.flag_note,
+            "flagged_at": request.collected_at,
+        }
+        for request in bulk_requests
+        if request.is_flagged
+    ]
     notifications = db.scalars(
         select(Notification)
         .where(Notification.user_id == manager.id, Notification.is_read.is_(False))
@@ -245,14 +265,20 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         .unique()
         .all()
     )
+    materialized_flag_refs = {tag.stop.pickup.ref_code.removeprefix("COL-") for tag in mixed_waste}
+    # New flags have both a source-request projection and a detailed route tag.
+    # Keep the source projection only for legacy flags that have no route tag.
+    bulk_mixed_waste_rows = [
+        row for row in bulk_mixed_waste_rows if row["route_code"] not in materialized_flag_refs
+    ]
 
     complaint_rows = [
         {
             "id": str(ticket.id),
             "ref_code": ticket.ref_code,
             "ward_code": ticket.zone.code if ticket.zone else "Unassigned",
-            "citizen_name": ticket.raised_by.name if ticket.raised_by else "Unknown resident",
-            "citizen_type": "RESIDENT",
+            "citizen_name": ticket.raised_by.name if ticket.raised_by else "Unknown citizen",
+            "citizen_type": "CITIZEN",
             "issue_type": ticket.issue_type.value,
             "severity": _ticket_severity(ticket),
             "status": ticket.status.value,
@@ -268,6 +294,13 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         db.execute(
             select(Ticket.zone_id, func.count(Ticket.id))
             .where(Ticket.status.in_(OPEN_TICKET_STATUSES))
+            .group_by(Ticket.zone_id)
+        ).all()
+    )
+    all_resolved_counts = dict(
+        db.execute(
+            select(Ticket.zone_id, func.count(Ticket.id))
+            .where(Ticket.status == TicketStatus.RESOLVED)
             .group_by(Ticket.zone_id)
         ).all()
     )
@@ -301,16 +334,23 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
             }
         )
 
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
+
     filed_by_day: dict[datetime.date, int] = defaultdict(int)
     resolved_by_day: dict[datetime.date, int] = defaultdict(int)
     for ticket in tickets:
+        local_created = ticket.created_at.astimezone(pilot_tz)
         if ticket.created_at >= today_start - timedelta(days=6):
-            filed_by_day[ticket.created_at.date()] += 1
+            filed_by_day[local_created.date()] += 1
         if ticket.resolved_at and ticket.resolved_at >= today_start - timedelta(days=6):
-            resolved_by_day[ticket.resolved_at.date()] += 1
+            local_resolved = ticket.resolved_at.astimezone(pilot_tz)
+            resolved_by_day[local_resolved.date()] += 1
     trend = []
+    local_today = now.astimezone(pilot_tz).date()
     for days_ago in range(6, -1, -1):
-        day = (today_start - timedelta(days=days_ago)).date()
+        day = local_today - timedelta(days=days_ago)
         trend.append(
             {
                 "day": day.strftime("%a"),
@@ -392,7 +432,12 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         "complaints_trend": trend,
         "routes": route_rows,
         "all_ward_open_complaints": [
-            {"ward": zone.code, "open": all_open_counts.get(zone.id, 0)} for zone in all_zones
+            {
+                "ward": zone.code,
+                "open": all_open_counts.get(zone.id, 0),
+                "resolved": all_resolved_counts.get(zone.id, 0),
+            }
+            for zone in all_zones
         ],
         "delay_logs": [
             {
@@ -417,13 +462,14 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "flagged_at": tag.created_at,
             }
             for tag in mixed_waste
-        ],
+        ]
+        + bulk_mixed_waste_rows,
         "bulk_pickups": [
             {
                 "id": str(request.id),
                 "ref_code": request.ref_code,
                 "ward_code": request.zone.code,
-                "resident_name": request.requester.name,
+                "citizen_name": request.requester.name,
                 "requested_date": request.requested_date,
                 "time_slot": request.time_slot,
                 "estimated_weight": float(request.estimated_weight or 0),
@@ -443,7 +489,9 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 "id": str(worker.id),
                 "name": worker.name,
                 "phone": worker.phone,
-                "role": "COLLECTOR" if worker.role == Role.COLLECTION_WORKER else "RECYCLER",
+                "role": "COLLECTION_WORKER"
+                if worker.role == Role.COLLECTION_WORKER
+                else "RECYCLER",
                 "crew_role": "Collector" if worker.role == Role.COLLECTION_WORKER else "Recycler",
                 "ward_code": worker.zone.code if worker.zone else "All wards",
                 "route_id": str(schedule_by_worker[worker.id].id)

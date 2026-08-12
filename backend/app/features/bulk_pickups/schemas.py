@@ -26,6 +26,9 @@ class PickupResponse(BaseModel):
     zone_name: str | None = None
     collector_name: str | None = None
     collector_phone: str | None = None
+    is_flagged: bool = False
+    flag_severity: str | None = None
+    flag_note: str | None = None
     created_at: datetime
 
 

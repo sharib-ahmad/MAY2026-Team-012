@@ -38,8 +38,8 @@ class Pickup(Base, UUIDPrimaryKey, Timestamps):
     __tablename__ = "pickups"
 
     ref_code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
-    resident_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", name="fk_pickups_resident_id_users"),
+    citizen_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", name="fk_pickups_citizen_id_users"),
         nullable=False,
     )
     collector_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -113,9 +113,9 @@ class Pickup(Base, UUIDPrimaryKey, Timestamps):
     )
 
     # Relationships
-    resident: Mapped["User"] = relationship(
+    citizen: Mapped["User"] = relationship(
         "User",
-        foreign_keys=[resident_id],
+        foreign_keys=[citizen_id],
     )
     collector: Mapped["User | None"] = relationship(
         "User",
@@ -137,7 +137,7 @@ class Pickup(Base, UUIDPrimaryKey, Timestamps):
     )
 
     __table_args__ = (
-        Index("ix_pickups_resident_id", "resident_id"),
+        Index("ix_pickups_citizen_id", "citizen_id"),
         Index("ix_pickups_collector_id", "collector_id"),
         Index("ix_pickups_zone_id", "zone_id"),
         Index("ix_pickups_status", "status"),
@@ -219,8 +219,8 @@ class DailyPickupStop(Base, UUIDPrimaryKey, Timestamps):
         ),
         nullable=False,
     )
-    resident_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", name="fk_daily_pickup_stops_resident_id_users"),
+    citizen_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", name="fk_daily_pickup_stops_citizen_id_users"),
         nullable=False,
     )
     pickup_order: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -244,7 +244,7 @@ class DailyPickupStop(Base, UUIDPrimaryKey, Timestamps):
         "DailyPickupSchedule",
         back_populates="stops",
     )
-    resident: Mapped["User"] = relationship("User")
+    citizen: Mapped["User"] = relationship("User")
     delay_logs: Mapped[list["DelayLog"]] = relationship("DelayLog", back_populates="stop")
     mixed_waste_tags: Mapped[list["MixedWasteTag"]] = relationship(
         "MixedWasteTag",
@@ -253,7 +253,7 @@ class DailyPickupStop(Base, UUIDPrimaryKey, Timestamps):
 
     __table_args__ = (
         Index("ix_daily_pickup_stops_schedule_id", "schedule_id"),
-        Index("ix_daily_pickup_stops_resident_id", "resident_id"),
+        Index("ix_daily_pickup_stops_citizen_id", "citizen_id"),
     )
 
 

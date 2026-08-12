@@ -1,10 +1,10 @@
 import PublicLayout from "../components/PublicLayout";
-import SortingGuide from "./dashboards/resident/SortingGuide";
+import SortingGuide from "./dashboards/citizen/SortingGuide";
 
 // Story 3.1-AC1: the sorting guide must render fully with no login
-// required. The dashboard tab version (resident/SortingGuide) is reused
+// required. The dashboard tab version (citizen/SortingGuide) is reused
 // here so content stays in one place, just wrapped in the public site
-// chrome instead of the resident dashboard shell.
+// chrome instead of the citizen dashboard shell.
 export default function SortingGuidePublic() {
   return (
     <PublicLayout>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Card, StatusPill, Modal } from "../../../components/UI";
 import {
@@ -15,45 +15,122 @@ import {
   Flag,
   Clock,
   BadgeCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { usePolling } from "../../../hooks/usePolling";
 import {
-  getMyRoute,
-  collectStop,
-  undoCollectStop,
-  delayStop,
-  flagMixedWaste,
-  markStopClean,
-} from "../../../lib/mockCollectorData";
+  completeCollectorStop,
+  flagCollectorStop,
+  getCollectorRoute,
+  notifyCollectorStop,
+  undoCollectorStop,
+} from "../../../lib/api";
+
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+const collectorIcon = L.divIcon({
+  html: `<div style="width: 32px; height: 32px; background-color: #E53E3E; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; pointer-events: none;">🚚</div>`,
+  className: "custom-collector-icon",
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+const stopIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const completedIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const depotIcon = L.divIcon({
+  html: `<div style="font-size: 28px; line-height: 1; display: flex; align-items: center; justify-content: center; pointer-events: none;">🏢</div>`,
+  className: "custom-depot-icon",
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
+
+function FitMapBounds({ points }) {
+  const map = useMap();
+  const lastPointsRef = useRef("");
+
+  useEffect(() => {
+    if (points && points.length > 0) {
+      const serialized = JSON.stringify(points);
+      if (lastPointsRef.current !== serialized) {
+        lastPointsRef.current = serialized;
+        const bounds = L.latLngBounds(points);
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+  }, [points, map]);
+  return null;
+}
 
 // Story 1.5-AC1: a standard set of reasons plus a mandatory-free-text "Other".
 const DELAY_TYPES = [
   {
-    value: "RUNNING_LATE",
+    value: "HEAVY_TRAFFIC",
     label: "Running Late",
     template: "I will arrive approximately {min} minutes late.",
   },
-  { value: "TRAFFIC_DELAY", label: "Traffic Delay", template: "Heavy traffic is causing a delay." },
   {
-    value: "VEHICLE_ISSUE",
+    value: "ROAD_BLOCKED",
+    label: "Road Blocked",
+    template: "A road blockage is delaying the pickup.",
+  },
+  {
+    value: "VEHICLE_BREAKDOWN",
     label: "Vehicle Issue",
     template: "Vehicle issue. Your pickup has been delayed.",
   },
   {
-    value: "UNABLE_TO_REACH",
-    label: "Unable to Reach",
-    template: "I could not locate your address.",
+    value: "WEATHER",
+    label: "Weather Delay",
+    template: "Weather conditions are delaying the pickup.",
   },
   {
-    value: "RESIDENT_NOT_AVAILABLE",
-    label: "Resident Not Available",
-    template: "Resident was not available at the location.",
+    value: "WASTE_NOT_READY",
+    label: "Waste Not Ready",
+    template: "Citizen was not available at the location.",
   },
-  { value: "CUSTOM", label: "Other", template: "" },
+  { value: "OTHER", label: "Other", template: "" },
 ];
 
 const DELAY_MIN_LEN = 5;
 const DELAY_MAX_LEN = 200;
+const ISSUE_MAX_LEN = 250;
+
+const apiErrorMessage = (err, fallback) => {
+  const detail = err.response?.data?.detail;
+  if (Array.isArray(detail)) return detail.map((item) => item.msg || String(item)).join(" ");
+  return typeof detail === "string" ? detail : err.message || fallback;
+};
 
 const ISSUE_TYPES = [
   { value: "CONTAMINATION", label: "Mixed / Contaminated Waste" },
@@ -69,10 +146,10 @@ export default function CollectorRoutes() {
   const { user } = useAuth();
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [collectorPos, setCollectorPos] = useState(null);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const [delayTarget, setDelayTarget] = useState(null);
-  const [delayType, setDelayType] = useState("RUNNING_LATE");
+  const [delayType, setDelayType] = useState("HEAVY_TRAFFIC");
   const [delayComment, setDelayComment] = useState("");
   const [delayCommentTouched, setDelayCommentTouched] = useState(false);
   const [delayMinutes, setDelayMinutes] = useState("20");
@@ -92,100 +169,82 @@ export default function CollectorRoutes() {
 
   const [actionErr, setActionErr] = useState("");
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!user) return;
     try {
-      // Backend-free: reads/writes the collector's route straight out of
-      // localStorage (see lib/mockCollectorData.js). Swap for
-      // API.get('/my-route', { params }) once a real backend exists.
-      const schedule = getMyRoute(user);
+      const schedule = await getCollectorRoute();
       const transformedRoute = {
-        ordered_pickups: schedule.stops.map((stop) => ({
-          id: stop.id,
-          ref_code: `DP-${stop.pickup_order}`,
-          status: stop.status,
+        ...schedule,
+        ordered_pickups: schedule.ordered_pickups.map((stop) => ({
+          ...stop,
           order: stop.pickup_order,
-          resident_name: stop.resident_name,
-          category: stop.category || "Daily Waste",
-          estimated_weight: stop.estimated_weight || 5,
-          pickup_address: stop.address,
-          zone_name: schedule.zone_name,
-          time_slot: "Morning (8-11)",
-          pickup_latitude: stop.latitude,
-          pickup_longitude: stop.longitude,
-          collected_at: stop.collected_at,
-          navigate_url: `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${collectorPos?.lat || 26.1445},${collectorPos?.lon || 91.7362};${stop.latitude},${stop.longitude}`,
+          collected_at: stop.completed_at,
         })),
-        total_distance_km: 0,
-        estimated_duration_min: schedule.total_stops * 10,
-        route_geometry: [],
-        pickup_count: schedule.total_stops,
-        zone_name: schedule.zone_name,
       };
       setRoute(transformedRoute);
     } catch (err) {
-      console.error("Failed to load route:", err);
+      setActionErr(apiErrorMessage(err, "Failed to load your assigned collections."));
     }
     setLoading(false);
-  }, [collectorPos, user]);
+  }, [user]);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => setCollectorPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
-        () => window.setTimeout(load, 0),
-        { enableHighAccuracy: true }
-      );
-    } else {
-      window.setTimeout(load, 0);
-    }
+    const timeoutId = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [load]);
-
-  useEffect(() => {
-    if (!collectorPos) return;
-    const id = window.setTimeout(load, 0);
-    return () => window.clearTimeout(id);
-  }, [collectorPos, load]);
   usePolling(load, 30000);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   // Story 1.4-AC2/AC6
-  const handleCollect = (id) => {
+  const handleCollect = async (id) => {
     setActionErr("");
     try {
-      collectStop(user, id);
-      load();
+      await completeCollectorStop(id);
+      await load();
     } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to collect stop");
+      setActionErr(apiErrorMessage(err, "Failed to collect stop"));
     }
   };
 
   // Story 1.4-AC3: same-day undo for a mis-tap.
-  const handleUndo = (id) => {
+  const handleUndo = async (id) => {
     setActionErr("");
     try {
-      undoCollectStop(user, id);
-      load();
+      await undoCollectorStop(id);
+      await load();
     } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to undo collection");
+      setActionErr(apiErrorMessage(err, "Failed to undo collection"));
     }
   };
 
-  // Story 3.2-AC4: explicit "checked, no issue found" — distinct from a
-  // point nobody has looked at yet.
-  const handleMarkClean = (id) => {
-    setActionErr("");
-    try {
-      markStopClean(user, id);
-      load();
-    } catch (err) {
-      setActionErr(err.response?.data?.detail || "Failed to record check");
+  const handleNavigate = (pickup) => {
+    if (pickup.pickup_latitude == null || pickup.pickup_longitude == null) {
+      setActionErr("The citizen location is not available for this pickup.");
+      return;
     }
+    if (route?.collector_latitude == null || route?.collector_longitude == null) {
+      setActionErr("Your registered collector location is not available.");
+      return;
+    }
+    const origin = `${route.collector_latitude},${route.collector_longitude}`;
+    const destination = `${pickup.pickup_latitude},${pickup.pickup_longitude}`;
+    window.open(
+      `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(origin)};${encodeURIComponent(destination)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
   const openDelay = (pickup) => {
-    const t = DELAY_TYPES.find((d) => d.value === "RUNNING_LATE");
+    const t = DELAY_TYPES.find((d) => d.value === "HEAVY_TRAFFIC");
     setDelayTarget(pickup);
-    setDelayType("RUNNING_LATE");
+    setDelayType("HEAVY_TRAFFIC");
     setDelayComment(t?.template.replace("{min}", delayMinutes) || "");
     setDelayCommentTouched(false);
     setDelayErr("");
@@ -213,22 +272,12 @@ export default function CollectorRoutes() {
     setDelayOk("");
     setDelaySending(true);
     try {
-      // Minutes only make sense for "Running Late", and guard against a
-      // non-numeric value producing NaN.
-      const parsedMinutes = parseInt(delayMinutes, 10);
-      const estimatedMinutes =
-        delayType === "RUNNING_LATE" && !Number.isNaN(parsedMinutes) ? parsedMinutes : null;
-
-      delayStop(user, delayTarget.id, {
-        delay_type: delayType,
-        comment: trimmed,
-        estimated_delay_minutes: estimatedMinutes,
-      });
-      setDelayOk(`Notification sent to ${delayTarget.resident_name || "resident"}.`);
+      await notifyCollectorStop(delayTarget.id, { reason: delayType, message: trimmed });
+      setDelayOk(`Notification sent to ${delayTarget.citizen_name || "citizen"}.`);
       setTimeout(() => setDelayTarget(null), 1200);
       load();
     } catch (err) {
-      setDelayErr(err.response?.data?.detail || err.message || "Failed to send notification");
+      setDelayErr(apiErrorMessage(err, "Failed to send notification"));
     }
     setDelaySending(false);
   };
@@ -245,16 +294,18 @@ export default function CollectorRoutes() {
     setIssueOk("");
     setIssueSending(true);
     try {
-      flagMixedWaste(user, issueTarget.id, {
-        issue_type: issueForm.issue_type,
-        description: issueForm.description.trim(),
+      const issueLabel = ISSUE_TYPES.find((type) => type.value === issueForm.issue_type)?.label;
+      await flagCollectorStop(issueTarget.id, {
+        description: issueLabel
+          ? `${issueLabel}: ${issueForm.description.trim()}`
+          : issueForm.description.trim(),
         severity: issueForm.severity,
       });
       setIssueOk("Flag recorded. A manager will review it.");
       setTimeout(() => setIssueTarget(null), 1500);
       load();
     } catch (err) {
-      setIssueErr(err.response?.data?.detail || "Failed to record flag");
+      setIssueErr(apiErrorMessage(err, "Failed to record flag"));
     }
     setIssueSending(false);
   };
@@ -267,24 +318,52 @@ export default function CollectorRoutes() {
   const pendingCount = pickups.filter(
     (p) => p.status === "PENDING" || p.status === "ASSIGNED" || p.status === "IN_PROGRESS"
   ).length;
-  const flaggedCount = pickups.filter((p) => p.status === "FLAGGED").length;
+  const flaggedCount = route?.flagged_count ?? 0;
   const completionPercentage =
     route?.pickup_count > 0 ? Math.round((completedCount / route.pickup_count) * 100) : 0;
   const totalLoadKg = pickups.reduce((sum, p) => sum + (p.estimated_weight || 0), 0);
-  const wetRecycStops = pickups.filter((p) => p.category && p.category !== "Daily Waste").length;
-  const today = new Date();
-  const isToday = (iso) => {
-    if (!iso) return false;
-    const d = new Date(iso);
-    return (
-      d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate()
+  const canUndoWithinOneMinute = (iso) =>
+    Boolean(currentTime && iso) && currentTime - new Date(iso).getTime() <= 60_000;
+  const undoTimeRemaining = (iso) => {
+    const seconds = Math.max(
+      0,
+      Math.ceil((60_000 - (currentTime - new Date(iso).getTime())) / 1000)
     );
+    return `00:${String(seconds).padStart(2, "0")}`;
   };
 
+  // Calculate direction arrows along the polyline path
+  const routeGeometry = route?.route_geometry || [];
+  const arrowInterval = 8; // Place an arrow every 8 coordinates
+  const pathArrows = [];
+
+  if (routeGeometry.length > 1) {
+    for (let i = 0; i < routeGeometry.length - 1; i += arrowInterval) {
+      const p1 = routeGeometry[i];
+      const p2 = routeGeometry[Math.min(i + 2, routeGeometry.length - 1)];
+      const lat1 = p1[0];
+      const lon1 = p1[1];
+      const lat2 = p2[0];
+      const lon2 = p2[1];
+
+      const midLat = (lat1 + lat2) / 2;
+      const midLon = (lon1 + lon2) / 2;
+
+      const dy = lat2 - lat1;
+      const dx = lon2 - lon1;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const rotation = -angle; // Convert to CSS rotation
+
+      pathArrows.push({
+        id: `arrow-${i}`,
+        position: [midLat, midLon],
+        rotation: rotation,
+      });
+    }
+  }
+
   return (
-    <div className="space-y-8 fade-in">
+    <div className="min-h-[calc(100vh-8rem)] flex flex-col space-y-8 fade-in">
       {/* Section I — Field Operations */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -292,11 +371,10 @@ export default function CollectorRoutes() {
             Section I · Field Operations
           </p>
           <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#1F3259] mt-1">
-            Today&apos;s Collection Flow
+            My Pickups
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Your daily pickup schedule in sequence — updates are auto-logged to the municipal
-            registry.
+            Your assigned bulk-pickup schedule — updates are auto-logged to the municipal registry.
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8] px-3 py-1 text-xs font-medium">
@@ -315,7 +393,7 @@ export default function CollectorRoutes() {
             icon={<Truck size={16} />}
             label="Total Pickups"
             value={route.pickup_count}
-            caption="scheduled today"
+            caption="scheduled"
           />
           <StatCard
             accent="#2563EB"
@@ -361,7 +439,7 @@ export default function CollectorRoutes() {
               <p className="font-serif text-2xl font-bold text-[#2947A3]">
                 {completionPercentage}%
               </p>
-              <p className="text-xs text-gray-400">of daily target</p>
+              <p className="text-xs text-gray-400">of target</p>
             </div>
           </div>
 
@@ -372,18 +450,156 @@ export default function CollectorRoutes() {
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <MiniStat
-              icon={<Recycle size={13} />}
-              label="Wet + Recyc"
-              value={`${wetRecycStops} stops`}
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <MiniStat icon={<Weight size={13} />} label="Total Load" value={`${totalLoadKg} kg`} />
+            <MiniStat
+              icon={<MapPin size={13} />}
+              label="Total Distance"
+              value={`${route.total_distance_km ?? 0} km`}
+            />
+            <MiniStat
+              icon={<Clock size={13} />}
+              label="Est. Duration"
+              value={`${route.estimated_duration_min ?? 0} min`}
+            />
             <MiniStat icon={<Flag size={13} />} label="Flagged" value={flaggedCount} />
             <MiniStat icon={<Clock size={13} />} label="Duty Hrs" value={DUTY_HOURS} />
           </div>
+
+          {route.is_degraded && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3 rounded-lg flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-600 flex-shrink-0" />
+              <span>
+                {route.degraded_notice ||
+                  "Road routing service unavailable. Degraded fallback route is active."}
+              </span>
+            </div>
+          )}
         </Card>
       )}
+
+      {route &&
+        (route.collector_latitude || route.ordered_pickups.some((p) => p.pickup_latitude)) && (
+          <Card className="!p-4">
+            <div className="mb-3">
+              <h3 className="font-serif font-semibold text-[#1F3259]">Optimized Duty Route Map</h3>
+              <p className="text-xs text-gray-500">
+                Live optimized path connecting your assigned pickup stops.
+              </p>
+            </div>
+            <div
+              style={{ height: "350px", width: "100%", borderRadius: "8px", overflow: "hidden" }}
+              className="border border-gray-200 shadow-sm"
+            >
+              <MapContainer
+                center={
+                  route.collector_latitude
+                    ? [route.collector_latitude, route.collector_longitude]
+                    : [26.8467, 80.9462]
+                }
+                zoom={13}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                <FitMapBounds
+                  points={[
+                    ...(route.collector_latitude
+                      ? [[route.collector_latitude, route.collector_longitude]]
+                      : []),
+                    ...(route.depot_latitude
+                      ? [[route.depot_latitude, route.depot_longitude]]
+                      : []),
+                    ...route.ordered_pickups
+                      .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                      .map((p) => [p.pickup_latitude, p.pickup_longitude]),
+                  ]}
+                />
+
+                {route.depot_latitude && route.depot_longitude && (
+                  <Marker position={[route.depot_latitude, route.depot_longitude]} icon={depotIcon}>
+                    <Popup>
+                      <div className="text-xs font-semibold">Municipal Office (Depot)</div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {route.collector_latitude && route.collector_longitude && (
+                  <Marker
+                    position={[route.collector_latitude, route.collector_longitude]}
+                    icon={collectorIcon}
+                    zIndexOffset={1000}
+                  >
+                    <Popup>
+                      <div className="text-xs font-semibold">
+                        Your Location (Collector / Vehicle)
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {route.ordered_pickups
+                  .filter((p) => p.pickup_latitude != null && p.pickup_longitude != null)
+                  .map((p) => {
+                    const isCollected =
+                      p.status === "COLLECTED" ||
+                      p.status === "VERIFIED" ||
+                      p.status === "CREDITED";
+                    return (
+                      <Marker
+                        key={p.id}
+                        position={[p.pickup_latitude, p.pickup_longitude]}
+                        icon={isCollected ? completedIcon : stopIcon}
+                      >
+                        <Popup>
+                          <div className="text-xs">
+                            <div className="font-semibold text-[#1F3259]">
+                              Stop #{p.pickup_order}: {p.citizen_name}
+                            </div>
+                            <div className="text-gray-500 mt-0.5">
+                              Ref: {p.ref_code} ({p.category})
+                            </div>
+                            <div className="text-gray-500">{p.pickup_address}</div>
+                            <div className="mt-1">
+                              <StatusPill status={p.status} />
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
+
+                {route.route_geometry && route.route_geometry.length > 0 && (
+                  <>
+                    <Polyline
+                      positions={route.route_geometry}
+                      color="#16214D"
+                      weight={4}
+                      opacity={0.8}
+                    />
+                    {pathArrows.map((arrow) => (
+                      <Marker
+                        key={arrow.id}
+                        position={arrow.position}
+                        icon={L.divIcon({
+                          html: `<div style="transform: rotate(${arrow.rotation}deg); font-size: 13px; color: #F2A93C; text-shadow: 0 0 3px #16214D, 0 0 1px #16214D; font-weight: bold; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; pointer-events: none;">➤</div>`,
+                          className: "custom-route-arrow-icon",
+                          iconSize: [14, 14],
+                          iconAnchor: [7, 7],
+                        })}
+                        interactive={false}
+                      />
+                    ))}
+                  </>
+                )}
+              </MapContainer>
+            </div>
+          </Card>
+        )}
 
       {loading && !route && (
         <div className="text-center py-12 text-gray-400">
@@ -410,7 +626,7 @@ export default function CollectorRoutes() {
         {pickups.map((p) => {
           const isCollected =
             p.status === "COLLECTED" || p.status === "VERIFIED" || p.status === "CREDITED";
-          const canUndo = isCollected && isToday(p.collected_at);
+          const canUndo = isCollected && canUndoWithinOneMinute(p.collected_at);
           return (
             <Card
               key={p.id}
@@ -437,7 +653,7 @@ export default function CollectorRoutes() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-serif font-semibold text-[#0B3D38]">
-                        {p.resident_name}
+                        {p.citizen_name}
                       </span>
                       <StatusPill status={p.status} />
                     </div>
@@ -452,16 +668,13 @@ export default function CollectorRoutes() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {p.navigate_url && (
-                    <a
-                      href={p.navigate_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs bg-[#2947A3] hover:bg-[#1F3259] text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
-                    >
-                      <Navigation size={12} /> Navigate
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(p)}
+                    className="text-xs bg-[#2947A3] hover:bg-[#1F3259] text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                  >
+                    <Navigation size={12} /> Navigate
+                  </button>
                   {!isCollected && (
                     <>
                       <button
@@ -480,13 +693,6 @@ export default function CollectorRoutes() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleMarkClean(p.id)}
-                        className="text-xs border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 hover:bg-emerald-50 transition-colors"
-                      >
-                        <ShieldCheck size={12} /> Mark Clean
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => openIssue(p)}
                         className="text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded flex items-center gap-1 hover:bg-red-50 transition-colors"
                       >
@@ -500,7 +706,7 @@ export default function CollectorRoutes() {
                       onClick={() => handleUndo(p.id)}
                       className="text-xs border border-gray-200 px-3 py-1.5 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-50 transition-colors"
                     >
-                      <Undo2 size={12} /> Undo
+                      <Undo2 size={12} /> Undo ({undoTimeRemaining(p.collected_at)})
                     </button>
                   )}
                 </div>
@@ -517,7 +723,7 @@ export default function CollectorRoutes() {
       </div>
 
       {/* Footer */}
-      <div className="pt-6 mt-6 border-t border-[#2947A3]/15 flex flex-wrap items-center justify-between gap-3">
+      <div className="!mt-auto pt-6 border-t border-[#2947A3]/15 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-[#2947A3] flex items-center justify-center">
             <Recycle size={13} className="text-white" />
@@ -568,7 +774,7 @@ export default function CollectorRoutes() {
               ))}
             </select>
           </div>
-          {delayType === "RUNNING_LATE" && (
+          {delayType === "HEAVY_TRAFFIC" && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Minutes late</label>
               <input
@@ -579,7 +785,7 @@ export default function CollectorRoutes() {
                 onChange={(e) => {
                   setDelayMinutes(e.target.value);
                   if (!delayCommentTouched) {
-                    const t = DELAY_TYPES.find((d) => d.value === "RUNNING_LATE");
+                    const t = DELAY_TYPES.find((d) => d.value === "HEAVY_TRAFFIC");
                     if (t?.template) setDelayComment(t.template.replace("{min}", e.target.value));
                   }
                 }}
@@ -608,7 +814,7 @@ export default function CollectorRoutes() {
             disabled={delaySending}
             className="w-full bg-[#F2A93C] hover:bg-[#e09a2c] text-white py-2.5 rounded-input font-medium disabled:opacity-50 transition-colors"
           >
-            {delaySending ? "Sending…" : `Send to ${delayTarget?.resident_name || "resident"}`}
+            {delaySending ? "Sending…" : `Send to ${delayTarget?.citizen_name || "citizen"}`}
           </button>
         </form>
       </Modal>
@@ -669,6 +875,7 @@ export default function CollectorRoutes() {
             <textarea
               required
               minLength={10}
+              maxLength={ISSUE_MAX_LEN}
               rows={4}
               className="w-full border border-gray-200 rounded-input px-3 py-2 text-sm"
               value={issueForm.description}

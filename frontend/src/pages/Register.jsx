@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PublicLayout from "../components/PublicLayout";
 import { useAuth } from "../context/AuthContext";
 import { UserPlus, CheckCircle2, Landmark, Eye, EyeOff } from "lucide-react";
 import API from "../lib/api";
 
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -29,9 +29,23 @@ function LocationPicker({ onChange }) {
   return null;
 }
 
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, 15, { animate: true, duration: 1.5 });
+    }
+  }, [center, map]);
+  return null;
+}
+
 const ROLES = [
-  { value: "RESIDENT", label: "Resident", desc: "Schedule pickups and track your impact" },
-  { value: "COLLECTOR", label: "Collector", desc: "Collect and weigh dry waste on routes" },
+  { value: "CITIZEN", label: "Citizen", desc: "Schedule pickups and track your impact" },
+  {
+    value: "COLLECTION_WORKER",
+    label: "Collection Worker",
+    desc: "Collect and weigh dry waste on routes",
+  },
   { value: "RECYCLER", label: "Recycler", desc: "Process incoming batches at your facility" },
 ];
 
@@ -76,7 +90,7 @@ export default function Register() {
     confirm: "",
     phone: "",
     zone_id: "",
-    role: "RESIDENT",
+    role: "CITIZEN",
     address: "",
     latitude: null,
     longitude: null,
@@ -87,6 +101,8 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
+  const [mapCenter, setMapCenter] = useState([26.8467, 80.9462]);
+  const lastSearchedAddressRef = useRef("");
 
   useEffect(() => {
     API.get("/v1/zones")
@@ -100,8 +116,109 @@ export default function Register() {
       });
   }, []);
 
-  const needsZone = form.role === "RESIDENT" || form.role === "COLLECTOR";
-  const showAddress = form.role === "RESIDENT";
+  useEffect(() => {
+    const trimmed = form.address.trim();
+    if (!trimmed || trimmed === lastSearchedAddressRef.current) return;
+
+    // A word is considered completed if the input ends with a space
+    const endsWithSpace = form.address.endsWith(" ");
+
+    const performSearch = () => {
+      lastSearchedAddressRef.current = trimmed;
+      let query = trimmed;
+      const lowerQuery = query.toLowerCase();
+      if (
+        !lowerQuery.includes("uttar pradesh") &&
+        !lowerQuery.includes(" u.p") &&
+        !lowerQuery.includes(" up")
+      ) {
+        query += ", Uttar Pradesh";
+      }
+
+      const fetchGeocode = (q) => {
+        return fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(
+            q
+          )}`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              const lat = parseFloat(data[0].lat);
+              const lon = parseFloat(data[0].lon);
+              if (!isNaN(lat) && !isNaN(lon)) {
+                setMapCenter([lat, lon]);
+                setForm((f) => ({
+                  ...f,
+                  latitude: lat,
+                  longitude: lon,
+                }));
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.location;
+                  return next;
+                });
+                return true;
+              }
+            }
+            return false;
+          })
+          .catch((error) => {
+            console.error("Geocoding fetch failed for query:", q, error);
+            return false;
+          });
+      };
+
+      const fallbackLastWords = (originalQuery) => {
+        const parts = originalQuery.split(/\s+/).filter(Boolean);
+        if (parts.length > 3) {
+          const lastWordsQuery = parts.slice(-4).join(" ");
+          fetchGeocode(lastWordsQuery);
+        }
+      };
+
+      // Try Stage 1: full query
+      fetchGeocode(query).then((success) => {
+        if (success) return;
+
+        // Stage 2: clean house/room numbers, plot/flat designations
+        let cleaned = query
+          .replace(
+            /^(room|house|flat|plot|shop|h\.?\s*no\.?|f\.?\s*no\.?|p\.?\s*no\.?|block|sect(?:or)?)\s*(?:no\.?|number)?\s*\w+([\/\-]?\w+)?/gi,
+            ""
+          )
+          .trim();
+        cleaned = cleaned.replace(/^[.,\s]+/, "").trim();
+        cleaned = cleaned.replace(/^\d+([\/\-]?\w+)?/gi, "").trim();
+        cleaned = cleaned.replace(/^[.,\/\-\s]+/, "").trim();
+
+        if (cleaned && cleaned !== query && cleaned.length > 3) {
+          fetchGeocode(cleaned).then((success2) => {
+            if (success2) return;
+            fallbackLastWords(query);
+          });
+        } else {
+          fallbackLastWords(query);
+        }
+      });
+    };
+
+    if (endsWithSpace) {
+      // Trigger search immediately as a word is completed
+      performSearch();
+      return;
+    }
+
+    // Otherwise wait for a 2-second pause (2000ms debounce)
+    const delayDebounceFn = setTimeout(() => {
+      performSearch();
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [form.address]);
+
+  const needsZone = form.role === "CITIZEN" || form.role === "COLLECTION_WORKER";
+  const showAddress = form.role === "CITIZEN";
 
   // Clears just one field's error as the user edits it, so the message
   // doesn't stay stuck on screen after they've started fixing it.
@@ -152,7 +269,7 @@ export default function Register() {
     if (!form.phone || !form.phone.trim() || form.phone.trim().length < 5) {
       errors.phone = "Please enter your phone number (at least 5 characters).";
     }
-    if (form.role === "RESIDENT" && (!form.latitude || !form.longitude)) {
+    if (form.role === "CITIZEN" && (!form.latitude || !form.longitude)) {
       errors.location = "Please select your location on the map.";
     }
     if (showAddress && !form.address.trim()) {
@@ -232,7 +349,7 @@ export default function Register() {
               Join the state's waste network.
             </h2>
             <p className="mt-4 text-white/85 text-sm">
-              Create an account as a resident, collector, or recycler and become part of a publicly
+              Create an account as a citizen, collector, or recycler and become part of a publicly
               verifiable, accountable waste-management loop.
             </p>
 
@@ -467,7 +584,7 @@ export default function Register() {
                         className="border border-gray-200 shadow-sm"
                       >
                         <MapContainer
-                          center={[26.8467, 80.9462]}
+                          center={mapCenter}
                           zoom={12}
                           scrollWheelZoom={false}
                           style={{ height: "100%", width: "100%" }}
@@ -477,6 +594,7 @@ export default function Register() {
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                           />
                           <LocationPicker onChange={handleMapClick} />
+                          <RecenterMap center={mapCenter} />
                           {form.latitude && form.longitude && (
                             <Marker position={[form.latitude, form.longitude]} />
                           )}

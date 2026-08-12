@@ -1,3 +1,4 @@
+import math
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
@@ -6,28 +7,61 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
-from app.features.bulk_pickups.service import resident_requests, serialize_request
+from app.features.bulk_pickups.service import citizen_requests, serialize_request
 from app.features.collection_ops.models import DailyPickupSchedule, DailyPickupStop, Pickup
-from app.features.credits.models import Credit, UserBadge
+from app.features.credits.models import Credit
+from app.features.notifications.models import Notification
 from app.features.sorting_guide.models import WasteCategory
-from app.features.users.dependencies import require_resident
+from app.features.users.dependencies import require_citizen
 from app.features.users.models import User
-from app.features.users.schemas import ImpactResponse
-from app.models.enums import CreditStatus, PickupStatus
+from app.features.users.schemas import (
+    ChatRequest,
+    ChatResponse,
+    DeleteAccountRequest,
+    ImpactResponse,
+)
+from app.features.users.service import execute_chatbot_turn
+from app.models.audit import create_audit_log
+from app.models.enums import CreditStatus, PickupStatus, PickupStopStatus, UserStatus
+from app.models.zone import Zone
 
-router = APIRouter(tags=["Resident"])
+
+def _calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
+
+router = APIRouter(tags=["Citizen"])
 
 
 @router.get("/impact", response_model=ImpactResponse)
 def get_impact(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     """Return impact based on completed collection records and confirmed credits."""
 
     completed_pickups = (
         db.scalars(
             select(Pickup)
-            .where(Pickup.resident_id == current_user.id, Pickup.status == PickupStatus.COMPLETED)
+            .where(
+                Pickup.citizen_id == current_user.id,
+                Pickup.status.in_(
+                    [
+                        PickupStatus.COMPLETED,
+                        PickupStatus.COLLECTED,
+                        PickupStatus.RECYCLER_ASSIGNED,
+                        PickupStatus.PROCESSING,
+                        PickupStatus.PROCESSED,
+                    ]
+                ),
+            )
             .options(joinedload(Pickup.waste_category))
         )
         .unique()
@@ -107,10 +141,10 @@ def get_impact(
 
 @router.get("/dashboard")
 def get_dashboard(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     requests = (
-        db.scalars(resident_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
+        db.scalars(citizen_requests(current_user.id).order_by(BulkPickupRequest.created_at.desc()))
         .unique()
         .all()
     )
@@ -119,15 +153,37 @@ def get_dashboard(
             Credit.user_id == current_user.id, Credit.status == CreditStatus.CONFIRMED
         )
     ).all()
-    completed_pickups = db.scalars(
-        select(Pickup).where(
-            Pickup.resident_id == current_user.id, Pickup.status == PickupStatus.COMPLETED
+    completed_pickups = (
+        db.scalars(
+            select(Pickup).where(
+                Pickup.citizen_id == current_user.id,
+                Pickup.status.in_(
+                    [
+                        PickupStatus.COMPLETED,
+                        PickupStatus.COLLECTED,
+                        PickupStatus.RECYCLER_ASSIGNED,
+                        PickupStatus.PROCESSING,
+                        PickupStatus.PROCESSED,
+                    ]
+                ),
+            )
         )
+        .unique()
+        .all()  # materialise so we can iterate twice
     )
     total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)
 
+    from zoneinfo import ZoneInfo
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    tz_str = getattr(settings, "PILOT_TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+    pilot_tz = ZoneInfo(tz_str)
     now = datetime.now(UTC)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_now = now.astimezone(pilot_tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = local_midnight.astimezone(UTC)
     tomorrow_start = today_start + timedelta(days=1)
     today_stops = (
         db.scalars(
@@ -138,49 +194,82 @@ def get_dashboard(
                 DailyPickupSchedule.schedule_date < tomorrow_start,
                 DailyPickupSchedule.zone_id == current_user.zone_id,
             )
-            .options(joinedload(DailyPickupStop.resident), joinedload(DailyPickupStop.schedule))
+            .options(joinedload(DailyPickupStop.citizen), joinedload(DailyPickupStop.schedule))
             .order_by(DailyPickupStop.pickup_order)
         )
         .unique()
         .all()
     )
-    resident_stop = next(
-        (stop for stop in today_stops if stop.resident_id == current_user.id), None
-    )
+    citizen_stop = next((stop for stop in today_stops if stop.citizen_id == current_user.id), None)
     queue = (
         {
-            "pickup_number": resident_stop.pickup_order,
-            "status": resident_stop.status.value,
-            "ref_code": resident_stop.pickup.ref_code,
+            "pickup_number": citizen_stop.pickup_order,
+            "status": citizen_stop.status.value,
+            "ref_code": citizen_stop.pickup.ref_code,
         }
-        if resident_stop
+        if citizen_stop
         else None
     )
-    badges = (
-        db.scalars(
-            select(UserBadge)
-            .where(UserBadge.user_id == current_user.id)
-            .options(joinedload(UserBadge.badge))
-        )
-        .unique()
-        .all()
+    # Compute badges the same way /impact does — dynamic from completed pickups,
+    # not from the unpopulated user_badges table.
+    _badge_definitions = (
+        ("FIRST_PICKUP", "First Pickup", "🌱", 1, None),
+        ("FIVE_PICKUPS", "5 Pickups", "♻️", 5, None),
+        ("TEN_PICKUPS", "10 Pickups", "🏆", 10, None),
+        ("FIFTY_KG", "50kg Diverted", "🌍", None, 50),
     )
+    badges = [
+        {
+            "code": code,
+            "name": name,
+            "icon": icon,
+            "earned": total_kg_diverted >= minimum_kg
+            if minimum_kg is not None
+            else len(completed_pickups) >= minimum_pickups,
+        }
+        for code, name, icon, minimum_pickups, minimum_kg in _badge_definitions
+    ]
+    distance_km = None
+    eta_min = None
+    if citizen_stop and citizen_stop.status != PickupStopStatus.COLLECTED:
+        pending_before = [
+            s
+            for s in today_stops
+            if s.pickup_order < citizen_stop.pickup_order and s.status != PickupStopStatus.COLLECTED
+        ]
+        completed_stops = [s for s in today_stops if s.status == PickupStopStatus.COLLECTED]
+        collector_lat, collector_lon = None, None
+        if completed_stops:
+            last_comp = max(completed_stops, key=lambda s: s.completed_at or datetime.min)
+            if last_comp.latitude is not None and last_comp.longitude is not None:
+                collector_lat, collector_lon = last_comp.latitude, last_comp.longitude
+        elif today_stops:
+            first_stop = today_stops[0]
+            if first_stop.latitude is not None and first_stop.longitude is not None:
+                collector_lat, collector_lon = first_stop.latitude, first_stop.longitude
+
+        if (
+            collector_lat is not None
+            and collector_lon is not None
+            and citizen_stop.latitude is not None
+            and citizen_stop.longitude is not None
+        ):
+            dist = _calculate_haversine_distance(
+                collector_lat, collector_lon, citizen_stop.latitude, citizen_stop.longitude
+            )
+            distance_km = round(dist, 1)
+            eta_min = max(1, math.ceil((dist / 25.0) * 60.0 + len(pending_before) * 3.0))
+        elif pending_before:
+            eta_min = max(1, len(pending_before) * 5)
+
     return {
         "pickups": [serialize_request(request).model_dump() for request in requests[:5]],
         "impact": {
-            "total_pickups": len(requests),
+            "total_pickups": len(completed_pickups),
             "total_kg_diverted": total_kg_diverted,
             "credits_balance": sum(float(credit.amount) for credit in credits),
             "co2_saved_kg": sum(float(credit.co2_saved) for credit in credits),
-            "badges": [
-                {
-                    "code": entry.badge.code,
-                    "name": entry.badge.name,
-                    "icon": entry.badge.icon_key or "",
-                    "earned": True,
-                }
-                for entry in badges
-            ],
+            "badges": badges,
         },
         "queue": queue,
         "flow": {
@@ -189,20 +278,22 @@ def get_dashboard(
                     "id": str(stop.id),
                     "pickup_order": stop.pickup_order,
                     "status": stop.status.value,
-                    "resident_name": (
-                        "You" if stop.resident_id == current_user.id else stop.resident.name
+                    "citizen_name": (
+                        "You" if stop.citizen_id == current_user.id else stop.citizen.name
                     ),
                     "address": "Scheduled collection",
                 }
                 for stop in today_stops
-            ]
+            ],
+            "distance_km": distance_km,
+            "eta_min": eta_min,
         },
     }
 
 
 @router.get("/pickup-options")
 def pickup_options(
-    current_user: User = Depends(require_resident), db: Session = Depends(get_db)
+    current_user: User = Depends(require_citizen), db: Session = Depends(get_db)
 ) -> dict:
     del current_user
     categories = db.scalars(
@@ -213,3 +304,75 @@ def pickup_options(
     return {
         "categories": [{"code": category.code, "label": category.label} for category in categories]
     }
+
+
+@router.delete("/account")
+def delete_account(
+    payload: DeleteAccountRequest,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Soft delete citizen account, notify manager, and create audit log."""
+    import uuid
+
+    # 1. Notify manager if user has a zone manager
+    if current_user.zone_id:
+        manager_id = db.scalar(select(Zone.manager_id).where(Zone.id == current_user.zone_id))
+        if manager_id:
+            notification = Notification(
+                user_id=manager_id,
+                title="Citizen Account Deleted",
+                body=(
+                    f"Citizen {current_user.name} ({current_user.email}) has "
+                    f"deleted their account. Reason: {payload.reason or 'No reason provided.'}"
+                ),
+            )
+            db.add(notification)
+
+    # Store original identifiers for the audit log
+    original_email = current_user.email
+    original_phone = current_user.phone
+
+    # 2. Anonymize identifiers to free up unique constraints for re-registration
+    short_id = uuid.uuid4().hex[:8]
+    current_user.email = f"{original_email}-deleted-{short_id}"
+    current_user.phone = f"del-{short_id}"
+
+    # 3. Soft delete and disable user session
+    current_user.deleted_at = datetime.now(UTC)
+    current_user.status = UserStatus.DISABLED
+    current_user.token_version += 1
+
+    # 4. Create Audit Log
+    create_audit_log(
+        db=db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value
+        if hasattr(current_user.role, "value")
+        else str(current_user.role),
+        action="DELETE_ACCOUNT",
+        entity_type="USER",
+        entity_id=str(current_user.id),
+        description=(
+            f"Citizen deleted their account (Email: {original_email}, "
+            f"Phone: {original_phone}). "
+            f"Reason: {payload.reason or 'No reason provided.'}"
+        ),
+        commit=False,
+    )
+
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/chatbot/message", response_model=ChatResponse)
+async def chat_message(
+    payload: ChatRequest,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> ChatResponse:
+    result = await execute_chatbot_turn(
+        message=payload.message, history=payload.history, current_user=current_user, db=db
+    )
+    return ChatResponse(reply=result["reply"], history=result["history"])
