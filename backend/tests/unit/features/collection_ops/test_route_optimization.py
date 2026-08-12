@@ -4,9 +4,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pytest
-from fastapi import HTTPException
-
 from app.features.collection_ops import router as collector_module
 from app.features.collection_ops.ors_client import ORSClient, decode_polyline
 from app.features.collection_ops.router import get_collector_route
@@ -173,16 +170,15 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
 
 
-def test_get_collector_route_rejects_fewer_than_two_geocoded_points(monkeypatch):
+def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch):
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
 
     # 1. Zero stops
     db_empty = FakeDatabase(scalars=[[]])
-    with pytest.raises(HTTPException) as exc_info:
-        get_collector_route(collector, db_empty)
-    assert exc_info.value.status_code == 400
-    assert "At least 2 geocoded collection points" in exc_info.value.detail
+    res_empty = get_collector_route(collector, db_empty)
+    assert res_empty.pickup_count == 0
+    assert res_empty.ordered_pickups == []
 
     # 2. Only 1 stop with geocoded points
     stop1 = SimpleNamespace(
@@ -213,7 +209,7 @@ def test_get_collector_route_rejects_fewer_than_two_geocoded_points(monkeypatch)
         mixed_waste_tags=[],
     )
     db_single = FakeDatabase(scalars=[[stop1]])
-    with pytest.raises(HTTPException) as exc_info:
-        get_collector_route(collector, db_single)
-    assert exc_info.value.status_code == 400
-    assert "At least 2 geocoded collection points" in exc_info.value.detail
+    res_single = get_collector_route(collector, db_single)
+    assert res_single.pickup_count == 1
+    assert len(res_single.ordered_pickups) == 1
+    assert res_single.ordered_pickups[0].id == stop1.id

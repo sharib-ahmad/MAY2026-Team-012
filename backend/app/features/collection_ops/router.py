@@ -365,12 +365,6 @@ def get_collector_route(
     ]
     pending_no_coords = [s for s in pending_stops if s.latitude is None or s.longitude is None]
 
-    if len(pending_with_coords) < 2:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least 2 geocoded collection points are required for route optimization.",
-        )
-
     if start_coords is None and pending_with_coords:
         start_coords = (pending_with_coords[0].latitude, pending_with_coords[0].longitude)
 
