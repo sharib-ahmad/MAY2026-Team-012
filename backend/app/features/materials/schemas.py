@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RecyclerOption(BaseModel):
@@ -44,3 +44,11 @@ class AssignBatchRequest(BaseModel):
 
 class RejectBatchRequest(BaseModel):
     note: str = Field(min_length=1, max_length=500)
+
+    @field_validator("note")
+    @classmethod
+    def strip_and_require_note(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Note must not be blank.")
+        return stripped

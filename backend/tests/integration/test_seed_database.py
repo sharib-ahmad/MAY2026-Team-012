@@ -20,11 +20,11 @@ def test_seed_database_creates_requested_zones_and_demo_users(db) -> None:
 
     zones = db.scalars(select(Zone).order_by(Zone.code)).all()
     assert [(zone.code, zone.name, zone.sectors) for zone in zones] == [
-        ("W-01", "Gomti Nagar", "Sector 1, Sector 2"),
-        ("W-02", "Hazratganj", "Sector 3, Sector 4"),
-        ("W-03", "Alambagh", "Sector 5"),
-        ("W-04", "Indira Nagar", "Sector 6"),
-        ("W-05", "Chowk", "Sector 7"),
+        ("WARD-01", "Gomti Nagar", "Sector 1, Sector 2"),
+        ("WARD-02", "Hazratganj", "Sector 3, Sector 4"),
+        ("WARD-03", "Alambagh", "Sector 5"),
+        ("WARD-04", "Indira Nagar", "Sector 6"),
+        ("WARD-05", "Chowk", "Sector 7"),
     ]
     users = {user.email: user for user in db.scalars(select(User)).all()}
     expected_roles = {

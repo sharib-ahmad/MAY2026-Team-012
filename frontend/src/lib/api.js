@@ -204,6 +204,11 @@ export const createUserTicket = async (payload) => {
   return data;
 };
 
+export const reopenUserTicket = async (ticketId, note) => {
+  const { data } = await API.post(`/v1/user/tickets/${ticketId}/reopen`, { note });
+  return data;
+};
+
 export const listUserDailyPickupSchedules = async () => {
   const { data } = await API.get("/v1/user/daily-pickup-schedules");
   return data;

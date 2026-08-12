@@ -71,6 +71,7 @@ class AuthenticatedUser(BaseModel):
     email: str
     role: str
     ward_code: str | None = None
+    zone_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
