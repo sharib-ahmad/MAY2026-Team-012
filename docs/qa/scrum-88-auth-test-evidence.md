@@ -5,6 +5,72 @@
 **Execution rule:** Expected results are fixed before execution. Actual Result and
 Result are recorded only from local or CI execution.
 
+## FINAL Retest Result (current, supersedes all sections below)
+
+`origin/main` was merged into `test/SCRUM-88-auth-qa` and the full authentication
+suite was rerun against the disposable local PostgreSQL test database
+(`verdeza_pytest_test`, Docker container `verdeza-postgres`, port 5433).
+
+```text
+Branch: test/SCRUM-88-auth-qa
+Main merged at: 813133a (origin/main HEAD b9fdbef, PR #110)
+Execution date: 2026-08-12
+
+Focused suite (auth + security + auth schemas):
+33 passed, 5 failed, 38 collected, 0 errors
+
+Full backend suite:
+248 passed, 5 failed, 253 collected, 0 errors
+Coverage: 81.75% (gate: >= 80%) -> PASSED (previously 79.55% Failed)
+
+Ruff check (focused + repo-wide): All checks passed
+Ruff format --check (focused + repo-wide): all files already formatted
+python -m compileall app tests alembic: clean
+alembic check: No new upgrade operations detected
+```
+
+Two test corrections were made to `test_auth_login.py` and `test_auth_session.py`:
+the exact-equality assertions on the login/`me` response body were missing the
+`zone_name` field. `zone_name` was added to `AuthenticatedUser` by corrective PR
+`#95` (already merged to `main`) and is a deliberate, non-sensitive enrichment
+used consistently across the backend (`bulk_pickups`, `collection_ops`,
+`materials` schemas all carry the same field). This was a stale test fixture,
+not a backend defect, so only the expected-response dictionaries were updated.
+
+The remaining 5 failures reproduce 3 genuine, previously-documented backend
+defects that are still present on current `main` (verified directly against
+`app/features/auth/router.py`, `app/features/auth/dependencies.py` and
+`app/main.py`):
+
+1. **Public self-registration route still exposed.** `POST /api/v1/auth/register`
+   still exists in `app/features/auth/router.py:38`, which the accepted
+   contract (S1-5101) forbids — there is no authoritative user story for
+   citizen self-registration; Story 5.1 specifies System-Admin-driven user
+   provisioning only. Test: `test_auth_contract.py::test_runtime_exposes_only_the_approved_authentication_routes`.
+2. **Application startup still seeds accounts implicitly.** `app/main.py`'s
+   `lifespan` calls `seed_database(...)` whenever `APP_ENV != "test"`
+   (`app/main.py:328-333`), with no additional guard. Test:
+   `test_auth_contract.py::test_application_startup_does_not_seed_accounts_implicitly`.
+3. **`WWW-Authenticate: Bearer` header dropped on 401s.** `get_current_user`
+   correctly raises `HTTPException(..., headers={"WWW-Authenticate": "Bearer"})`
+   (`app/features/auth/dependencies.py:35`), but the global
+   `StarletteHTTPException` handler in `app/main.py` (`_http`, around line 132)
+   rebuilds the JSON response via `error_response(...)` and never forwards
+   `exc.headers`, so the header never reaches the client. Test:
+   `test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge`
+   (all 3 parametrizations).
+
+No expected result was weakened, skipped, xfailed, or suppressed. These are the
+same 3 root-cause groups documented in the historical sections below; only the
+coverage gate and the two `zone_name`-related failures have changed since the
+last recorded retest.
+
+```text
+QA decision: FAILED (3 genuine backend defects remain; coverage gate now passes)
+Merge status: Blocked on the 3 defects above, not on coverage
+Corrective issue: #69 must remain open until routes/seeding/header are fixed
+```
+
 ## Current Test Results
 
 | Test ID | Matrix trace | API / component | Input or action | Expected result | Automated test | Actual result | Result |
@@ -521,7 +587,7 @@ Retest status at that time: Pending production corrections
 
 The expected results were not weakened merely to make the tests pass.
 
-## Current-Main Corrective Retest
+## HISTORICAL — Interim Retest (2026-08-02, superseded by FINAL Retest Result above)
 
 The original authentication execution remains preserved above as historical evidence.
 
@@ -599,7 +665,7 @@ The remaining five failing cases represent three product root causes. The comple
 reproduced the same five failures and introduced no additional functional test failure. Expected
 results were not weakened, skipped, suppressed or changed to obtain a passing result.
 
-## CI Full-Backend Regression Result
+## HISTORICAL — CI Full-Backend Regression Result (commit `277caa7`, superseded)
 
 GitHub Actions executed the complete backend suite against QA commit `277caa7`.
 
@@ -658,7 +724,12 @@ Merge status: Blocked
 ```
 
 PR `#81` must remain Draft. It must not be merged until the three remaining authentication
-root causes are corrected, meaningful test coverage reaches at least `80%`, the focused
-authentication suite passes, and the complete backend regression and required CI checks pass.
+root causes are corrected, the focused authentication suite passes, and the complete backend
+regression and required CI checks pass.
 
 No expected result was weakened, skipped, suppressed or changed to make CI pass.
+
+**Update (2026-08-12):** the coverage gate referenced above (`79.55%`, Failed) is historical.
+The FINAL Retest Result section at the top of this document shows current `main` now measures
+`81.75%` coverage on the full backend suite, which passes the `80%` gate. Coverage is no longer
+a merge blocker; the three functional authentication defects are the only remaining blockers.

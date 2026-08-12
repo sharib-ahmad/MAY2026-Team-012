@@ -44,6 +44,7 @@ def test_valid_token_returns_only_the_authenticated_users_public_profile(
         "email": "current.citizen@example.com",
         "role": "CITIZEN",
         "ward_code": "W-04",
+        "zone_name": "Ward A",
     }
 
     response_text = response.text.lower()

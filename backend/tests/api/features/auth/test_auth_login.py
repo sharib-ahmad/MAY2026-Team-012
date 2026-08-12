@@ -54,6 +54,7 @@ def test_valid_login_returns_canonical_safe_response_and_updates_last_login(
         "email": "jane.citizen@example.com",
         "role": "CITIZEN",
         "ward_code": "W-04",
+        "zone_name": "Ward A",
     }
 
     claims = jwt.decode(
