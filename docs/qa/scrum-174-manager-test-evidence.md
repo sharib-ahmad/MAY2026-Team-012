@@ -3,9 +3,11 @@
 **Feature:** Manager dashboard and manager operational actions
 **Related PR:** #68
 **Branch under test:** `test/SCRUM-174-manager-qa`
-**Commit tested:** `d9eff28`
-**Execution date:** 2026-08-01
-**QA state:** Initial focused execution completed; product corrections and final retest pending
+**Commit tested (initial):** `d9eff28`
+**Execution date (initial):** 2026-08-01
+**Commit tested (final retest):** `f4f074c` (merge of `origin/main` HEAD `b9fdbef`, PR #110)
+**Execution date (final retest):** 2026-08-12
+**QA state:** Final retest complete against current `main`; genuine backend defects remain (see "Final retest" section)
 
 ## Execution rule
 
@@ -130,26 +132,88 @@ fails.
 Do not create one issue per failed parameter case. Do not weaken the expected results, add blanket
 `xfail`, suppress warnings or skip requirement tests to obtain a green result.
 
-## Final retest
+## Final retest (current, supersedes the "Pending" status below)
 
-Preserve this initial failure evidence.
+The initial failure evidence above is preserved as historical.
 
-After the corrective code reaches `main`:
+`origin/main` was merged into `test/SCRUM-174-manager-qa` (clean auto-merge, no conflicts) and the
+full manager suite was rerun against the disposable local PostgreSQL test database
+(`verdeza_pytest_test`, Docker container `verdeza-postgres`, port 5433). No test code required any
+change — every failure reproduces a genuine, currently-reachable backend defect already catalogued
+in the "Defect summary" table above.
 
-1. merge current `origin/main` into `test/SCRUM-174-manager-qa`;
-2. rerun the focused manager suite;
-3. update only the retested Actual Output, Database Effect, Result and Defect fields;
-4. run the complete backend quality and regression commands;
-5. add corrective issue and pull-request references;
-6. mark a row Pass only when status, response body, headers and database effects all match the
-   expected result.
+```text
+Branch: test/SCRUM-174-manager-qa
+Commit tested: f4f074c (main merged at HEAD b9fdbef, PR #110)
+Execution date: 2026-08-12
 
-Current status:
+Focused suite (tests/api/features/manager):
+20 passed, 27 failed, 47 collected, 0 errors
+
+Full backend suite:
+246 passed, 27 failed, 273 collected, 0 errors
+Coverage: 83.78% (gate: >= 80%) -> PASSED
+
+Ruff check (focused + repo-wide): All checks passed
+Ruff format --check (focused + repo-wide): all files already formatted
+python -m compileall app tests alembic: clean
+alembic check: No new upgrade operations detected
+```
+
+Compared with the initial execution (11 passed, 36 failed), **9 previously failing cases are now
+resolved** by corrective PRs already merged to `main`:
+
+- `MGR-QA-11` — blank worker name/phone is now rejected (`test_worker_update_rejects_blank_text_without_persistence`).
+- `MGR-QA-12` — the canonical `DISABLED` worker status is now accepted (`test_worker_update_uses_the_canonical_disabled_status`).
+- `MGR-QA-13` — `token_version` now increments on worker disable and on worker delete, revoking old sessions (`test_disabling_worker_increments_token_version_and_revokes_old_session`, `test_unassigned_worker_delete_is_soft_audited_and_revokes_sessions`).
+- `MGR-QA-14` — a worker with an active pickup assignment can no longer be deleted (`test_worker_with_active_pickup_assignment_cannot_be_deleted`).
+- `MGR-QA-15` — a required audit failure now rolls back the worker update (`test_worker_update_rolls_back_when_required_audit_fails`).
+- `MGR-QA-07` (partially) — direct complaint resolution and pickup assignment now write an audit row (`test_manager_resolves_open_complaint_with_audit_and_citizen_notification`, `test_manager_assigns_pending_pickup_with_notifications_and_audit` both now pass).
+
+**10 defect groups remain genuine and unresolved** (verified directly against current
+`app/features/manager/router.py`, `app/features/complaints/router.py`,
+`app/features/bulk_pickups/router.py`, `app/features/notifications/router.py` and `app/main.py` on
+this merge):
+
+- `MGR-QA-01` — the approved resource-oriented routes (`GET /api/v1/complaints`, `PATCH
+  /api/v1/complaints/{complaint_id}/resolution`, `GET /api/v1/bulk-pickups`, `PATCH
+  /api/v1/bulk-pickups/{bulk_pickup_id}`, `GET /api/v1/notifications/me`) still do not exist; the
+  implementation instead exposes role-prefixed action routes
+  (`/api/v1/manager/tickets/{id}`, `/api/v1/manager/bulk-pickups/{id}/assign`,
+  `/api/v1/user/notifications`).
+- `MGR-QA-02` — `api-doc.yaml` is still missing manager routes (e.g.
+  `/api/v1/manager/bulk-pickups/{request_id}/assign`); out of scope to fix from this QA branch
+  (Part C/D documentation pass handles `api-doc.yaml`).
+- Bearer challenge — `WWW-Authenticate: Bearer` is still dropped on every manager-endpoint 401, the
+  same shared root cause documented for SCRUM-88 and SCRUM-173 (`app/main.py`'s global
+  `StarletteHTTPException` handler does not forward `exc.headers`).
+- `MGR-QA-03` — a manager with no assigned wards can still mutate a foreign-ward ticket or pickup
+  (`test_manager_without_assigned_wards_is_denied_state_changes`); confirmed live: the ticket status
+  changed `OPEN` -> `RESOLVED` and the pickup changed `PENDING` -> `ASSIGNED` for a manager not
+  assigned to that ward.
+- `MGR-QA-04` — the manager dashboard still returns data outside the manager's assigned wards.
+- `MGR-QA-05` — dashboard complaints are still unbounded.
+- `MGR-QA-06` — dashboard complaint rows still omit the `is_aging` field.
+- `MGR-QA-07` (residual) — the system-journey test still fails: resolving a complaint now writes an
+  audit row, but with `action = "COMPLAINT_STATUS_CHANGED"` rather than the more specific
+  `"COMPLAINT_RESOLVED"` the test expects, so audit-action granularity for resolution vs. other
+  status changes is still missing.
+- `MGR-QA-08` — validation failures on resolution notes and ineligible-collector assignment still
+  return public code `ERROR` instead of `VALIDATION_ERROR`.
+- `MGR-QA-09` — complaint resolution still accepts illegal non-`OPEN` source states (confirmed live:
+  `IN_PROGRESS`/`CLOSED` -> `RESOLVED` and an already-`RESOLVED` complaint returns `200` instead of
+  `409`).
+- `MGR-QA-10` — pickup assignment still accepts illegal source states and a second assignment still
+  overwrites the first collector instead of returning `409`.
+
+No expected result was weakened, skipped, xfailed, or suppressed to obtain this result.
 
 ```text
 SCRUM-174 Manager API QA: FAILED
-Focused suite: 11 passed, 36 failed
-Full backend regression: Pending corrections
-Coverage: Pending full backend execution
-QA pull request: May be committed and pushed as Draft
+Focused suite: 20 passed, 27 failed (was 11 passed, 36 failed)
+Full backend regression: 246 passed, 27 failed
+Coverage: 83.78% (gate passed)
+Resolved since initial execution: 5 full defect groups + 1 partial (9 test cases)
+Remaining genuine defects: 10 groups across 27 test cases
+QA pull request: #79, Draft — must remain Draft until the remaining 10 defect groups are corrected
 ```
