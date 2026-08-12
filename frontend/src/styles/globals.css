@@ -46,7 +46,7 @@ body {
 }
 
 /* Role-themed navbars */
-.nav-resident {
+.nav-citizen {
   @apply bg-primary text-white;
 }
 .nav-collector {

@@ -162,17 +162,17 @@ const MANAGER_ASSIGNED_WARDS = ["WARD-01", "WARD-02", "WARD-03"];
 // Browsers seeded before ward authorization existed hold managers without
 // assigned_wards — patch them in place so the rule applies there too.
 function backfillManagerWards(users) {
-  if (!users.some((u) => u.role === "MANAGER" && !u.assigned_wards)) return;
+  if (!users.some((u) => u.role === "MUNICIPAL_OFFICER" && !u.assigned_wards)) return;
   writeUsers(
     users.map((u) =>
-      u.role === "MANAGER" && !u.assigned_wards
+      u.role === "MUNICIPAL_OFFICER" && !u.assigned_wards
         ? { ...u, assigned_wards: MANAGER_ASSIGNED_WARDS }
         : u
     )
   );
 }
 
-// Registration only offers Resident / Collector / Recycler (see Register.jsx),
+// Registration only offers Citizen / Collector / Recycler (see Register.jsx),
 // so Manager and Admin accounts can't be created through the UI. Seed a
 // couple of demo logins once, on first run, so those dashboards are still
 // reachable for testing. Safe to delete this call once a real backend
@@ -188,10 +188,10 @@ export function seedDemoAccountsOnce() {
     {
       name: "Demo Manager",
       email: "manager@verdeza.test",
-      role: "MANAGER",
+      role: "MUNICIPAL_OFFICER",
       assigned_wards: MANAGER_ASSIGNED_WARDS,
     },
-    { name: "Demo Admin", email: "admin@verdeza.test", role: "ADMIN" },
+    { name: "Demo Admin", email: "admin@verdeza.test", role: "SYSTEM_ADMIN" },
   ];
 
   Promise.all(

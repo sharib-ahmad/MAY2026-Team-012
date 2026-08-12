@@ -47,6 +47,46 @@ Local API documentation:
 http://localhost:8000/docs
 ```
 
+## Running Celery and Redis
+
+For daily collection scheduling, the application uses Celery with Redis as the message broker.
+
+### 1. Start Redis Broker
+
+Ensure Redis is installed and running.
+
+- **Using WSL/Ubuntu (Native)**:
+  ```bash
+  sudo service redis-server start
+  ```
+- **Using Docker Compose**:
+  If you prefer running Redis inside Docker, start the service:
+  ```bash
+  docker compose up -d redis
+  ```
+
+Make sure the `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` variables in your `.env` are configured correctly (defaults to `redis://localhost:6379/0`).
+
+### 2. Start Celery Worker
+
+Open a new terminal, activate the virtual environment, navigate to the `backend/` directory, and start the Celery worker process:
+
+```bash
+celery -A app.core.celery_app worker --loglevel=info
+```
+
+### 3. Start Celery Beat Scheduler
+
+Open another terminal, activate the virtual environment, navigate to the `backend/` directory, and start the Celery beat scheduler:
+
+```bash
+celery -A app.core.celery_app beat --loglevel=info
+```
+
+> [!NOTE]
+> For manual local testing and verification, the beat schedule is set to run every 300 seconds. For production, configure it to daily (`crontab(hour=0, minute=0)`) in `app/core/celery_app.py`.
+
+
 Windows PowerShell activation:
 
 ```powershell
@@ -55,23 +95,83 @@ Windows PowerShell activation:
 
 ## Current Layout
 
+The backend follows a feature-first structure: cross-cutting concerns
+live under `app/core`, `app/db`, and `app/models`, while each business
+capability owns its own `router.py`, `schemas.py`, `service.py`, and
+(where it has its own tables) `models.py` under `app/features/`.
+
 ```text
 app/
-  core/        configuration and shared error-handling helpers
-  db/          engine, session, declarative base, and mixins
-  models/      shared SQLAlchemy models
-  schemas/     shared Pydantic request and response models
-  api/v1/      versioned API composition
-  services/    shared business services
-  main.py      application factory, middleware, and platform handlers
+├── main.py                         # App factory, middleware, error handlers,
+│                                    # /health, /ready, dev-only DB seeding
+├── api/
+│   └── v1/
+│       └── router.py               # Composes every feature router under /api/v1
+├── core/
+│   ├── config.py                   # Settings (env-driven)
+│   ├── db_errors.py                # Postgres integrity-error classifier
+│   └── security.py                 # Password hashing, JWT helpers
+├── db/
+│   ├── base.py                     # Declarative base
+│   ├── session.py                  # Engine + session factory
+│   └── registry.py                 # Imports every model for metadata
+├── models/
+│   ├── zone.py                     # Shared Zone reference model
+│   ├── audit.py                    # AuditLog model
+│   ├── enums.py                    # Role, UserStatus, PickupStatus, ...
+│   └── export.py
+└── features/
+    ├── auth/                       # Signup, login, session/token issuance
+    ├── users/                      # Resident profile & account endpoints
+    ├── admin/                      # Admin-only account/zone management
+    ├── manager/                    # Municipal officer dashboards & workflows
+    ├── wards/                      # Ward/zone reference data
+    ├── collection_ops/             # Resident schedules + collector ops
+    │                               # (includes ors_client.py routing client)
+    ├── bulk_pickups/               # Resident bulk-pickup requests +
+    │                               # collector assignment
+    ├── complaints/                 # Resident complaint submission/handling
+    ├── notifications/              # Resident notification delivery
+    ├── tracking/                   # Public, unauthenticated pickup tracking
+    ├── sorting_guide/              # WasteCategory model, seeded at startup
+    │                               # (router/service not yet wired up)
+    ├── materials/                  # Materials ledger (router defined,
+    │                               # not yet mounted on the API router)
+    ├── credits/                    # Credits & gamification (router
+    │                               # defined, not yet mounted)
+    └── reuse/                      # Civic reuse exchange (router
+                                     # defined, not yet mounted)
 
-alembic/       migration environment and migration versions
+    # each feature above typically contains:
+    #   router.py        - APIRouter with its own prefix/tags
+    #   schemas.py        - Pydantic request/response models
+    #   service.py        - business logic
+    #   models.py         - SQLAlchemy models (only where the feature owns tables)
+    #   dependencies.py   - feature-specific auth/role guards (auth, admin,
+    #                       manager, users)
+
+alembic/
+├── env.py                          # Migration environment
+├── script.py.mako                  # Migration template
+└── versions/                       # Migration scripts
+
+docs/                                # Architecture decision records (ADRs)
 
 tests/
-  unit/        isolated logic tests
-  integration/ PostgreSQL integration tests
-  api/         endpoint-level API tests
+├── unit/                           # Isolated logic tests, mirrored per feature
+├── integration/                    # PostgreSQL integration tests
+├── api/                            # Endpoint-level API tests, per feature
+└── system/                         # End-to-end user-journey tests
 ```
+
+Each feature's `router.py` declares its own `APIRouter` (with its own
+`prefix` and OpenAPI `tags`); `app/api/v1/router.py` is the single
+place that wires those routers onto `/api/v1`, mounting most resident
+endpoints under `/user`, collector endpoints under `/user/collector`,
+manager endpoints under `/manager`, and admin endpoints under
+`/admin`. `sorting_guide`, `materials`, `credits`, and `reuse` currently
+exist as feature packages but are not yet included in that router, so
+their endpoints aren't reachable through the API yet.
 
 ## Checks CI Runs
 
@@ -205,7 +305,7 @@ Never run migration downgrade tests against staging or production.
 
 ## Current Scope
 
-The shared backend foundation contains:
+Shared backend foundation:
 
 - configuration and fail-closed secret validation;
 - database-only configuration for Alembic;
@@ -215,8 +315,24 @@ The shared backend foundation contains:
 - PostgreSQL integrity-error classification;
 - request-ID propagation;
 - `/health` and `/ready`;
-- the shared `Zone` reference model;
-- unit, API, and PostgreSQL integration tests.
+- the shared `Zone` and `AuditLog` reference models;
+- unit, API, integration, and system tests.
 
-Business features are implemented through separate feature pull
-requests.
+Business features implemented and mounted on `/api/v1`:
+
+- `auth` — signup, login, and session handling;
+- `users` — resident profile endpoints;
+- `admin` — account, zone, and platform administration;
+- `manager` — municipal officer dashboards and workflows;
+- `wards` — ward/zone reference data;
+- `collection_ops` — resident collection schedules and collector
+  operations, including ORS-based routing;
+- `bulk_pickups` — resident bulk-pickup requests and collector
+  assignment;
+- `complaints` — resident complaint handling;
+- `notifications` — resident notifications;
+- `tracking` — public pickup tracking.
+
+Feature packages that exist in code but are not yet mounted on the
+API router: `sorting_guide` (waste-category reference data, seeded at
+startup), `materials`, `credits`, and `reuse`.

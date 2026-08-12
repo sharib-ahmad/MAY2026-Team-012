@@ -1,9 +1,9 @@
 export const ROLE_HOME = {
-  RESIDENT: "/resident/dashboard",
-  COLLECTOR: "/collector/dashboard",
-  MANAGER: "/manager/dashboard",
+  CITIZEN: "/citizen/dashboard",
+  COLLECTION_WORKER: "/collector/dashboard",
+  MUNICIPAL_OFFICER: "/manager/dashboard",
   RECYCLER: "/recycler/dashboard",
-  ADMIN: "/admin/dashboard",
+  SYSTEM_ADMIN: "/admin/dashboard",
 };
 
 export function homePathForRole(role) {

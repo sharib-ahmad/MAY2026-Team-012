@@ -18,6 +18,12 @@ from app.models.enums import BulkRequestStatus, Role, TicketStatus, UserStatus
 
 router = APIRouter(prefix="/manager", tags=["Manager"])
 
+# Handle Starlette version differences for HTTP status codes
+try:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_CONTENT
+except AttributeError:
+    HTTP_422 = status.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 @router.get("/dashboard")
 def get_manager_dashboard(
@@ -60,10 +66,11 @@ def update_manager_ticket(
         )
     if payload.status == TicketStatus.RESOLVED and not (payload.resolution_notes or "").strip():
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422,
             detail="A resolution note is required to resolve a complaint.",
         )
 
+    previous_status = ticket.status
     ticket.status = payload.status
     ticket.resolution_notes = (payload.resolution_notes or "").strip() or None
     if payload.status == TicketStatus.RESOLVED:
@@ -72,6 +79,36 @@ def update_manager_ticket(
     else:
         ticket.resolved_at = None
         ticket.resolved_by_id = None
+    if previous_status != ticket.status:
+        note_suffix = f" Note: {ticket.resolution_notes}" if ticket.resolution_notes else ""
+        db.add(
+            Notification(
+                user_id=ticket.raised_by_id,
+                title="Complaint status updated",
+                body=(
+                    f"Your complaint {ticket.ref_code} is now "
+                    f"{ticket.status.value.replace('_', ' ').lower()}.{note_suffix}"
+                ),
+            )
+        )
+    db.flush()
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="COMPLAINT_STATUS_CHANGED",
+        entity_type="Ticket",
+        entity_id=str(ticket.id),
+        module="manager",
+        description=(
+            f"Complaint {ticket.ref_code} status changed from "
+            f"{previous_status.value} to {ticket.status.value}"
+            + (f"; note: {ticket.resolution_notes}" if ticket.resolution_notes else "")
+        ),
+        commit=False,
+        required=True,
+    )
     db.commit()
     return {"id": str(ticket.id), "status": ticket.status.value}
 
@@ -112,6 +149,7 @@ def assign_bulk_pickup(
     request.decided_by_id = current_user.id
     request.decided_at = datetime.now(UTC)
     request.status = BulkRequestStatus.ASSIGNED
+
     db.add_all(
         [
             Notification(
@@ -125,6 +163,23 @@ def assign_bulk_pickup(
                 body=f"You were assigned {request.ref_code} in your ward.",
             ),
         ]
+    )
+    db.flush()
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="BULK_PICKUP_ASSIGNED",
+        entity_type="BulkPickupRequest",
+        entity_id=str(request.id),
+        module="manager",
+        description=(
+            f"Bulk pickup {request.ref_code} assigned to collector "
+            f"{collector.name} ({collector.id}) by manager {current_user.name}"
+        ),
+        commit=False,
+        required=True,
     )
     db.commit()
     return {"id": str(request.id), "status": request.status.value, "collector_name": collector.name}
@@ -147,10 +202,13 @@ def update_worker(
             status_code=status.HTTP_403_FORBIDDEN, detail="Collector is outside your wards."
         )
     old_values = {"name": worker.name, "phone": worker.phone, "status": worker.status.value}
+    new_status = UserStatus.ACTIVE if payload.status == "ACTIVE" else UserStatus.DISABLED
     worker.name = payload.name.strip()
     worker.phone = payload.phone.strip()
-    worker.status = UserStatus.ACTIVE if payload.status == "ACTIVE" else UserStatus.DISABLED
-    db.commit()
+    worker.status = new_status
+    # Revoke existing sessions when disabling a worker
+    if new_status == UserStatus.DISABLED:
+        worker.token_version += 1
     create_audit_log(
         db,
         actor_id=str(current_user.id),
@@ -167,7 +225,10 @@ def update_worker(
             f"status {old_values['status']} → {payload.status}"
         ),
         ip_address=request.client.host if request.client else None,
+        commit=False,
+        required=True,
     )
+    db.commit()
     return {
         "id": str(worker.id),
         "name": worker.name,
@@ -194,9 +255,23 @@ def delete_worker(
     worker_name = worker.name
     worker_role = worker.role.value
     worker_uuid = worker.id
+
+    # Block deletion if worker has an active bulk pickup assignment
+    active_assignment = db.scalar(
+        select(BulkPickupRequest).where(
+            BulkPickupRequest.assigned_collector_id == worker.id,
+            BulkPickupRequest.status.in_([BulkRequestStatus.PENDING, BulkRequestStatus.ASSIGNED]),
+        )
+    )
+    if active_assignment:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete a collector with an active pickup assignment.",
+        )
+
     worker.deleted_at = datetime.now(UTC)
     worker.status = UserStatus.DISABLED
-    db.commit()
+    worker.token_version += 1  # revoke existing sessions immediately
     create_audit_log(
         db,
         actor_id=str(current_user.id),
@@ -208,4 +283,7 @@ def delete_worker(
         module="manager",
         description=f"Manager soft-deleted {worker_role} {worker_name}.",
         ip_address=request.client.host if request.client else None,
+        commit=False,
+        required=True,
     )
+    db.commit()

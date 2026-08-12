@@ -27,7 +27,7 @@ const roles = [
   {
     key: "citizen",
     label: "Citizen",
-    tag: "RESIDENT",
+    tag: "CITIZEN",
     color: { bg: "bg-[#1F7A4D]", text: "text-[#1F7A4D]", ring: "border-[#1F7A4D]" },
     icon: Users,
     blurb: "Households, shopkeepers, and school administrators generating waste across the ward.",

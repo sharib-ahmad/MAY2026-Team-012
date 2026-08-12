@@ -1,44 +1,44 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
-  Store,
-  Truck,
   FileBarChart,
   LogOut,
   User,
   Bell,
   Menu,
   ChevronDown,
-  ShieldAlert,
-  PackageCheck,
+  Inbox,
+  Cog,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { listBatches } from "../../lib/mockRecyclerData";
+import {
+  listRecyclerNotifications,
+  markAllRecyclerNotificationsRead,
+  markRecyclerNotificationRead,
+} from "../../lib/api";
+import { usePolling } from "../../hooks/usePolling";
 import Footer from "../../components/Footer";
-import Home from "./recycler/Home";
-import CommunityShelf from "./recycler/CommunityShelf";
-import MyClaims from "./recycler/MyClaims";
 import Reports from "./recycler/Reports";
+import AssignedBatches from "./recycler/AssignedBatches";
+import BatchProcessing from "./recycler/BatchProcessing";
+import Dashboard from "./recycler/Dashboard";
+import ProcessedBatches from "./recycler/ProcessedBatches";
 
-// Recycler facility workspace covering Epic 4 (B2G Material Inventory
-// Ledger): browse/claim the shared batch community shelf (Story 4.1),
-// review quality/contamination info (Story 4.2), and confirm pickups
-// (Story 4.3). Entirely backend-free — see lib/mockRecyclerData.js.
-//
-// Shell mirrors the resident portal's app frame — sticky top bar +
-// left nav rail with the active-item highlight and account card —
-// but stays entirely on the recycler's terracotta/clay palette
-// already established in Home.jsx (no green carried over).
 const TABS = [
-  { key: "home", label: "Home", icon: LayoutDashboard, component: Home },
-  { key: "communityshelf", label: "Community Shelf", icon: Store, component: CommunityShelf },
-  { key: "claims", label: "My Claims", icon: Truck, component: MyClaims },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, component: Dashboard },
+  { key: "assigned-batches", label: "Assigned Batches", icon: Inbox, component: AssignedBatches },
+  { key: "batch-processing", label: "Batch Processing", icon: Cog, component: BatchProcessing },
+  {
+    key: "processed-batches",
+    label: "Processed Batches",
+    icon: CheckCircle2,
+    component: ProcessedBatches,
+  },
   { key: "reports", label: "Reports", icon: FileBarChart, component: Reports },
 ];
 
-const RAIL = "#C4611A"; // single brand color — top bar & sidebar
-// Active/contrast states are done with white/black opacity overlays on
-// top of RAIL rather than a second hex, per request to stay on one color.
+const RAIL = "#C4611A";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -51,84 +51,97 @@ function formatTime(iso) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function backendNotificationRoute(title) {
+  const lower = title.toLowerCase();
+  if (lower.includes("assigned")) return { tab: "assigned-batches", icon: Inbox };
+  if (lower.includes("batch")) return { tab: "assigned-batches", icon: Inbox };
+  return { tab: "assigned-batches", icon: Bell };
+}
+
 export default function RecyclerDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(TABS[0].key);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
-  // Lets "Recent Activity" on Home deep-link straight to a specific batch:
-  // it sets { tab, batchId } and switches tabs; the target panel picks up
-  // focusBatchId on mount, opens that batch's own detail modal, then clears it.
   const [focusBatch, setFocusBatch] = useState(null);
+  const [backendNotifications, setBackendNotifications] = useState([]);
+  const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
+
+  const loadBackendNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      setBackendNotifications(await listRecyclerNotifications());
+    } catch {
+      // Shelf/claims tabs remain usable if notifications are temporarily unavailable.
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadBackendNotifications();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadBackendNotifications]);
+  usePolling(loadBackendNotifications, 30000);
 
   const goToBatch = (tab, batchId) => {
-    setFocusBatch({ tab, batchId });
+    setFocusBatch(batchId ? { tab, batchId } : null);
     setActiveTab(tab);
     setSidebarOpen(false);
     setShowNotifications(false);
   };
 
   const notifications = useMemo(() => {
-    if (!user) return [];
-    // Same backend-free source as Home's activity feed — just trimmed to
-    // one entry per event type so the bell stays a quick glance, not a log.
-    const byDateDesc = (key) => (a, b) => new Date(b[key] || 0) - new Date(a[key] || 0);
-    const available = listBatches({ status: "AVAILABLE" }).sort(byDateDesc("drop_date"));
-    const unsafe = available.filter((b) => b.quality_status === "UNSAFE");
-    const claimed = listBatches({ status: "CLAIMED", mine: true, recyclerUser: user }).sort(
-      byDateDesc("claim_expires_at")
-    );
-    const collected = listBatches({ status: "COLLECTED", mine: true, recyclerUser: user }).sort(
-      byDateDesc("collected_at")
-    );
+    const live = backendNotifications.map((notification) => {
+      const route = backendNotificationRoute(notification.title);
+      return {
+        id: notification.id,
+        title: notification.title,
+        time: notification.created_at,
+        icon: route.icon,
+        tab: route.tab,
+        batchId: null,
+        isRead: notification.is_read,
+        source: "backend",
+      };
+    });
+    return live.slice(0, 8);
+  }, [backendNotifications]);
 
-    const items = [];
-    if (unsafe[0]) {
-      items.push({
-        title: `Batch #${unsafe[0].ref_code} flagged unsafe`,
-        time: unsafe[0].drop_date,
-        icon: ShieldAlert,
-        tone: "danger",
-        tab: "communityshelf",
-        batchId: unsafe[0].id,
-      });
+  const hasUnreadBackend = backendNotifications.some((notification) => !notification.is_read);
+
+  const openNotification = async (notification) => {
+    if (notification.source === "backend" && notification.id && !notification.isRead) {
+      try {
+        await markRecyclerNotificationRead(notification.id);
+        setBackendNotifications((items) =>
+          items.map((item) => (item.id === notification.id ? { ...item, is_read: true } : item))
+        );
+      } catch {
+        // Keep the notification visible; it will be retried on the next refresh.
+      }
     }
-    if (claimed[0]) {
-      items.push({
-        title: `Batch #${claimed[0].ref_code} awaiting pickup`,
-        time: claimed[0].claim_expires_at,
-        icon: Truck,
-        tab: "claims",
-        batchId: claimed[0].id,
-      });
+    goToBatch(notification.tab, notification.batchId);
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!hasUnreadBackend || markingNotificationsRead) return;
+    setMarkingNotificationsRead(true);
+    try {
+      await markAllRecyclerNotificationsRead();
+      setBackendNotifications((items) => items.map((item) => ({ ...item, is_read: true })));
+    } catch {
+      // The next poll will retain the current state if this request fails.
+    } finally {
+      setMarkingNotificationsRead(false);
     }
-    if (available[0]) {
-      items.push({
-        title: `Batch #${available[0].ref_code} listed in community shelf`,
-        time: available[0].drop_date,
-        icon: Store,
-        tab: "communityshelf",
-        batchId: available[0].id,
-      });
-    }
-    if (collected[0]) {
-      items.push({
-        title: `Batch #${collected[0].ref_code} collected`,
-        time: collected[0].collected_at,
-        icon: PackageCheck,
-        tab: "reports",
-        batchId: collected[0].id,
-      });
-    }
-    return items;
-  }, [user]);
+  };
 
   const ActivePanel = TABS.find((t) => t.key === activeTab)?.component ?? TABS[0].component;
 
   return (
     <div className="min-h-screen bg-[#FBF7F0]">
-      {/* Top bar — full width, sits above the sidebar/content split */}
       <header
         className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 border-b border-black/10"
         style={{ backgroundColor: RAIL }}
@@ -142,15 +155,22 @@ export default function RecyclerDashboard() {
           >
             <Menu size={20} />
           </button>
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 text-lg font-bold text-[#0B2F2C] shrink-0">
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
-              Verdeza
-            </div>
-            <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
-              Recycler Portal
+          <div
+            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-400 text-lg font-bold text-[#0B2F2C] shrink-0">
+              V
+            </span>
+            <div className="leading-tight">
+              <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
+                Verdeza
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
+                Recycler Portal
+              </div>
             </div>
           </div>
         </div>
@@ -174,8 +194,20 @@ export default function RecyclerDashboard() {
 
             {showNotifications && (
               <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-lg border border-black/5 py-2 z-40 text-left">
-                <div className="px-3.5 py-1.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
-                  Recent Activity
+                <div className="flex items-center justify-between gap-3 px-3.5 py-1.5">
+                  <span className="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">
+                    Recent Activity
+                  </span>
+                  {hasUnreadBackend && (
+                    <button
+                      type="button"
+                      onClick={markAllNotificationsRead}
+                      disabled={markingNotificationsRead}
+                      className="text-[11px] font-semibold text-[#C4611A] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {markingNotificationsRead ? "Marking…" : "Mark all as read"}
+                    </button>
+                  )}
                 </div>
                 {notifications.length === 0 ? (
                   <div className="px-3.5 py-3 text-sm text-gray-400">No recent activity yet.</div>
@@ -184,9 +216,9 @@ export default function RecyclerDashboard() {
                     const Icon = n.icon;
                     return (
                       <button
-                        key={i}
+                        key={n.id || `mock-${i}`}
                         type="button"
-                        onClick={() => goToBatch(n.tab, n.batchId)}
+                        onClick={() => openNotification(n)}
                         className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-black/[0.03] transition"
                       >
                         <span
@@ -270,7 +302,6 @@ export default function RecyclerDashboard() {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside
           className={`fixed lg:sticky top-16 left-0 z-20 h-[calc(100vh-4rem)] shrink-0 flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-all duration-200 ${
             sidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-0 lg:translate-x-0"
@@ -326,7 +357,6 @@ export default function RecyclerDashboard() {
           </div>
         </aside>
 
-        {/* Mobile scrim */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 top-16 bg-black/30 z-10 lg:hidden"
@@ -334,7 +364,6 @@ export default function RecyclerDashboard() {
           />
         )}
 
-        {/* Main content */}
         <main className="flex-1 min-w-0">
           <ActivePanel
             onOpenBatch={goToBatch}

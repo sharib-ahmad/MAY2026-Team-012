@@ -43,7 +43,6 @@ def get_dashboard_data(db: Session) -> AdminDashboardResponse:
                 role=ROLE_MAP_DB_TO_FRONTEND.get(user.role, user.role.name),
                 zone_code=zone.code if zone else None,
                 zone_name=zone.name if zone else None,
-                zone_id=user.zone_id,
                 last_login_at=user.last_login_at,
                 status=user.status.name,
             )
@@ -92,25 +91,23 @@ def create_ward(
     )
 
     db.add(new_ward)
+    db.flush()
+    create_audit_log(
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_CREATED",
+        entity_type="Zone",
+        entity_id=str(new_ward.id),
+        module="admin",
+        description=f"Ward {new_ward.code} created by admin",
+        ip_address=ip_address,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(new_ward)
-
-    # Log ward creation (non-blocking, separate transaction)
-    try:
-        create_audit_log(
-            db,
-            actor_id=user_id,
-            actor_name=user_name,
-            actor_role="SYSTEM_ADMIN",
-            action="WARD_CREATED",
-            entity_type="Zone",
-            entity_id=str(new_ward.id),
-            module="admin",
-            description=f"Ward {new_ward.code} created by admin",
-            ip_address=ip_address,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
     return WardResponse(
         id=new_ward.id,
@@ -210,27 +207,24 @@ def update_ward(
     ward.sectors = ward_data.sectors
     ward.manager_id = manager_id
 
+    create_audit_log(
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_UPDATED",
+        entity_type="Zone",
+        entity_id=str(ward.id),
+        module="admin",
+        description=(
+            f"Ward {ward.code} updated: {', '.join(changes) if changes else 'details modified'}"
+        ),
+        ip_address=ip_address,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(ward)
-
-    # Log ward update (non-blocking, separate transaction)
-    try:
-        create_audit_log(
-            db,
-            actor_id=user_id,
-            actor_name=user_name,
-            actor_role="SYSTEM_ADMIN",
-            action="WARD_UPDATED",
-            entity_type="Zone",
-            entity_id=str(ward.id),
-            module="admin",
-            description=(
-                f"Ward {ward.code} updated: {', '.join(changes) if changes else 'details modified'}"
-            ),
-            ip_address=ip_address,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
     # Get manager name if assigned
     manager_name = None
@@ -291,24 +285,21 @@ def delete_ward(
 
     # Delete the ward
     db.delete(ward)
+    create_audit_log(
+        db,
+        actor_id=user_id,
+        actor_name=user_name,
+        actor_role="SYSTEM_ADMIN",
+        action="WARD_DELETED",
+        entity_type="Zone",
+        entity_id=str(ward.id),
+        module="admin",
+        description=f"Ward {ward.code} deleted by admin",
+        ip_address=ip_address,
+        commit=False,
+        required=True,
+    )
     db.commit()
-
-    # Log ward deletion (non-blocking, separate transaction)
-    try:
-        create_audit_log(
-            db,
-            actor_id=user_id,
-            actor_name=user_name,
-            actor_role="SYSTEM_ADMIN",
-            action="WARD_DELETED",
-            entity_type="Zone",
-            entity_id=str(ward.id),
-            module="admin",
-            description=f"Ward {ward.code} deleted by admin",
-            ip_address=ip_address,
-        )
-    except Exception as e:
-        print(f"Audit log creation failed: {e}")
 
 
 def get_logs(db: Session, limit: int = 100) -> LogsResponse:

@@ -7,7 +7,7 @@ import Flows from "./pages/Flows";
 import SortingGuidePublic from "./pages/SortingGuidePublic";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ResidentDashboard from "./pages/dashboards/ResidentDashboard";
+import CitizenDashboard from "./pages/dashboards/CitizenDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
 import CollectorDashboard from "./pages/dashboards/CollectorDashboard";
@@ -32,17 +32,17 @@ export default function App() {
       <Route path="/register" element={user ? <Navigate to={homePath} replace /> : <Register />} />
 
       <Route
-        path="/resident/dashboard"
+        path="/citizen/dashboard"
         element={
-          <ProtectedRoute role="RESIDENT">
-            <ResidentDashboard />
+          <ProtectedRoute role="CITIZEN">
+            <CitizenDashboard />
           </ProtectedRoute>
         }
       />
       <Route
         path="/collector/dashboard"
         element={
-          <ProtectedRoute role="COLLECTOR">
+          <ProtectedRoute role="COLLECTION_WORKER">
             <CollectorDashboard />
           </ProtectedRoute>
         }
@@ -58,7 +58,7 @@ export default function App() {
       <Route
         path="/manager/dashboard"
         element={
-          <ProtectedRoute role="MANAGER">
+          <ProtectedRoute role="MUNICIPAL_OFFICER">
             <ManagerDashboard />
           </ProtectedRoute>
         }
@@ -66,7 +66,7 @@ export default function App() {
       <Route
         path="/admin/dashboard"
         element={
-          <ProtectedRoute role="ADMIN">
+          <ProtectedRoute role="SYSTEM_ADMIN">
             <AdminDashboard />
           </ProtectedRoute>
         }

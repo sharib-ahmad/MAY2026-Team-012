@@ -46,7 +46,7 @@ export default function SortingGuideEditor() {
     >
       <p className="text-sm text-gray-500 -mt-2 mb-5 max-w-xl">
         One item per line. Changes apply immediately to the public Sorting Guide page and the
-        resident dashboard tab.
+        citizen dashboard tab.
       </p>
 
       {saved && (

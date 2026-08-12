@@ -23,6 +23,7 @@ from app.core.config import (
     DatabaseSettings,
     Settings,
     get_database_settings,
+    get_settings,
 )
 from app.db.session import get_db
 from app.main import create_app
@@ -59,7 +60,14 @@ def engine():
         future=True,
     )
 
-    alembic_config = Config("alembic.ini")
+    import os
+
+    conftest_dir = os.path.dirname(__file__)
+    ini_path = os.path.abspath(os.path.join(conftest_dir, "..", "alembic.ini"))
+    alembic_config = Config(ini_path)
+    script_location = os.path.abspath(os.path.join(conftest_dir, "..", "alembic"))
+    alembic_config.set_main_option("script_location", script_location)
+
     command.downgrade(alembic_config, "base")
     command.upgrade(alembic_config, "head")
 
@@ -97,7 +105,7 @@ def app_test():
 
     test_settings = Settings(
         APP_ENV="test",
-        SECRET_KEY="",
+        SECRET_KEY=get_settings().SECRET_KEY,
         DATABASE_URL=database_settings.DATABASE_URL,
     )
 

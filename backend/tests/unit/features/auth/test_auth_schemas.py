@@ -14,7 +14,7 @@ def test_user_register_request_whitespace_stripping():
         "phone": "  +919876543210  ",
         "address": "Some address",
         "zone_id": None,
-        "role": "RESIDENT",
+        "role": "CITIZEN",
     }
     req = UserRegisterRequest(**payload)
     assert req.name == "John Doe"
@@ -32,7 +32,7 @@ def test_user_register_request_validation_errors():
             email="not-an-email",
             password="password123",
             phone="+919876543210",
-            role="RESIDENT",
+            role="CITIZEN",
         )
 
     # Name too short
@@ -42,7 +42,7 @@ def test_user_register_request_validation_errors():
             email="jane@example.com",
             password="password123",
             phone="+919876543210",
-            role="RESIDENT",
+            role="CITIZEN",
         )
 
     # Password too short
@@ -52,5 +52,5 @@ def test_user_register_request_validation_errors():
             email="jane@example.com",
             password="short",
             phone="+919876543210",
-            role="RESIDENT",
+            role="CITIZEN",
         )

@@ -1,5 +1,24 @@
 from app.features.complaints.models import Ticket
 from app.features.complaints.schemas import TicketResponse
+from app.models.enums import Role, UserStatus
+
+
+def _ward_manager_name(ticket: Ticket) -> str | None:
+    if not ticket.zone:
+        return None
+    if ticket.zone.manager:
+        return ticket.zone.manager.name
+    # Legacy ward assignments keep the officer on users.zone_id rather than
+    # zones.manager_id. Surface that assigned officer to the citizen too.
+    manager = next(
+        (
+            member
+            for member in ticket.zone.members
+            if member.role == Role.MUNICIPAL_OFFICER and member.status == UserStatus.ACTIVE
+        ),
+        None,
+    )
+    return manager.name if manager else None
 
 
 def serialize_ticket(ticket: Ticket) -> TicketResponse:
@@ -9,9 +28,31 @@ def serialize_ticket(ticket: Ticket) -> TicketResponse:
         issue_type=ticket.issue_type.value,
         status=ticket.status.value,
         description=ticket.description,
+        manager_note=ticket.resolution_notes,
         ward_code=ticket.zone.code if ticket.zone else None,
         ward_name=ticket.zone.name if ticket.zone else None,
         ward_sectors=ticket.zone.sectors if ticket.zone else None,
-        ward_manager_name=ticket.zone.manager.name if ticket.zone and ticket.zone.manager else None,
+        ward_manager_name=_ward_manager_name(ticket),
         created_at=ticket.created_at,
     )
+
+
+def auto_close_resolved_tickets(db) -> int:
+    """Automatically transition tickets resolved more than 24 hours ago to CLOSED."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from app.models.enums import TicketStatus
+
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
+    result = db.execute(
+        update(Ticket)
+        .where(
+            Ticket.status == TicketStatus.RESOLVED,
+            Ticket.resolved_at <= cutoff,
+        )
+        .values(status=TicketStatus.CLOSED)
+    )
+    db.commit()
+    return result.rowcount

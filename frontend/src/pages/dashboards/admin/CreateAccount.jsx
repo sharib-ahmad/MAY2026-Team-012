@@ -7,7 +7,7 @@ const EMPTY_FORM = {
   name: "",
   email: "",
   phone: "",
-  role: "MANAGER",
+  role: "MUNICIPAL_OFFICER",
   zone_id: "",
   password: "",
   confirm: "",
@@ -66,7 +66,8 @@ export default function CreateAccount() {
     const errors = {};
     if (!form.name.trim()) errors.name = "Name is required.";
     if (!isValidEmail(form.email)) errors.email = "Enter a valid email address.";
-    if (form.role === "MANAGER" && !form.zone_id) errors.zone_id = "Assign the officer a zone.";
+    if (form.role === "MUNICIPAL_OFFICER" && !form.zone_id)
+      errors.zone_id = "Assign the officer a zone.";
     if (form.password.length < 8) errors.password = "Password must be at least 8 characters.";
     if (form.confirm !== form.password) errors.confirm = "Passwords do not match.";
     if (Object.keys(errors).length > 0) {
@@ -81,7 +82,7 @@ export default function CreateAccount() {
         email: form.email,
         password: form.password,
         phone: form.phone || null,
-        zone_id: form.role === "MANAGER" ? form.zone_id : null,
+        zone_id: form.role === "MUNICIPAL_OFFICER" ? form.zone_id : null,
         role: form.role,
       });
       setCreated(user);
@@ -108,7 +109,8 @@ export default function CreateAccount() {
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           <span>
             Account created successfully. <span className="font-semibold">{created.name}</span> can
-            now sign in as a {created.role === "ADMIN" ? "System Admin" : "Municipal Officer"} using{" "}
+            now sign in as a{" "}
+            {created.role === "SYSTEM_ADMIN" ? "System Admin" : "Municipal Officer"} using{" "}
             <span className="font-mono-civic">{created.email}</span>.
           </span>
         </div>
@@ -155,20 +157,20 @@ export default function CreateAccount() {
             value={form.role}
             onChange={(e) => updateField("role", e.target.value)}
           >
-            <option value="MANAGER">Municipal Officer</option>
-            <option value="ADMIN">System Admin</option>
+            <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
+            <option value="SYSTEM_ADMIN">System Admin</option>
           </select>
         </div>
 
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
-            Assigned zone {form.role === "ADMIN" && "(not required)"}
+            Assigned zone {form.role === "SYSTEM_ADMIN" && "(not required)"}
           </label>
           <select
             className={inputClass(fieldErrors.zone_id)}
             value={form.zone_id}
             onChange={(e) => updateField("zone_id", e.target.value)}
-            disabled={form.role === "ADMIN" || zonesLoading}
+            disabled={form.role === "SYSTEM_ADMIN" || zonesLoading}
           >
             <option value="">Select a zone…</option>
             {zones.map((z) => (
