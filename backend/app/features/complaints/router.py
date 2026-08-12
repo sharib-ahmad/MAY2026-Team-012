@@ -25,9 +25,9 @@ router = APIRouter(tags=["Citizen Complaints"])
 
 # Handle Starlette version differences for HTTP status codes
 try:
-    HTTP_422 = status.HTTP_422_UNPROCESSABLE_CONTENT
-except AttributeError:
     HTTP_422 = status.HTTP_422_UNPROCESSABLE_ENTITY
+except AttributeError:
+    HTTP_422 = 422
 
 
 @router.get("/tickets", response_model=TicketsResponse)

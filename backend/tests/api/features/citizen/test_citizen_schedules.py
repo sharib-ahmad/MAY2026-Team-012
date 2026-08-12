@@ -33,7 +33,7 @@ class TestCitizenSchedules:
 
         pickup = Pickup(
             ref_code="COL-QUEUE-01",
-            resident_id=citizen_user.id,
+            citizen_id=citizen_user.id,
             zone_id=test_zone.id,
             category="PAPER",
             estimated_weight=5.0,
@@ -45,7 +45,7 @@ class TestCitizenSchedules:
         stop = DailyPickupStop(
             schedule_id=schedule.id,
             pickup_id=pickup.id,
-            resident_id=citizen_user.id,
+            citizen_id=citizen_user.id,
             pickup_order=2,
             status=PickupStopStatus.PENDING,
             latitude=28.6139,

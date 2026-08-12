@@ -51,7 +51,7 @@ class TestCitizenImpactDashboard:
 
         p1 = Pickup(
             ref_code="COL-IMP-01",
-            resident_id=citizen_user.id,
+            citizen_id=citizen_user.id,
             zone_id=test_zone.id,
             category=plastic.code,
             completed_at=datetime.now(UTC) - timedelta(days=5),
@@ -63,7 +63,7 @@ class TestCitizenImpactDashboard:
         )
         p2 = Pickup(
             ref_code="COL-IMP-02",
-            resident_id=citizen_user.id,
+            citizen_id=citizen_user.id,
             zone_id=test_zone.id,
             category=paper.code,
             completed_at=datetime.now(UTC) - timedelta(days=2),
@@ -104,7 +104,7 @@ class TestCitizenImpactDashboard:
         for i in range(5):
             p = Pickup(
                 ref_code=f"COL-BDG-0{i}",
-                resident_id=citizen_user.id,
+                citizen_id=citizen_user.id,
                 zone_id=test_zone.id,
                 category=plastic.code,
                 completed_at=datetime.now(UTC) - timedelta(days=i + 1),
