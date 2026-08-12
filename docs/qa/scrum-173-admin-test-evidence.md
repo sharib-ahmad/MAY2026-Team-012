@@ -10,6 +10,72 @@
 **Corrective issue:** #70
 **Execution rule:** Expected results were fixed before execution. Actual outputs and results are recorded from pytest execution against the disposable PostgreSQL test database. Historical evidence is preserved, while the latest retest section is the source of truth for the current failure set.
 
+## FINAL Retest Result (current, supersedes all sections below)
+
+`origin/main` was merged into `test/SCRUM-173-admin-qa` (clean auto-merge, no conflicts) and the
+full administrator suite was rerun against the disposable local PostgreSQL test database
+(`verdeza_pytest_test`, Docker container `verdeza-postgres`, port 5433). No test code required any
+change — all failures reproduce genuine, currently-reachable backend defects.
+
+```text
+Branch: test/SCRUM-173-admin-qa
+Main merged at: main HEAD b9fdbef (PR #110)
+Execution date: 2026-08-12
+
+Focused suite (tests/api/features/admin):
+72 passed, 10 failed, 82 collected, 0 errors
+
+Full backend suite:
+297 passed, 10 failed, 307 collected, 0 errors
+Coverage: 81.57% (gate: >= 80%) -> PASSED
+
+Ruff check (focused + repo-wide): All checks passed
+Ruff format --check (focused + repo-wide): all files already formatted
+python -m compileall app tests alembic: clean
+alembic check: No new upgrade operations detected
+```
+
+Compared with the last recorded retest (commit `4c56834`, 71 passed / 11 failed), one previously
+failing case is now resolved:
+
+- `test_admin_contract.py::test_static_swagger_documents_the_approved_admin_paths` now **passes** —
+  `api-doc.yaml` documents the required administrator paths (resolved by later corrective/docs
+  commits already on `main`).
+
+The other 10 failures are unchanged and remain genuine backend defects, verified directly against
+current `app/features/admin/router.py` and `app/features/wards/router.py` on this merge:
+
+1. **`GET /api/v1/admin/users` still does not exist.** No list-users route is registered anywhere in
+   `app/features/admin/router.py` (only `POST /users`, `PATCH /users/{id}`, `PATCH
+   /users/{id}/status`, `DELETE /users/{id}`).
+2. **Legacy paths still published in OpenAPI.** `POST /api/v1/admin/account`
+   (`app/features/admin/router.py:217`, no `include_in_schema=False`) and `GET /api/v1/zones`
+   (`app/features/wards/router.py:25`) are both still live, undeprecated duplicates of the canonical
+   `/admin/users` and `/wards` routes.
+3. **`WWW-Authenticate: Bearer` dropped on 401s** — same shared root cause already documented for
+   SCRUM-88 (`docs/qa/scrum-88-auth-test-evidence.md`): the global `StarletteHTTPException` handler
+   in `app/main.py` rebuilds the JSON response and never forwards `exc.headers`.
+4. **`uuid.UUID(user_data.zone_id)` crashes with `AttributeError: 'UUID' object has no attribute
+   'replace'`** at `app/features/admin/router.py:479`. `AdminUserCreate.zone_id` is typed
+   `uuid.UUID | None` (`app/features/admin/schemas.py:43`), so Pydantic has already parsed it into a
+   `UUID` instance by the time the handler re-wraps it in `uuid.UUID(...)`. This breaks user
+   provisioning for every valid zone and turns the "unknown ward" validation case into an
+   unhandled 500 instead of the expected `422`. Affects
+   `test_admin_provisions_user_user_logs_in_admin_disables_and_reenables`, all 4 role-provisioning
+   cases in `test_admin_can_provision_each_supported_role_with_safe_canonical_output`, and the
+   `unknown-ward` case in `test_admin_create_rejects_unsafe_or_invalid_input_without_persistence`.
+5. **Audit-log failure during user creation does not roll back the persisted user.**
+   `test_audit_failure_rolls_back_user_creation` still asserts the created user is `None` after a
+   simulated `create_audit_log` failure and finds it persisted instead.
+
+No expected result was weakened, skipped, xfailed, or suppressed.
+
+```text
+QA decision: FAILED (4 genuine backend defects remain across 10 test cases)
+Merge status: Blocked on the 4 defects above
+Corrective issue: #70 must remain open until the routes/header/UUID-bug/rollback are fixed
+```
+
 ## Evidence history
 
 - **Initial focused execution:** 47 collected, 12 passed, 35 failed, 0 errors, 0 skipped.
@@ -529,7 +595,7 @@ Full backend regression: Pending corrections
 Coverage: Pending full backend execution
 ```
 
-## QA-maintenance retest after current-main alignment
+## HISTORICAL — QA-maintenance retest after current-main alignment (2026-08-02, superseded)
 
 The original focused execution is preserved above as historical evidence.
 
@@ -747,7 +813,7 @@ After the corrective code is merged into `main`:
 6. mark the Draft PR ready only when the focused suite, complete backend suite and required CI checks
    all pass.
 
-## CI full-backend regression result
+## HISTORICAL — CI full-backend regression result (commit `c35179`, superseded)
 
 GitHub Actions executed the complete backend suite against QA commit `c35179`.
 
