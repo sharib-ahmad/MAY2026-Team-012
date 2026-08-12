@@ -4,6 +4,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import pytest
+from fastapi import HTTPException
+
 from app.features.collection_ops import router as collector_module
 from app.features.collection_ops.ors_client import ORSClient, decode_polyline
 from app.features.collection_ops.router import get_collector_route
@@ -168,3 +171,49 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
 
     # Geometry should start at collector, then stop2, then stop1, then return to collector
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
+
+
+def test_get_collector_route_rejects_fewer_than_two_geocoded_points(monkeypatch):
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+
+    # 1. Zero stops
+    db_empty = FakeDatabase(scalars=[[]])
+    with pytest.raises(HTTPException) as exc_info:
+        get_collector_route(collector, db_empty)
+    assert exc_info.value.status_code == 400
+    assert "At least 2 geocoded collection points" in exc_info.value.detail
+
+    # 2. Only 1 stop with geocoded points
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=SimpleNamespace(
+            id=uuid4(),
+            zone_id=uuid4(),
+            zone=SimpleNamespace(code="W-04", name="Ward Four"),
+            completed_stops=0,
+            completed_at=None,
+        ),
+        schedule_id=uuid4(),
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.2,
+        longitude=80.2,
+        notes="Single Stop",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+    db_single = FakeDatabase(scalars=[[stop1]])
+    with pytest.raises(HTTPException) as exc_info:
+        get_collector_route(collector, db_single)
+    assert exc_info.value.status_code == 400
+    assert "At least 2 geocoded collection points" in exc_info.value.detail
