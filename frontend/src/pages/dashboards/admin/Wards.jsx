@@ -15,7 +15,7 @@ const EMPTY_FORM = { code: "", name: "", sectors: "", manager_id: "" };
 // Generate next ward code based on existing wards
 const generateWardCode = (existingWards) => {
   const maxNum = existingWards.reduce((max, ward) => {
-    const match = ward.code.match(/WARD-(\d+)/);
+    const match = ward.code.match(/(?:WARD-|W-)(\d+)/i);
     if (match) {
       const num = parseInt(match[1], 10);
       return num > max ? num : max;

@@ -4,7 +4,9 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
+from app.features.materials.schemas import RejectBatchRequest
 from app.features.materials.service import accept_batch, process_batch, reject_batch
 from app.models.enums import BatchStatus, BulkRequestStatus, PickupStatus
 
@@ -149,6 +151,11 @@ def test_reject_batch_success(recycler, batch):
     assert batch.status == BatchStatus.COLLECTED
     assert batch.rejection_reason == "Quality issue"
     assert db.commits == 1
+
+
+def test_reject_batch_request_whitespace_only():
+    with pytest.raises(ValidationError):
+        RejectBatchRequest(note="   ")
 
 
 def test_process_batch_success(recycler, batch):

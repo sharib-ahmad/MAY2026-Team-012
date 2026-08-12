@@ -2,15 +2,8 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, History, ShieldAlert } from "lucide-react";
 import { Modal, StatusPill } from "../../../components/UI";
 import { updateManagerComplaint } from "../../../lib/api";
-import DATA from "../../../data/municipal_officer_data.json";
 import { Section, PaginatedTable, SearchInput, FilterSelect, SeverityPill } from "./shared";
 import { formatDate } from "./format";
-
-const WARD_OPTIONS = [
-  { value: "ALL", label: "All wards" },
-  ...DATA.wards.map((w) => ({ value: w.code, label: `${w.code} · ${w.name}` })),
-];
-void WARD_OPTIONS;
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All statuses" },
@@ -46,7 +39,7 @@ const typeLabel = (t) =>
     .toLowerCase()
     .replace(/^\w/, (c) => c.toUpperCase());
 
-export default function Complaints({ data }) {
+export default function Complaints({ data, onRefresh }) {
   const [complaints, setComplaints] = useState(data.complaints);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("NEWEST");
@@ -122,6 +115,7 @@ export default function Complaints({ data }) {
         )
       );
       setSelected(null);
+      if (onRefresh) onRefresh();
     } catch (err) {
       setError(err.response?.data?.error?.message || "Could not save the complaint update.");
     }

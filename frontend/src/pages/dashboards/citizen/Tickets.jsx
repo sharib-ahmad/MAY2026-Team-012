@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, Search } from "lucide-react";
 
 import { Card, Empty, Modal, StatusPill, Table } from "../../../components/UI";
-import { createUserTicket, listUserTickets } from "../../../lib/api";
+import { createUserTicket, listUserTickets, reopenUserTicket } from "../../../lib/api";
 
 const ISSUE_TYPES = ["MISSED_PICKUP", "OVERFLOW", "MIXED_WASTE", "DELAY", "OTHER"];
 
@@ -14,6 +14,10 @@ export default function Tickets() {
   const [form, setForm] = useState({ issue_type: "MISSED_PICKUP", description: "" });
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(null);
+  const [reopenNote, setReopenNote] = useState("");
+  const [reopenError, setReopenError] = useState("");
+  const [reopenSubmitting, setReopenSubmitting] = useState(false);
+  const [showReopenForm, setShowReopenForm] = useState(false);
 
   useEffect(() => {
     listUserTickets()
@@ -202,6 +206,103 @@ export default function Tickets() {
                     Manager: {selected.ward_manager_name || "Not assigned"}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {selected.status === "RESOLVED" && (
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                {reopenError && (
+                  <p className="rounded-input bg-red-50 p-2.5 text-xs text-red-700">
+                    {reopenError}
+                  </p>
+                )}
+                {!showReopenForm ? (
+                  <div className="flex items-center justify-between bg-amber-50 p-3 rounded-input border border-amber-200">
+                    <div>
+                      <p className="font-medium text-xs text-amber-900">
+                        Not satisfied with the resolution?
+                      </p>
+                      <p className="text-[11px] text-amber-700">
+                        You can reopen this complaint within 24 hours of resolution.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReopenError("");
+                        setShowReopenForm(true);
+                      }}
+                      className="bg-amber-600 text-white px-3 py-1.5 rounded-input text-xs font-medium hover:bg-amber-700 transition"
+                    >
+                      Reopen Complaint
+                    </button>
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setReopenError("");
+                      setReopenSubmitting(true);
+                      try {
+                        const updated = await reopenUserTicket(selected.id, reopenNote);
+                        setTickets((current) =>
+                          current.map((t) => (t.id === updated.id ? updated : t))
+                        );
+                        setSelected(updated);
+                        setShowReopenForm(false);
+                        setReopenNote("");
+                      } catch (err) {
+                        const message =
+                          err.response?.data?.error?.message ||
+                          err.response?.data?.detail ||
+                          "Unable to reopen complaint.";
+                        setReopenError(message);
+                        if (err.response?.status === 409) {
+                          setTickets((current) =>
+                            current.map((t) =>
+                              t.id === selected.id ? { ...t, status: "CLOSED" } : t
+                            )
+                          );
+                          setSelected((prev) => (prev ? { ...prev, status: "CLOSED" } : null));
+                        }
+                      } finally {
+                        setReopenSubmitting(false);
+                      }
+                    }}
+                    className="space-y-3 bg-gray-50 p-3 rounded-input border border-gray-200"
+                  >
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Reason for Reopening *
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={reopenNote}
+                      onChange={(e) => setReopenNote(e.target.value)}
+                      placeholder="Explain why this issue is still unresolved…"
+                      className="w-full border border-gray-200 rounded-input px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowReopenForm(false);
+                          setReopenError("");
+                        }}
+                        className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={reopenSubmitting || !reopenNote.trim()}
+                        className="bg-primary text-white px-3 py-1.5 rounded-input text-xs font-medium hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        {reopenSubmitting ? "Submitting…" : "Confirm Reopen"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             )}
           </div>

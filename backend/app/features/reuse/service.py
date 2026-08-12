@@ -120,7 +120,7 @@ def review_donation(
 
     # Check manager ward permission
     managed_zone_ids = get_managed_zone_ids(db, manager)
-    if managed_zone_ids and listing.zone_id not in managed_zone_ids:
+    if listing.zone_id not in managed_zone_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Listing is outside your supervised wards.",
@@ -237,7 +237,7 @@ def review_claim(
 
     # Check manager ward permission
     managed_zone_ids = get_managed_zone_ids(db, manager)
-    if managed_zone_ids and listing.zone_id not in managed_zone_ids:
+    if listing.zone_id not in managed_zone_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Claim is for a listing outside your supervised wards.",

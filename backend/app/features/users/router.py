@@ -1,3 +1,4 @@
+import math
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
@@ -8,7 +9,7 @@ from app.db.session import get_db
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.bulk_pickups.service import citizen_requests, serialize_request
 from app.features.collection_ops.models import DailyPickupSchedule, DailyPickupStop, Pickup
-from app.features.credits.models import Credit, UserBadge
+from app.features.credits.models import Credit
 from app.features.notifications.models import Notification
 from app.features.sorting_guide.models import WasteCategory
 from app.features.users.dependencies import require_citizen
@@ -21,8 +22,21 @@ from app.features.users.schemas import (
 )
 from app.features.users.service import execute_chatbot_turn
 from app.models.audit import create_audit_log
-from app.models.enums import CreditStatus, PickupStatus, UserStatus
+from app.models.enums import CreditStatus, PickupStatus, PickupStopStatus, UserStatus
 from app.models.zone import Zone
+
+
+def _calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
 
 router = APIRouter(tags=["Citizen"])
 
@@ -139,19 +153,23 @@ def get_dashboard(
             Credit.user_id == current_user.id, Credit.status == CreditStatus.CONFIRMED
         )
     ).all()
-    completed_pickups = db.scalars(
-        select(Pickup).where(
-            Pickup.citizen_id == current_user.id,
-            Pickup.status.in_(
-                [
-                    PickupStatus.COMPLETED,
-                    PickupStatus.COLLECTED,
-                    PickupStatus.RECYCLER_ASSIGNED,
-                    PickupStatus.PROCESSING,
-                    PickupStatus.PROCESSED,
-                ]
-            ),
+    completed_pickups = (
+        db.scalars(
+            select(Pickup).where(
+                Pickup.citizen_id == current_user.id,
+                Pickup.status.in_(
+                    [
+                        PickupStatus.COMPLETED,
+                        PickupStatus.COLLECTED,
+                        PickupStatus.RECYCLER_ASSIGNED,
+                        PickupStatus.PROCESSING,
+                        PickupStatus.PROCESSED,
+                    ]
+                ),
+            )
         )
+        .unique()
+        .all()  # materialise so we can iterate twice
     )
     total_kg_diverted = sum(float(pickup.actual_weight or 0) for pickup in completed_pickups)
 
@@ -192,31 +210,66 @@ def get_dashboard(
         if citizen_stop
         else None
     )
-    badges = (
-        db.scalars(
-            select(UserBadge)
-            .where(UserBadge.user_id == current_user.id)
-            .options(joinedload(UserBadge.badge))
-        )
-        .unique()
-        .all()
+    # Compute badges the same way /impact does — dynamic from completed pickups,
+    # not from the unpopulated user_badges table.
+    _badge_definitions = (
+        ("FIRST_PICKUP", "First Pickup", "🌱", 1, None),
+        ("FIVE_PICKUPS", "5 Pickups", "♻️", 5, None),
+        ("TEN_PICKUPS", "10 Pickups", "🏆", 10, None),
+        ("FIFTY_KG", "50kg Diverted", "🌍", None, 50),
     )
+    badges = [
+        {
+            "code": code,
+            "name": name,
+            "icon": icon,
+            "earned": total_kg_diverted >= minimum_kg
+            if minimum_kg is not None
+            else len(completed_pickups) >= minimum_pickups,
+        }
+        for code, name, icon, minimum_pickups, minimum_kg in _badge_definitions
+    ]
+    distance_km = None
+    eta_min = None
+    if citizen_stop and citizen_stop.status != PickupStopStatus.COLLECTED:
+        pending_before = [
+            s
+            for s in today_stops
+            if s.pickup_order < citizen_stop.pickup_order and s.status != PickupStopStatus.COLLECTED
+        ]
+        completed_stops = [s for s in today_stops if s.status == PickupStopStatus.COLLECTED]
+        collector_lat, collector_lon = None, None
+        if completed_stops:
+            last_comp = max(completed_stops, key=lambda s: s.completed_at or datetime.min)
+            if last_comp.latitude is not None and last_comp.longitude is not None:
+                collector_lat, collector_lon = last_comp.latitude, last_comp.longitude
+        elif today_stops:
+            first_stop = today_stops[0]
+            if first_stop.latitude is not None and first_stop.longitude is not None:
+                collector_lat, collector_lon = first_stop.latitude, first_stop.longitude
+
+        if (
+            collector_lat is not None
+            and collector_lon is not None
+            and citizen_stop.latitude is not None
+            and citizen_stop.longitude is not None
+        ):
+            dist = _calculate_haversine_distance(
+                collector_lat, collector_lon, citizen_stop.latitude, citizen_stop.longitude
+            )
+            distance_km = round(dist, 1)
+            eta_min = max(1, math.ceil((dist / 25.0) * 60.0 + len(pending_before) * 3.0))
+        elif pending_before:
+            eta_min = max(1, len(pending_before) * 5)
+
     return {
         "pickups": [serialize_request(request).model_dump() for request in requests[:5]],
         "impact": {
-            "total_pickups": len(requests),
+            "total_pickups": len(completed_pickups),
             "total_kg_diverted": total_kg_diverted,
             "credits_balance": sum(float(credit.amount) for credit in credits),
             "co2_saved_kg": sum(float(credit.co2_saved) for credit in credits),
-            "badges": [
-                {
-                    "code": entry.badge.code,
-                    "name": entry.badge.name,
-                    "icon": entry.badge.icon_key or "",
-                    "earned": True,
-                }
-                for entry in badges
-            ],
+            "badges": badges,
         },
         "queue": queue,
         "flow": {
@@ -231,7 +284,9 @@ def get_dashboard(
                     "address": "Scheduled collection",
                 }
                 for stop in today_stops
-            ]
+            ],
+            "distance_km": distance_km,
+            "eta_min": eta_min,
         },
     }
 

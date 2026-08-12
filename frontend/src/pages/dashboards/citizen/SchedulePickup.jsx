@@ -22,11 +22,8 @@ const SLOT_START_TIMES = {
 };
 
 function minLeadDate() {
-  const minimum = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
   const earliest = new Date();
   earliest.setDate(earliest.getDate() + 1);
-  earliest.setHours(9, 0, 0, 0);
-  if (earliest < minimum) earliest.setDate(earliest.getDate() + 1);
   return localISODate(earliest);
 }
 
@@ -160,7 +157,7 @@ export default function SchedulePickup({ onNavigate }) {
                 onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })}
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Requires at least {MIN_LEAD_HOURS}h notice.
+                Pickups can be scheduled starting from tomorrow.
               </p>
             </div>
           </div>

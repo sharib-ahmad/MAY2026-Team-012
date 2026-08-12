@@ -83,6 +83,10 @@ export default function CollectionFlow() {
       .filter((s) => s.status === "COLLECTED")
       .sort((a, b) => b.pickup_order - a.pickup_order)[0]?.index ?? -1;
 
+  const userStopsCount = flow.stops.filter(
+    (s) => s.citizen_name === "You" || (myStop && s.id === myStop.id)
+  ).length;
+
   // --- Layout: position every stop along a gentle winding "road" ---
   const points = flow.stops.map((stop, i) => ({
     x: MARGIN_X + i * SPACING,
@@ -137,6 +141,42 @@ export default function CollectionFlow() {
           <p className="text-xs text-gray-500">Completion</p>
         </Card>
       </div>
+
+      {/* Live Distance & ETA Card for Citizen */}
+      {myStop &&
+        myStop.status === "PENDING" &&
+        (flow.distance_km != null || flow.eta_min != null) && (
+          <Card className="!p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-xs">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Truck size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                    Live Collector Tracking
+                  </p>
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Collector is approaching your area
+                  </h3>
+                  {flow.distance_km != null && (
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Current distance to your stop:{" "}
+                      <span className="font-semibold text-blue-700">{flow.distance_km} km</span> (
+                      {pickupsBeforeMe} {pickupsBeforeMe === 1 ? "stop" : "stops"} ahead)
+                    </p>
+                  )}
+                </div>
+              </div>
+              {flow.eta_min != null && (
+                <div className="bg-white px-4 py-2 rounded-lg border border-blue-100 text-center shadow-2xs">
+                  <span className="text-xs text-gray-500 block font-medium">Est. Arrival</span>
+                  <span className="text-lg font-extrabold text-blue-700">~{flow.eta_min} min</span>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
       {/* Route diagram */}
       <Card className="!p-4 sm:!p-6">
@@ -211,9 +251,14 @@ export default function CollectionFlow() {
             {/* stops */}
             {points.map(({ x, y, stop }) => {
               const isCompleted = stop.status === "COLLECTED";
-              const isMine = myStop && stop.id === myStop.id;
+              const isMine = stop.citizen_name === "You" || (myStop && stop.id === myStop.id);
               const isSelected = selectedStop && stop.id === selectedStop.id;
               const labelBelow = y < WAVE_CENTER;
+              const displayLabel = isMine
+                ? userStopsCount > 1
+                  ? `You (#${stop.pickup_order})`
+                  : "You"
+                : `Stop #${stop.pickup_order}`;
               return (
                 <g
                   key={stop.id}
@@ -265,7 +310,7 @@ export default function CollectionFlow() {
                     fontWeight={isSelected ? "700" : "500"}
                     fill={isSelected ? "#0B2F2C" : "#9CA3AF"}
                   >
-                    {isMine ? "You" : stop.citizen_name.split(" ")[0]}
+                    {displayLabel}
                   </text>
                 </g>
               );

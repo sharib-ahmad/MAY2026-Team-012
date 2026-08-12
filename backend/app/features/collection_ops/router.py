@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -31,6 +32,19 @@ from app.features.notifications.service import list_for_user, mark_read
 from app.features.users.dependencies import require_citizen, require_collector
 from app.features.users.models import User
 from app.models.enums import BulkRequestStatus, PickupStatus, PickupStopStatus, WasteSeverity
+
+
+def _calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
 
 router = APIRouter(tags=["Citizen Collection Schedules"])
 collector_router = APIRouter(prefix="/collector", tags=["Collector Operations"])
@@ -373,12 +387,12 @@ def get_collector_route(
 
     route_geometry = None
     optimized_pending = list(pending_stops)
+    ors_success = False
 
     if start_coords is not None and pending_with_coords:
         settings = get_settings()
         api_key = settings.ORS_API_KEY
 
-        ors_success = False
         if api_key:
             client = ORSClient(api_key=api_key)
             try:
@@ -469,6 +483,29 @@ def get_collector_route(
         if stops
         else "No assigned zone"
     )
+
+    is_degraded = not ors_success if (start_coords is not None and pending_with_coords) else False
+    degraded_notice = (
+        "Road routing service unavailable. Degraded fallback route is active."
+        if is_degraded
+        else None
+    )
+
+    total_distance_km = 0.0
+    if route_geometry and len(route_geometry) > 1:
+        for i in range(len(route_geometry) - 1):
+            p1 = route_geometry[i]
+            p2 = route_geometry[i + 1]
+            total_distance_km += _calculate_haversine_distance(p1[0], p1[1], p2[0], p2[1])
+    total_distance_km = round(total_distance_km, 2)
+
+    if total_distance_km > 0:
+        estimated_duration_min = round(
+            (total_distance_km / 25.0) * 60.0 + len(pending_stops) * 3.0, 1
+        )
+    else:
+        estimated_duration_min = 0.0
+
     return CollectorRouteResponse(
         schedule_id=stops[0].schedule_id if stops else None,
         zone_name=zone_name,
@@ -483,6 +520,10 @@ def get_collector_route(
         ordered_pickups=[
             _collector_stop(stop, pickup_order=index) for index, stop in enumerate(stops, start=1)
         ],
+        total_distance_km=total_distance_km,
+        estimated_duration_min=estimated_duration_min,
+        is_degraded=is_degraded,
+        degraded_notice=degraded_notice,
     )
 
 

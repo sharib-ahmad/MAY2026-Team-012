@@ -256,7 +256,7 @@ def list_recyclers(db: Session) -> list[dict]:
 def assign_batch(db: Session, manager: User, batch_id: UUID, recycler_id: UUID) -> dict:
     batch = _load_batch(db, batch_id)
     zone_ids = get_managed_zone_ids(db, manager)
-    if zone_ids and batch.zone_id not in zone_ids:
+    if batch.zone_id not in zone_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Batch is outside your wards.",

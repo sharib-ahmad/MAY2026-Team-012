@@ -1,16 +1,23 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DonationCreate(BaseModel):
-    title: str = Field(..., max_length=80)
+    title: str = Field(..., min_length=1, max_length=80)
     category: str
     description: str | None = Field(None, max_length=500)
     condition: str
     address: str | None = Field(None, max_length=200)
     images: list[str] = Field(default_factory=list)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Title cannot be empty or whitespace only")
+        return v.strip()
 
 
 class DonationResponse(BaseModel):
