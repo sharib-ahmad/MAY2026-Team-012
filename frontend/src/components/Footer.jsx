@@ -45,7 +45,7 @@ export default function Footer({ variant = "default" }) {
             </li>
             <li>
               <Link to="/register" className="hover:text-primary transition">
-                Register as Resident
+                Register as Citizen
               </Link>
             </li>
             <li>
@@ -63,7 +63,7 @@ export default function Footer({ variant = "default" }) {
             Roles
           </h4>
           <ul className="space-y-2 text-sm opacity-90">
-            <li>Resident — schedule pickups & earn credits</li>
+            <li>Citizen — schedule pickups & earn credits</li>
             <li>Collector — routes & weigh-in</li>
             <li>Manager — zone queue & tickets</li>
             <li>Recycler — batch intake & processing</li>

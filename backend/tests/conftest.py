@@ -60,7 +60,14 @@ def engine():
         future=True,
     )
 
-    alembic_config = Config("alembic.ini")
+    import os
+
+    conftest_dir = os.path.dirname(__file__)
+    ini_path = os.path.abspath(os.path.join(conftest_dir, "..", "alembic.ini"))
+    alembic_config = Config(ini_path)
+    script_location = os.path.abspath(os.path.join(conftest_dir, "..", "alembic"))
+    alembic_config.set_main_option("script_location", script_location)
+
     command.downgrade(alembic_config, "base")
     command.upgrade(alembic_config, "head")
 

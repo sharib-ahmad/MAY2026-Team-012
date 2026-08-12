@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
   const [loading] = useState(false);
 
   const login = async (email, password) => {
-    const res = await API.post("/v1/login", { email, password });
+    const res = await API.post("/v1/auth/login", { email, password });
     const data = res.data;
     localStorage.setItem("gc_token", JSON.stringify(data));
     setUser(data.user);
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (payload) => {
-    const res = await API.post("/v1/register", payload);
+    const res = await API.post("/v1/auth/register", payload);
     const data = res.data;
     localStorage.setItem("gc_token", JSON.stringify(data));
     setUser(data.user);
@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
     const raw = localStorage.getItem("gc_token");
     if (!raw) return;
     try {
-      const res = await API.get("/v1/me");
+      const res = await API.get("/v1/auth/me");
       setUser(res.data);
       const stored = JSON.parse(raw);
       localStorage.setItem("gc_token", JSON.stringify({ ...stored, user: res.data }));
@@ -65,6 +65,5 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
-// eslint-disable-next-line react-refresh/only-export-components -- hook lives next to its Provider on purpose
 export const useAuth = () => useContext(AuthContext);
 export default AuthContext;

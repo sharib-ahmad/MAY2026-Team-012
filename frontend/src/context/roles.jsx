@@ -1,5 +1,5 @@
 export const ROLE_HOME = {
-  CITIZEN: "/resident/dashboard",
+  CITIZEN: "/citizen/dashboard",
   COLLECTION_WORKER: "/collector/dashboard",
   MUNICIPAL_OFFICER: "/manager/dashboard",
   RECYCLER: "/recycler/dashboard",

@@ -23,8 +23,7 @@ const ROLES_IMAGE =
 const highlights = [
   {
     title: "Smart scheduling",
-    description:
-      "Residents book pickups in seconds and track every step from request to recycling.",
+    description: "Citizens book pickups in seconds and track every step from request to recycling.",
     icon: Smartphone,
   },
   {
@@ -42,7 +41,7 @@ const highlights = [
 
 const roles = [
   {
-    name: "Residents",
+    name: "Citizens",
     text: "Schedule pickups, donate reusable items, and earn credits for responsible disposal.",
     icon: Leaf,
   },
@@ -66,7 +65,7 @@ const roles = [
 const steps = [
   {
     label: "Request",
-    detail: "A resident schedules a pickup and receives a manifest ID.",
+    detail: "A citizen schedules a pickup and receives a manifest ID.",
     icon: Smartphone,
   },
   {
@@ -123,7 +122,7 @@ export default function Landing() {
               End-to-end waste management, delivered by the state.
             </h1>
             <p className="mt-5 text-lg text-white/85 max-w-xl">
-              Verdeza connects residents, collectors, managers, and recyclers under one accountable,
+              Verdeza connects citizens, collectors, managers, and recyclers under one accountable,
               publicly verifiable workflow &mdash; from pickup request to final recycling.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">

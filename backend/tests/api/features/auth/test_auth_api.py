@@ -14,8 +14,8 @@ from app.models.zone import Zone
 @pytest.mark.api
 def test_register_login_me_workflow(db_client, db, ward_a):
     register_payload = {
-        "name": "Jane Resident",
-        "email": "jane.resident@example.com",
+        "name": "Jane Citizen",
+        "email": "jane.citizen@example.com",
         "password": "strongpassword123",
         "phone": "+919876543219",
         "address": "123 Green Street",
@@ -28,17 +28,17 @@ def test_register_login_me_workflow(db_client, db, ward_a):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "access_token" in data
-    assert data["user"]["email"] == "jane.resident@example.com"
+    assert data["user"]["email"] == "jane.citizen@example.com"
     assert data["user"]["role"] == "CITIZEN"
     assert data["user"]["ward_code"] == "W-04"
 
     # Verify user exists in database
-    db_user = db.scalar(select(User).where(User.email == "jane.resident@example.com"))
+    db_user = db.scalar(select(User).where(User.email == "jane.citizen@example.com"))
     assert db_user is not None
 
     # 2. Login with valid credentials
     login_payload = {
-        "email": "jane.resident@example.com",
+        "email": "jane.citizen@example.com",
         "password": "strongpassword123",
     }
     response = db_client.post("/api/v1/auth/login", json=login_payload)
@@ -49,7 +49,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
 
     # 3. Login with invalid password
     bad_login_payload = {
-        "email": "jane.resident@example.com",
+        "email": "jane.citizen@example.com",
         "password": "wrongpassword",
     }
     response = db_client.post("/api/v1/auth/login", json=bad_login_payload)
@@ -60,7 +60,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
     response = db_client.get("/api/v1/auth/me", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     me_data = response.json()
-    assert me_data["email"] == "jane.resident@example.com"
+    assert me_data["email"] == "jane.citizen@example.com"
     assert me_data["role"] == "CITIZEN"
 
     # 5. Access /me with invalid token
@@ -73,7 +73,7 @@ def test_register_login_me_workflow(db_client, db, ward_a):
 @pytest.mark.api
 def test_register_with_location(db_client, db, ward_a):
     register_payload = {
-        "name": "Jane Resident Map",
+        "name": "Jane Citizen Map",
         "email": "jane.map@example.com",
         "password": "strongpassword123",
         "phone": "+919876543233",

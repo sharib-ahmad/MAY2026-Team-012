@@ -43,3 +43,12 @@ def mark_read(
     notification.is_read = True
     db.commit()
     return serialize_notification(notification)
+
+
+def mark_all_read(db: Session, user_id: uuid.UUID) -> None:
+    notifications = db.scalars(
+        select(Notification).where(Notification.user_id == user_id, Notification.is_read.is_(False))
+    ).all()
+    for n in notifications:
+        n.is_read = True
+    db.commit()

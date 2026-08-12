@@ -1,9 +1,7 @@
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -12,6 +10,8 @@ from app.db.session import get_db
 from app.features.admin.dependencies import require_admin
 from app.features.admin.schemas import (
     AdminDashboardResponse,
+    CreditFactorResponse,
+    CreditFactorUpdate,
     LogsResponse,
     WardCreate,
     WardListResponse,
@@ -37,6 +37,8 @@ from app.features.admin.service import (
 )
 from app.features.auth.dependencies import ROLE_MAP_DB_TO_FRONTEND
 from app.features.auth.schemas import AuthenticatedUser
+from app.features.credits.models import CreditFactor
+from app.features.sorting_guide.models import WasteCategory
 from app.models.audit import create_audit_log
 from app.models.enums import Role, UserStatus
 from app.models.zone import Zone
@@ -48,36 +50,63 @@ if TYPE_CHECKING:
 ROLE_MAP_FRONTEND_TO_DB = {role.value: role for role in Role}
 
 
-class CreateAccountRequest(BaseModel):
-    name: str
-    email: str
-    phone: str | None = None
-    role: str
-    zone_id: str | None = None
-    password: str
-
-
-class UserStatusUpdate(BaseModel):
-    status: UserStatus
-
-
-class UserCreate(BaseModel):
-    name: str
-    email: str
-    phone: str
-    role: str
-    zone_id: str | None = None
-    password: str
-
-
-class UserUpdate(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    role: str | None = None
-
-
 router = APIRouter(tags=["Admin"])
+
+
+@router.get("/credit-factors", response_model=list[CreditFactorResponse])
+def list_credit_factors(
+    current_user: "User" = Depends(require_admin), db: Session = Depends(get_db)
+) -> list[dict]:
+    """List the per-kilogram reward rates used when a recycler processes a batch."""
+    del current_user
+    rows = db.execute(
+        select(WasteCategory, CreditFactor)
+        .outerjoin(CreditFactor, CreditFactor.category == WasteCategory.code)
+        .order_by(WasteCategory.sort_order)
+    ).all()
+    return [
+        {
+            "category": category.code,
+            "category_label": category.label,
+            "credit_rate": float(factor.credit_rate) if factor else 0.0,
+            "co2_factor": float(factor.co2_factor) if factor else 0.0,
+            "description": factor.description if factor else None,
+        }
+        for category, factor in rows
+    ]
+
+
+@router.patch("/credit-factors/{category}", response_model=CreditFactorResponse)
+def update_credit_factor(
+    category: str,
+    payload: CreditFactorUpdate,
+    current_user: "User" = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update a category's reward points per kilogram for future processing."""
+    category_code = category.upper()
+    factor = db.scalar(select(CreditFactor).where(CreditFactor.category == category_code))
+    if not factor:
+        category_row = db.scalar(select(WasteCategory).where(WasteCategory.code == category_code))
+        if not category_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Waste category not found.",
+            )
+        factor = CreditFactor(category=category_code, credit_rate=0, co2_factor=0)
+        db.add(factor)
+    factor.credit_rate = payload.credit_rate
+    factor.co2_factor = payload.co2_factor
+    db.commit()
+    db.refresh(factor)
+    category_row = db.scalar(select(WasteCategory).where(WasteCategory.code == factor.category))
+    return {
+        "category": factor.category,
+        "category_label": category_row.label if category_row else factor.category,
+        "credit_rate": float(factor.credit_rate),
+        "co2_factor": float(factor.co2_factor),
+        "description": factor.description,
+    }
 
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)
@@ -185,21 +214,19 @@ def delete_ward_endpoint(
         ) from e
 
 
-@router.post("/account", response_model=dict)
+@router.post("/account", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_account(
-    account_data: CreateAccountRequest,
+    account_data: AdminUserCreate,
     req: Request,
     current_user: "User" = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     """Create a new MUNICIPAL_OFFICER or SYSTEM_ADMIN account."""
-    import uuid
-
     from app.features.users.models import User
 
-    # Check if email is already registered
+    # Email is already normalised by the schema field_validator
     existing_user_email = db.scalar(
-        select(User).where(User.email == account_data.email.lower(), User.deleted_at.is_(None))
+        select(User).where(User.email == account_data.email, User.deleted_at.is_(None))
     )
     if existing_user_email:
         raise HTTPException(
@@ -208,15 +235,14 @@ def create_account(
         )
 
     # Check if phone is already registered
-    if account_data.phone:
-        existing_user_phone = db.scalar(
-            select(User).where(User.phone == account_data.phone, User.deleted_at.is_(None))
+    existing_user_phone = db.scalar(
+        select(User).where(User.phone == account_data.phone, User.deleted_at.is_(None))
+    )
+    if existing_user_phone:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this phone number already exists.",
         )
-        if existing_user_phone:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An account with this phone number already exists.",
-            )
 
     # Resolve database Role enum from input
     db_role = ROLE_MAP_FRONTEND_TO_DB.get(account_data.role)
@@ -226,7 +252,7 @@ def create_account(
             detail=f"Unsupported role: {account_data.role}",
         )
 
-    # Only allow municipal-officer and system-admin roles.
+    # Only allow municipal-officer and system-admin roles via this route.
     if db_role not in [Role.MUNICIPAL_OFFICER, Role.SYSTEM_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -235,16 +261,9 @@ def create_account(
             ),
         )
 
-    # If zone_id is provided, verify it exists
-    zone_uuid = None
-    if account_data.zone_id:
-        try:
-            zone_uuid = uuid.UUID(account_data.zone_id)
-        except ValueError as err:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid zone ID format.",
-            ) from err
+    # zone_id is already a UUID | None from the schema
+    zone_uuid = account_data.zone_id
+    if zone_uuid:
         zone = db.scalar(select(Zone).where(Zone.id == zone_uuid))
         if not zone:
             raise HTTPException(
@@ -253,40 +272,39 @@ def create_account(
             )
 
     # Hash the password and create the user
+    # last_login_at intentionally omitted — user has not logged in yet
     hashed_password = get_password_hash(account_data.password)
     user = User(
         name=account_data.name,
-        email=account_data.email.lower(),
+        email=account_data.email,
         password_hash=hashed_password,
         phone=account_data.phone,
         role=db_role,
         zone_id=zone_uuid,
         status=UserStatus.ACTIVE,
-        last_login_at=datetime.now(UTC),
     )
 
     db.add(user)
+    db.flush()  # get user.id before audit log references it
+
+    # Required audit log — failure rolls back the transaction
+    client_ip = req.client.host if req.client else None
+    create_audit_log(
+        db,
+        actor_id=str(current_user.id),
+        actor_name=current_user.name,
+        actor_role=current_user.role.value,
+        action="ACCOUNT_CREATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        module="admin",
+        description=f"Admin created {user.role.name} account: {user.email}",
+        ip_address=client_ip,
+        commit=False,
+        required=True,
+    )
     db.commit()
     db.refresh(user)
-
-    # Log account creation (non-blocking)
-    try:
-        client_ip = req.client.host if req.client else None
-        create_audit_log(
-            db,
-            actor_id=str(current_user.id),
-            actor_name=current_user.name,
-            actor_role=current_user.role.name,
-            action="ACCOUNT_CREATED",
-            entity_type="User",
-            entity_id=str(user.id),
-            module="admin",
-            description=f"Admin created {user.role.name} account: {user.email}",
-            ip_address=client_ip,
-        )
-    except Exception:
-        # Ignore audit logging errors
-        pass
 
     # Find ward code if user is associated with a zone
     ward_code = None
@@ -572,6 +590,7 @@ def update_user(
             )
         changes.append(f"email from '{user.email}' to '{user_update.email}'")
         user.email = user_update.email.lower()
+        user.token_version += 1  # revoke existing sessions on identity change
     if user_update.phone is not None and user_update.phone != user.phone:
         # Check if phone is already used by another user
         existing_user = db.scalar(

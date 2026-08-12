@@ -26,6 +26,9 @@ class FakeDatabase:
     def execute(self, _statement):
         return SimpleNamespace(rowcount=self.rowcount)
 
+    def flush(self):
+        """No-op flush for unit tests — real sessions flush to obtain IDs."""
+
     def commit(self):
         self.commits += 1
 
@@ -94,14 +97,18 @@ def test_update_ticket_resolves_ticket_in_manager_ward(monkeypatch, manager) -> 
 
 
 def test_update_ticket_requires_resolution_note(monkeypatch, manager) -> None:
+    import warnings
+
     ticket = SimpleNamespace(id=uuid4(), zone_id=manager.zone_id)
     db = FakeDatabase([ticket])
     monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
 
-    with pytest.raises(HTTPException, match="resolution note") as error:
-        manager_router.update_manager_ticket(
-            str(ticket.id), TicketUpdate(status=TicketStatus.RESOLVED), manager, db
-        )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        with pytest.raises(HTTPException, match="resolution note") as error:
+            manager_router.update_manager_ticket(
+                str(ticket.id), TicketUpdate(status=TicketStatus.RESOLVED), manager, db
+            )
 
     assert error.value.status_code == 422
 
@@ -133,7 +140,7 @@ def test_assign_bulk_pickup_sets_assignment_and_notifies(monkeypatch, manager) -
     assert request.assigned_collector_id == collector.id
     assert request.decided_by_id == manager.id
     assert request.status == BulkRequestStatus.ASSIGNED
-    assert len(db.added) == 2
+    assert len(db.added) == 3  # 2 notifications + 1 audit log
     assert db.commits == 1
 
 
@@ -176,8 +183,10 @@ def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> N
         status=UserStatus.ACTIVE,
         role=Role.COLLECTION_WORKER,
         zone_id=manager.zone_id,
+        token_version=0,
     )
-    db = FakeDatabase([worker, worker])
+    # scalars: update_worker lookup, delete_worker lookup, delete_worker active-pickup check (None)
+    db = FakeDatabase([worker, worker, None])
     audit_events = []
     monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
     monkeypatch.setattr(
