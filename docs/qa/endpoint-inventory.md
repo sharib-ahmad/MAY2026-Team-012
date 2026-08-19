@@ -4,6 +4,21 @@ Each endpoint is finalised in its feature PR's `api-doc.yaml` update
 before or with implementation. External vocabulary: `/complaints`, `ward_code`;
 internal table `tickets`, key `zone_id`.
 
+> **Reconciliation note (docs/sprint1-2-openapi-final):** this inventory is
+> the pre-implementation proposal and was not updated as the backend was
+> built — a number of listed paths were never implemented under these names,
+> and a number of implemented paths (the collector `/api/v1/collector/*`
+> operations, `/api/v1/reuse/donations` and `/api/v1/reuse/claims`, the
+> manager-push `/api/v1/manager/batches` and `/api/v1/recycler/batches`
+> model, and citizen `/api/v1/user/impact` / `/api/v1/user/dashboard`) do not
+> appear here at all. `api-doc.yaml` on `main` is the authoritative record of
+> what actually ships; see `docs/qa/rtm.md`'s "Reconciliation" section for a
+> table of the concrete divergences per story, and `docs/qa/defect-log.md`
+> for the authorization and scoping defects found while reconciling the two.
+> The external routing dependency is OpenRouteService, called from
+> `GET /api/v1/collector/route` — not the `POST /api/v1/routes/me/optimize`
+> action named below, which does not exist as a separate operation.
+
 ## Conventions
 
 - All application endpoints use the `/api/v1` prefix; operational probes stay outside it.

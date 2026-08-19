@@ -397,7 +397,13 @@ POST /api/v1/auth/login
 GET  /api/v1/auth/me
 ```
 
-Public self-registration is not part of the accepted design. Users are provisioned by authorised system administrators.
+Public self-registration was not part of the original accepted design — users
+were meant to be provisioned only by authorised system administrators — but
+`POST /api/v1/auth/register` is implemented, public, and unauthenticated on
+`main`, and its `role` field is not restricted server-side. This is tracked
+as an authorization defect (DEF-004 in `docs/qa/defect-log.md`), not treated
+as an intentional part of the contract; `api-doc.yaml` documents it as it
+actually behaves.
 
 ### Public vocabulary
 
@@ -413,6 +419,10 @@ Internal foreign key: zone_id
 ```
 
 Internal database names must not leak into public paths or response schemas.
+This rule is not fully upheld on `main`: the complaints feature's public
+paths are literal `/tickets` (e.g. `POST /api/v1/complaints/tickets`), not
+`/complaints`. `api-doc.yaml` documents the routes as they exist rather than
+as this rule intends.
 
 ### Standard error envelope
 
