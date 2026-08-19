@@ -166,12 +166,14 @@ tests/
 
 Each feature's `router.py` declares its own `APIRouter` (with its own
 `prefix` and OpenAPI `tags`); `app/api/v1/router.py` is the single
-place that wires those routers onto `/api/v1`, mounting most resident
-endpoints under `/user`, collector endpoints under `/user/collector`,
-manager endpoints under `/manager`, and admin endpoints under
-`/admin`. `sorting_guide`, `materials`, `credits`, and `reuse` currently
-exist as feature packages but are not yet included in that router, so
-their endpoints aren't reachable through the API yet.
+place that wires those routers onto `/api/v1`, mounting most citizen
+endpoints under `/user`, collector endpoints under `/collector`, recycler
+endpoints under `/recycler`, manager endpoints under `/manager`, and admin
+endpoints under `/admin`. `materials` and `reuse` are included (under
+`/manager`+`/recycler` and `/reuse` respectively). `sorting_guide` and
+`credits` still exist only as empty feature-package stubs — neither
+declares any route, so neither has any endpoint reachable through the API;
+see `api-doc.yaml` for the authoritative, verified endpoint list.
 
 ## Checks CI Runs
 
@@ -326,13 +328,19 @@ Business features implemented and mounted on `/api/v1`:
 - `manager` — municipal officer dashboards and workflows;
 - `wards` — ward/zone reference data;
 - `collection_ops` — resident collection schedules and collector
-  operations, including ORS-based routing;
+  operations, including OpenRouteService-based routing;
 - `bulk_pickups` — resident bulk-pickup requests and collector
   assignment;
 - `complaints` — resident complaint handling;
 - `notifications` — resident notifications;
+- `materials` — manager batch assignment and recycler batch lifecycle;
+- `reuse` — resident reuse listings/claims and manager moderation;
 - `tracking` — public pickup tracking.
 
-Feature packages that exist in code but are not yet mounted on the
-API router: `sorting_guide` (waste-category reference data, seeded at
-startup), `materials`, `credits`, and `reuse`.
+Feature packages that exist in code but declare no routes, so none of
+their endpoints are reachable through the API: `sorting_guide`
+(waste-category reference data is seeded at startup and read by other
+features, but has no endpoint of its own) and `credits` (its router file
+declares an `APIRouter` prefix and no routes; credit balances/badges are
+exposed read-only through `users`' `/impact` and `/dashboard` endpoints
+instead, and credit-factor configuration is exposed through `admin`).
