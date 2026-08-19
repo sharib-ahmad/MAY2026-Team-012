@@ -21,20 +21,26 @@ CITIZEN_ONLY_ENDPOINTS = [
 @pytest.mark.integration
 @pytest.mark.api
 def test_delete_citizen_account_api_workflow(db_client, db, ward_a):
-    # 1. Register citizen user
-    register_payload = {
-        "name": "Jane SoftDelete",
-        "email": "jane.softdelete@example.com",
-        "password": "strongpassword123",
-        "phone": "+919876543001",
-        "address": "123 Green Street",
-        "zone_id": str(ward_a.id),
-        "role": "CITIZEN",
-    }
-    response = db_client.post("/api/v1/auth/register", json=register_payload)
-    assert response.status_code == status.HTTP_200_OK
-    token = response.json()["access_token"]
-    user_id = response.json()["user"]["id"]
+    # Provision the citizen directly through the ORM/token fixtures used
+    # elsewhere in this suite, not through POST /api/v1/auth/register: that
+    # endpoint is documented (api-doc.yaml, docs/qa/endpoint-inventory.md) as
+    # a known contract defect that lets an unauthenticated caller
+    # self-provision any role, contradicting Story 5.1's admin-provisioned
+    # identity model - test setup must not lean on it.
+    citizen = User(
+        name="Jane SoftDelete",
+        email="jane.softdelete@example.com",
+        password_hash=get_password_hash("strongpassword123"),
+        phone="+919876543001",
+        role=Role.CITIZEN,
+        status=UserStatus.ACTIVE,
+        zone_id=ward_a.id,
+    )
+    db.add(citizen)
+    db.commit()
+    db.refresh(citizen)
+    user_id = citizen.id
+    token = create_access_token(citizen.id, token_version=citizen.token_version)
 
     # Assign a manager to ward_a if not already there so a notification gets created
     manager_user = User(
@@ -91,12 +97,24 @@ def test_delete_citizen_account_api_workflow(db_client, db, ward_a):
     me_response = db_client.get("/api/v1/auth/me", headers=headers)
     assert me_response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    # 7. Verify we can sign up again with original email and phone!
-    response_again = db_client.post("/api/v1/auth/register", json=register_payload)
-    assert response_again.status_code == status.HTTP_200_OK
-    new_user = response_again.json()["user"]
-    assert new_user["email"] == "jane.softdelete@example.com"
-    assert new_user["id"] != user_id  # Different user ID
+    # 7. Verify the original email/phone are free for reuse - anonymization
+    # must have released the unique constraints. Checked at the ORM level
+    # (the approved provisioning path here) rather than via
+    # POST /api/v1/auth/register, per the note above.
+    returning_citizen = User(
+        name="Jane Returning",
+        email="jane.softdelete@example.com",
+        password_hash=get_password_hash("anotherpassword123"),
+        phone="+919876543001",
+        role=Role.CITIZEN,
+        status=UserStatus.ACTIVE,
+        zone_id=ward_a.id,
+    )
+    db.add(returning_citizen)
+    db.commit()
+    db.refresh(returning_citizen)
+    assert returning_citizen.email == "jane.softdelete@example.com"
+    assert returning_citizen.id != user_id
 
 
 @pytest.mark.integration
@@ -112,19 +130,22 @@ def test_chatbot_api_workflow(mock_execute_chatbot_turn, db_client, db, ward_a):
         ],
     }
 
-    # Register & get auth token
-    register_payload = {
-        "name": "Jane Chatbot",
-        "email": "jane.chatbot@example.com",
-        "password": "strongpassword123",
-        "phone": "+919876543003",
-        "address": "123 Green Street",
-        "zone_id": str(ward_a.id),
-        "role": "CITIZEN",
-    }
-    reg_res = db_client.post("/api/v1/auth/register", json=register_payload)
-    assert reg_res.status_code == status.HTTP_200_OK
-    token = reg_res.json()["access_token"]
+    # Provision the citizen directly via the ORM (see the provisioning-path
+    # note in test_delete_citizen_account_api_workflow above) rather than
+    # POST /api/v1/auth/register.
+    citizen = User(
+        name="Jane Chatbot",
+        email="jane.chatbot@example.com",
+        password_hash=get_password_hash("strongpassword123"),
+        phone="+919876543003",
+        role=Role.CITIZEN,
+        status=UserStatus.ACTIVE,
+        zone_id=ward_a.id,
+    )
+    db.add(citizen)
+    db.commit()
+    db.refresh(citizen)
+    token = create_access_token(citizen.id, token_version=citizen.token_version)
 
     # Call POST /api/v1/user/chatbot/message
     headers = {"Authorization": f"Bearer {token}"}

@@ -5,13 +5,9 @@ from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 from uuid import uuid4
 
-import pytest
-from fastapi import HTTPException
-
 from app.features.collection_ops import router as collector_module
 from app.features.collection_ops.ors_client import ORSClient, decode_polyline
 from app.features.collection_ops.router import get_collector_route
-from app.features.collection_ops.schemas import CollectorRouteResponse
 from app.models.enums import PickupStatus, PickupStopStatus
 
 
@@ -174,6 +170,13 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
     # Geometry should start at collector, then stop2, then stop1, then return to collector
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
 
+    # Story 7.3 AC3/issue #100: no ORS key configured is a degraded fallback
+    # and must still report distance/duration alongside the notice.
+    assert response.is_degraded is True
+    assert response.degraded_notice is not None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
+
 
 @patch("urllib.request.urlopen")
 def test_get_collector_route_ors_success_orders_by_optimized_indices(mock_urlopen, monkeypatch):
@@ -263,64 +266,12 @@ def test_get_collector_route_ors_success_orders_by_optimized_indices(mock_urlope
     assert response.route_geometry
     assert len(response.route_geometry) > 0
 
-
-def test_get_collector_route_rejects_fewer_than_two_geocoded_points(monkeypatch):
-    # Story 7.3 AC2: optimization must refuse to run with fewer than 2
-    # geo-coded points and must not attempt an external routing call.
-    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
-
-    collector = SimpleNamespace(id=uuid4(), name="Solo Collector", latitude=26.0, longitude=80.0)
-    schedule = SimpleNamespace(
-        id=uuid4(),
-        zone_id=uuid4(),
-        zone=SimpleNamespace(code="W-04", name="Ward Four"),
-        completed_stops=0,
-        completed_at=None,
-    )
-    stop = SimpleNamespace(
-        id=uuid4(),
-        pickup=SimpleNamespace(
-            ref_code="COL-SOLO-001",
-            category="DRY",
-            estimated_weight=5,
-            time_slot="09:00",
-            status=PickupStatus.ASSIGNED,
-        ),
-        citizen_id=uuid4(),
-        citizen=SimpleNamespace(name="Solo Citizen"),
-        schedule=schedule,
-        schedule_id=schedule.id,
-        pickup_order=1,
-        status=PickupStopStatus.PENDING,
-        latitude=26.1,
-        longitude=80.1,
-        notes="Only Stop",
-        completed_at=None,
-        mixed_waste_tags=[],
-    )
-
-    db = FakeDatabase(scalars=[[stop]])
-
-    with pytest.raises(HTTPException, match="At least 2 mapped collection points are needed"):
-        get_collector_route(collector, db)
-
-
-def test_collector_route_response_reports_distance_duration_and_degraded_notice():
-    # Story 7.3 AC1/AC3: the route response contract must surface total
-    # distance (km), estimated duration (min), and a degraded-routing notice
-    # for when road routing falls back to straight-line segments.
-    field_names = set(CollectorRouteResponse.model_fields)
-
-    assert any("distance" in name for name in field_names), (
-        "Story 7.3 AC1 requires the route response to report total distance (km)"
-    )
-    assert any("duration" in name for name in field_names), (
-        "Story 7.3 AC1 requires the route response to report estimated duration (min)"
-    )
-    assert any("notice" in name or "unavailable" in name for name in field_names), (
-        "Story 7.3 AC3 requires a degraded-routing notice field when road routing falls back"
-    )
+    # Story 7.3 AC1/issue #100: the happy (non-degraded) path must also report
+    # distance/duration and must not be mislabeled as a degraded fallback.
+    assert response.is_degraded is False
+    assert response.degraded_notice is None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
 
 
 @patch("urllib.request.urlopen")
@@ -393,10 +344,29 @@ def test_get_collector_route_falls_back_when_ors_raises(mock_urlopen, monkeypatc
     assert response.ordered_pickups[1].id == stop1.id
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
 
+    # Story 7.3 AC3/issue #100: an ORS failure is a degraded fallback and must
+    # still report distance/duration alongside the notice.
+    assert response.is_degraded is True
+    assert response.degraded_notice is not None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
 
-def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch):
+
+@patch("urllib.request.urlopen")
+def test_get_collector_route_below_minimum_points_never_calls_external_provider(
+    mock_urlopen, monkeypatch
+):
+    # Story 7.3 AC2 / issue #99: optimization is a distinct behaviour from
+    # Story 7.2's map/checklist view, which the same GET endpoint also serves.
+    # Fewer than 2 geo-coded points must never reach the external routing
+    # provider, but a worker with 0 or 1 mapped points must still get back a
+    # normal (non-error) response showing whatever points they do have -
+    # this endpoint has no contract-documented 400 for this case (see
+    # api-doc.yaml /api/v1/collector/route), so no HTTPException is expected.
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
 
     # 1. Zero stops
@@ -438,6 +408,10 @@ def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch)
     assert res_single.pickup_count == 1
     assert len(res_single.ordered_pickups) == 1
     assert res_single.ordered_pickups[0].id == stop1.id
+
+    # Neither case may reach the external routing provider, even with an
+    # ORS_API_KEY configured - there are not enough points to route between.
+    mock_urlopen.assert_not_called()
 
 
 def test_get_collector_route_reports_actual_degraded_notice_values(monkeypatch):
