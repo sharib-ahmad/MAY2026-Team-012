@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.features.auth.schemas import LoginRequest, UserRegisterRequest
+from app.features.auth.schemas import UserRegisterRequest
 
 
 @pytest.mark.unit
@@ -56,44 +56,8 @@ def test_user_register_request_validation_errors():
         )
 
 
-@pytest.mark.unit
-def test_login_request_trims_email_whitespace():
-    request = LoginRequest(
-        email="  citizen@example.com  ",
-        password="StrongPassword123!",
-    )
-
-    assert request.email == "citizen@example.com"
-    assert request.password == "StrongPassword123!"
-
-
-@pytest.mark.unit
-@pytest.mark.boundary
-@pytest.mark.parametrize(
-    "payload",
-    [
-        pytest.param(
-            {"email": "not-an-email", "password": "StrongPassword123!"},
-            id="invalid-email",
-        ),
-        pytest.param(
-            {"email": "citizen@example.com", "password": ""},
-            id="blank-password",
-        ),
-        pytest.param(
-            {"password": "StrongPassword123!"},
-            id="missing-email",
-        ),
-        pytest.param(
-            {"email": "citizen@example.com"},
-            id="missing-password",
-        ),
-        pytest.param(
-            {"email": "citizen@example.com", "password": "A" * 73},
-            id="password-over-bcrypt-byte-limit",
-        ),
-    ],
-)
-def test_login_request_rejects_invalid_or_unsafe_input(payload):
-    with pytest.raises(ValidationError):
-        LoginRequest(**payload)
+# LoginRequest trimming and invalid-input rejection are proven end-to-end, more
+# strongly, by tests/api/features/auth/test_auth_login.py
+# (test_login_email_is_trimmed_and_case_insensitive,
+# test_invalid_login_payload_returns_safe_validation_error); the schema-only
+# duplicates were removed here rather than kept as redundant coverage.

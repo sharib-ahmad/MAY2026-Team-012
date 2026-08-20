@@ -5,7 +5,87 @@
 **Execution rule:** Expected results are fixed before execution. Actual Result and
 Result are recorded only from local or CI execution.
 
-## FINAL Retest Result (current, supersedes all sections below)
+## FINAL Retest Result (2026-08-20, current, supersedes all sections below)
+
+The suite was refined for minimality without reducing fault detection: two
+schema-level unit tests in `tests/unit/features/auth/test_auth_schemas.py`
+(`test_login_request_trims_email_whitespace` and
+`test_login_request_rejects_invalid_or_unsafe_input`, the latter parametrized
+over 5 cases) were removed. Both duplicated invariants already proven more
+strongly at the API level in `tests/api/features/auth/test_auth_login.py`
+(`test_login_email_is_trimmed_and_case_insensitive` proves trimming
+end-to-end through a successful login; `test_invalid_login_payload_returns_safe_validation_error`
+proves the identical 5 input partitions are rejected with `422` through the
+full HTTP stack and the safe error envelope, which the removed schema-only
+duplicate did not check). No other test was changed, weakened, skipped or
+xfailed. `UserRegisterRequest` schema unit tests were kept as-is: they are the
+only coverage for that schema, do not call the out-of-contract
+`POST /api/v1/auth/register` endpoint, and so do not make public registration
+a test dependency.
+
+`origin/main` was re-checked (`fe4a94e`, 4 commits ahead of this branch's merge
+base: a ruff dev-dependency bump, a frontend dependency bump, an unrelated
+teammate QA PR (#104, recycler/gamification), and an OpenAPI-doc-only PR
+(#111)). None of the four touch `app/features/auth/`, `app/core/security.py`,
+`app/main.py` or `app/api/v1/router.py`, so the three root-cause defects below
+are unchanged and this branch was not rebased.
+
+```text
+Branch: test/SCRUM-88-auth-qa
+Branch HEAD: d7322e0
+Execution date: 2026-08-20
+Database: verdeza_pytest_test (Docker container verdeza-postgres, port 5433)
+Python: 3.12.3
+
+Focused suite (auth + security + auth schemas):
+27 passed, 5 failed, 32 collected, 0 errors
+(38 -> 32 collected: 6 fewer tests from the consolidation above)
+
+Full backend suite:
+242 passed, 5 failed, 247 collected, 0 errors
+Coverage: 81.75% (gate: >= 80%) -> PASSED
+
+pip check: No broken requirements found
+Ruff check (repo-wide): All checks passed
+Ruff format --check (repo-wide): 159 files already formatted
+python -m compileall -q app tests alembic: clean
+alembic check: No new upgrade operations detected
+```
+
+The same 5 failing test cases, reproducing the same 3 previously-documented
+root-cause defect groups, are still present and were deliberately left
+failing (not weakened, skipped or xfailed) because each is a valid,
+requirement-backed test exposing a genuine backend defect:
+
+1. **Public self-registration route still exposed.** `POST /api/v1/auth/register`
+   still exists in `app/features/auth/router.py:38`, which the accepted
+   contract (S1-5101, and `api-doc.yaml`'s auth path list) forbids — Story 5.1
+   specifies System-Admin-driven user provisioning only, with no story for
+   citizen self-registration. Test: `test_auth_contract.py::test_runtime_exposes_only_the_approved_authentication_routes`.
+2. **Application startup still seeds accounts implicitly.** `app/main.py`'s
+   `lifespan` calls `seed_database(...)` whenever `APP_ENV != "test"`
+   (`app/main.py:328-333`), creating a known `admin@verdeza.test` /
+   `password123` account outside a disposable test environment, with no
+   additional guard. Test:
+   `test_auth_contract.py::test_application_startup_does_not_seed_accounts_implicitly`.
+3. **`WWW-Authenticate: Bearer` header dropped on 401s.** `get_current_user`
+   correctly raises `HTTPException(..., headers={"WWW-Authenticate": "Bearer"})`
+   (`app/features/auth/dependencies.py:35`), and `api-doc.yaml`'s
+   `AuthenticationRequired` response component formally documents this header
+   on every protected endpoint, but the global `StarletteHTTPException`
+   handler in `app/main.py` (`_http`, around line 132) rebuilds the JSON
+   response via `error_response(...)` and never forwards `exc.headers`, so the
+   header never reaches the client. Test:
+   `test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge`
+   (all 3 parametrizations).
+
+```text
+QA decision: FAILED (3 genuine backend defects remain; coverage gate passes)
+Merge status: Blocked on the 3 defects above, not on coverage or test quality
+Corrective issue: #69 must remain open until routes/seeding/header are fixed
+```
+
+## HISTORICAL — Retest Result (2026-08-12, superseded by the 2026-08-20 retest above)
 
 `origin/main` was merged into `test/SCRUM-88-auth-qa` and the full authentication
 suite was rerun against the disposable local PostgreSQL test database
@@ -73,6 +153,11 @@ Corrective issue: #69 must remain open until routes/seeding/header are fixed
 
 ## Current Test Results
 
+**Update (2026-08-20):** AUTH-16's automated test was removed as a
+consolidation (see the FINAL Retest Result section above) — the same
+invariant is proven more strongly at API level by AUTH-06. The row is kept
+below for historical traceability rather than deleted.
+
 | Test ID | Matrix trace | API / component | Input or action | Expected result | Automated test | Actual result | Result |
 |---|---|---|---|---|---|---|---|
 | AUTH-01 | S1-G01, S1-5101 | Runtime routes | Inspect registered methods and paths | Canonical `/api/v1/auth/login` and `/api/v1/auth/me` exist; public registration and legacy paths are absent | `tests/api/features/auth/test_auth_contract.py::test_runtime_exposes_only_the_approved_authentication_routes` | Failed. The canonical authentication routes are present, but forbidden legacy or public routes remain registered, including `GET /api/v1/me`, `POST /api/v1/login`, `POST /api/v1/register` and `POST /api/v1/auth/register`. | Fail |
@@ -90,7 +175,7 @@ Corrective issue: #69 must remain open until routes/seeding/header are fixed
 | AUTH-13 | R4 | Password helper | Correct password, wrong password and malformed hashes | Salted hashes verify correctly and malformed hashes fail closed | `tests/unit/core/test_security.py::test_password_hash_is_salted_and_verification_fails_closed` | Passed. Password hashes were salted, correct passwords verified, wrong passwords were rejected and malformed hashes failed closed. | Pass |
 | AUTH-14 | R4 | Password boundary | 72-byte and over-72-byte UTF-8 passwords | 72 bytes accepted; longer inputs rejected without truncation | `tests/unit/core/test_security.py::test_password_hashing_enforces_the_bcrypt_utf8_byte_limit` | Passed. The helper accepted the supported boundary and rejected a password exceeding 72 UTF-8 bytes. | Pass |
 | AUTH-15 | S1-5102, S1-5105 | JWT helper | Create default and custom-expiry tokens | Subject, token version and expiry are correct | `tests/unit/core/test_security.py` | Passed. JWT helper tests for required claims and expiry completed successfully. | Pass |
-| AUTH-16 | R4 | Login schema | Valid trimmed email and invalid input partitions | Valid input normalised; unsafe input raises validation error | `tests/unit/features/auth/test_auth_schemas.py::test_login_request_rejects_invalid_or_unsafe_input` | Passed. Valid input was normalised and all invalid or unsafe partitions, including the over-limit password, raised validation errors. | Pass |
+| AUTH-16 | R4 | Login schema | Valid trimmed email and invalid input partitions | Valid input normalised; unsafe input raises validation error | Removed 2026-08-20; consolidated into AUTH-06, which proves the identical 5 input partitions through the full API stack plus the safe error envelope | Consolidated. Passed before removal; the invariant remains proven by AUTH-06. | Consolidated |
 
 ## Initial Execution Summary (Historical)
 
