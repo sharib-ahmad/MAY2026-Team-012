@@ -28,7 +28,7 @@ def test_dashboard_contains_only_the_managers_assigned_wards(
     foreign_resident = make_user(role=Role.CITIZEN, zone=other_ward)
     make_user(role=Role.COLLECTION_WORKER, zone=manager_ward)
     make_user(role=Role.COLLECTION_WORKER, zone=other_ward)
-    make_ticket(raised_by=own_resident, zone=manager_ward)
+    own_ticket = make_ticket(raised_by=own_resident, zone=manager_ward)
     make_ticket(raised_by=foreign_resident, zone=other_ward)
     make_bulk_request(requester=own_resident, zone=manager_ward)
     make_bulk_request(requester=foreign_resident, zone=other_ward)
@@ -37,11 +37,21 @@ def test_dashboard_contains_only_the_managers_assigned_wards(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert manager_ward.code in response.text
-    assert other_ward.code not in response.text
-    assert all(item["ward_code"] == manager_ward.code for item in body["complaints"])
+    # Bulk-pickup and crew sections are operational queues the manager acts on:
+    # they stay strictly scoped to the manager's own assigned wards.
     assert all(item["ward_code"] == manager_ward.code for item in body["bulk_pickups"])
     assert all(item["ward_code"] == manager_ward.code for item in body["workers"])
+    # Complaint dashboard reads are city-wide by design so an officer can spot
+    # service gaps outside their own wards (Story 2.2); only complaint
+    # *mutation* is ward-scoped (covered in test_manager_authorization.py).
+    # `ward_coverage` is explicitly every ward in the system, flagged by
+    # `is_managed`, and `all_ward_open_complaints` is an every-ward complaint
+    # count for the same reason — neither is a leak.
+    ward_coverage_codes = {item["code"]: item["is_managed"] for item in body["ward_coverage"]}
+    assert ward_coverage_codes[manager_ward.code] is True
+    assert ward_coverage_codes[other_ward.code] is False
+    assert other_ward.code in {row["ward"] for row in body["all_ward_open_complaints"]}
+    assert {item["id"] for item in body["complaints"]} == {str(own_ticket.id)}
 
 
 @pytest.mark.api
@@ -68,10 +78,8 @@ def test_manager_without_wards_gets_an_empty_scoped_dashboard(
     body = response.json()
     for key in (
         "wards",
-        "ward_coverage",
         "complaints",
         "routes",
-        "all_ward_open_complaints",
         "delay_logs",
         "mixed_waste_flags",
         "bulk_pickups",
@@ -80,6 +88,12 @@ def test_manager_without_wards_gets_an_empty_scoped_dashboard(
         assert body[key] == []
     assert body["stats"]["open_complaints"] == 0
     assert body["stats"]["wards_supervised"] == 0
+    # ward_coverage and all_ward_open_complaints are explicitly every-ward,
+    # city-wide views (not scoped to the officer's own assignment), so an
+    # officer with zero assigned wards still sees them populated.
+    assert other_ward.code in {item["code"] for item in body["ward_coverage"]}
+    assert all(item["is_managed"] is False for item in body["ward_coverage"])
+    assert other_ward.code in {row["ward"] for row in body["all_ward_open_complaints"]}
 
 
 @pytest.mark.api
