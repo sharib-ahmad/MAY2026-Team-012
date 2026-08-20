@@ -22,7 +22,7 @@ class AdminPaths:
     """Current preferred routes, with isolated fallbacks for legacy aliases."""
 
     create_user: str
-    list_users: str
+    account: str
     update_user: str
     update_status: str
     delete_user: str
@@ -33,7 +33,6 @@ class AdminPaths:
     logs: str
     login: str
     me: str
-    has_list_users: bool
 
 
 def _runtime_routes(app_test) -> set[tuple[str, str]]:
@@ -54,7 +53,7 @@ def admin_paths(app_test) -> AdminPaths:
             if ("POST", "/api/v1/admin/users") in routes
             else "/api/v1/admin/user"
         ),
-        list_users="/api/v1/admin/users",
+        account="/api/v1/admin/account",
         update_user=(
             "/api/v1/admin/users/{user_id}"
             if ("PATCH", "/api/v1/admin/users/{user_id}") in routes
@@ -87,7 +86,6 @@ def admin_paths(app_test) -> AdminPaths:
             "/api/v1/auth/login" if ("POST", "/api/v1/auth/login") in routes else "/api/v1/login"
         ),
         me=("/api/v1/auth/me" if ("GET", "/api/v1/auth/me") in routes else "/api/v1/me"),
-        has_list_users=("GET", "/api/v1/admin/users") in routes,
     )
 
 

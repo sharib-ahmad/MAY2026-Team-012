@@ -4,13 +4,350 @@
 **Branch under test:** `test/SCRUM-173-admin-qa`
 **Initial commit tested:** `d65669d`
 **Initial execution date:** 2026-08-01
-**Latest retest base commit:** `4c56834` with local QA-maintenance corrections
-**Latest retest date:** 2026-08-02
-**Current QA decision:** Failed; Draft PR #80 remains blocked by confirmed product and contract failures
+**Latest retest base commit:** `0f71a83` (origin/main merged) with local QA-refinement corrections
+**Latest retest date:** 2026-08-20
+**Current QA decision:** Failed; Draft PR #80 remains blocked by 1 confirmed backend defect group (6 test cases). The shared `WWW-Authenticate: Bearer`/global-exception-handler defect previously tracked here is consolidated into PR #81, which owns it more deeply.
 **Corrective issue:** #70
 **Execution rule:** Expected results were fixed before execution. Actual outputs and results are recorded from pytest execution against the disposable PostgreSQL test database. Historical evidence is preserved, while the latest retest section is the source of truth for the current failure set.
 
-## FINAL Retest Result (current, supersedes all sections below)
+## QA-suite refinement pass — Bearer assertion consolidated with PR #81 (2026-08-20, current, supersedes all sections below)
+
+Follow-up to the same-day refinement pass below, requested to remove duplicate coverage of a
+defect PR #81 already owns more deeply, and to re-check (not blindly consolidate) the 6
+UUID-related failures before finalizing #80.
+
+### Change 1 — `WWW-Authenticate: Bearer` assertion removed, not just the one line
+
+`test_missing_credentials_include_the_bearer_challenge` asserted two things: (a) a missing-
+credentials request to an admin endpoint returns `401 AUTHENTICATION_REQUIRED` in the safe
+envelope, and (b) the response carries `WWW-Authenticate: Bearer`. Confirmed again this
+session that (b) is produced entirely by shared, non-admin-specific infrastructure:
+`get_current_user` (`app/features/auth/dependencies.py`) always attaches the header when it
+raises, and the app-wide `StarletteHTTPException` handler (`app/main.py`) is what currently
+drops it from every 401 in the application — admin included, with no admin-specific code
+involved anywhere in that path. That is the same shared defect PR #81 owns and tests more
+deeply, so re-asserting it here is pure duplication.
+
+Removing only the `WWW-Authenticate` line would have left (a) behind as a standalone test —
+but that remaining assertion (401 + safe envelope for `GET /admin/dashboard` with no
+credentials) is an exact duplicate of the existing `dashboard` case in
+`test_every_exposed_admin_endpoint_rejects_missing_credentials_with_401`, which already
+covers it (and additionally checks the error message never leaks "admin"). Keeping a test
+that duplicates an existing case with no unique signal reintroduces the same test-count
+inflation this suite was just cleaned of, so the whole function was removed rather than left
+as dead duplicate coverage. The required proof — every protected admin endpoint rejects
+missing credentials with `401` and the correct safe envelope — remains fully intact via that
+sweep test; nothing about admin authorization coverage was weakened.
+
+### Change 2 — the 6 UUID-related failures were reviewed, not consolidated
+
+Checked each of the 6 currently-failing cases for whether it protects a distinct accepted
+behaviour, as instructed, rather than merging them because they currently share one root
+cause. All 6 are kept unchanged:
+
+- **`test_admin_can_provision_each_supported_role_with_safe_canonical_output[CITIZEN /
+  COLLECTION_WORKER / MUNICIPAL_OFFICER / RECYCLER]`** (4 cases): each independently proves
+  Story 5.1 AC1 — that specific approved role can be provisioned end-to-end (DB persistence,
+  correct `role` value, audit actor, and the `ROLE_MAP_DB_TO_FRONTEND` response mapping for
+  that exact role). Unlike the authorization guard (`require_admin`, which is genuinely
+  identical for every non-admin role — already consolidated earlier today), role
+  serialization is a per-value dictionary lookup that can break for one role without breaking
+  the others. Collapsing these to one representative role would hide that class of bug, so
+  they stay distinct.
+- **`test_admin_provisions_user_user_logs_in_admin_disables_and_reenables`**: a
+  `@pytest.mark.system` cross-endpoint journey (create with ward → login → `/me` → disable →
+  relogin blocked → re-enable → relogin restored). It only shares the UUID root cause because
+  its setup happens to supply a ward — the behaviour it protects (session lifecycle across
+  disable/re-enable) is unrelated to the 4 provisioning cases above and to each other UUID
+  failure. Not a duplicate of anything else in the suite.
+- **`test_admin_create_rejects_unsafe_or_invalid_input_without_persistence[unknown-ward]`**:
+  one case within a 5-case boundary/security test; its 4 siblings (mass-assignment,
+  blank-name, over-length password, invalid-role) each test a different input-safety
+  dimension. `unknown-ward` is the suite's only coverage of referential validity for
+  `zone_id` — a distinct dimension (R4 "valid ward/reference handling"), not redundant with
+  its siblings.
+
+No test was merged, weakened, or removed as part of this review; all 6 remain correctly red.
+
+### Retest execution record
+
+```text
+Execution date: 2026-08-20 (same-day follow-up)
+Ruff check (repo-wide):            All checks passed
+Ruff format --check (repo-wide):   169 files already formatted
+
+Focused suite, this PR's own files:
+61 collected, 55 passed, 6 failed, 0 errors, 0 skipped   (was 62 / 55 / 7)
+
+Full tests/api/features/admin + tests/unit/features/admin directory
+  (includes 7 pre-existing, untouched tests from PR #72, all passing):
+68 collected, 62 passed, 6 failed                         (was 69 / 62 / 7)
+
+Full backend suite:
+371 collected, 365 passed, 6 failed, 0 errors, 0 skipped, 111.49s   (was 372 / 365 / 7)
+Coverage: 84.41% (gate: >= 80%) -> PASSED (unchanged — app/features/admin/* is still
+  excluded from coverage measurement; see blind-spot note below)
+```
+
+### Remaining distinct backend defect groups (1, down from 2)
+
+**BACKEND DEFECT — `POST /api/v1/admin/users` crashes when a ward is supplied.** Unchanged
+from the prior retest: `app/features/admin/router.py:479` re-wraps an already-parsed `UUID`
+(`AdminUserCreate.zone_id`) in `uuid.UUID(...)`, raising `AttributeError`. Still blocks the
+Story 5.1 AC1 happy path (valid ward) and the unknown-ward validation path (500 instead of
+422). Full detail retained below in the prior section. Affects the same 6 tests reviewed
+above.
+
+**Consolidated out of #80's defect list:** the missing `WWW-Authenticate: Bearer` header
+(`app/main.py`'s global `StarletteHTTPException` handler dropping `exc.headers`) is no longer
+tracked as a #80-owned defect. It is shared, non-admin-specific infrastructure now owned and
+tested more deeply by PR #81 (same root cause previously also linked to SCRUM-88).
+
+The coverage blind spot (`app/features/admin/*` excluded from `[tool.coverage.run] omit`) is
+unchanged from the prior retest — see that section below for detail; not reproduced again
+here.
+
+### Current QA decision
+
+```text
+SCRUM-173 Administrator API QA: FAILED
+Focused suite (this PR's files): 55 passed, 6 failed
+Full backend regression: 365 passed, 6 failed, 0 unrelated regressions
+Coverage: 84.41% (gate 80%) — PASSED, admin blind spot unchanged
+QA pull request: Draft PR #80
+Corrective issue: #70 (now tracks 1 confirmed #80-owned defect group; the Bearer/global-
+  handler defect is consolidated into PR #81)
+Merge readiness: NOT READY. The remaining UUID defect is real, currently reproducing, and
+  blocks Story 5.1 AC1's ward-scoped provisioning path. No expected result was weakened,
+  skipped, xfailed, or suppressed to obtain this result.
+```
+
+## QA-suite refinement pass (2026-08-20, superseded by the Bearer-consolidation pass above)
+
+This pass re-read the current admin implementation (`app/features/admin/router.py`,
+`service.py`, `dependencies.py`, `schemas.py`), the current `api-doc.yaml` administrator
+contract, and every test this PR touches, then refined the suite against that current source
+of truth rather than against the assumptions the suite was originally written under. Three
+previously "failing" tests turned out to be encoding stale or incorrect expectations, not
+product bugs; they are corrected below. The broad role x endpoint authorization matrix was
+also reviewed and cut down, and two admin write endpoints that had no coverage at all
+(`POST /admin/account`, `DELETE /admin/users/{user_id}`) gained a focused test each. No
+production code was changed.
+
+### Test-defects found and fixed in this PR's own suite
+
+1. **`test_runtime_exposes_the_approved_admin_contract` asserted a route that was never part
+   of the real contract.** `APPROVED_RUNTIME_ROUTES` required `GET /api/v1/admin/users` (a
+   "list users" endpoint). No such route exists in `router.py`, and `api-doc.yaml` never
+   documents a `get:` under `/api/v1/admin/users` — only `post:`. User listing is served by
+   `GET /api/v1/admin/dashboard`, which already has its own passing test
+   (`test_admin_dashboard_lists_users_with_safe_canonical_fields`). This was a stale
+   assumption carried over from early Sprint 2 planning docs that api-doc.yaml's own
+   reconciliation note calls out as never having been built as originally designed. Fixed by
+   removing the spurious route from `APPROVED_RUNTIME_ROUTES` (and deleting the two unused
+   `AdminPaths` fixture fields, `list_users`/`has_list_users`, that existed only to support it).
+
+2. **`test_openapi_publishes_canonical_paths_without_legacy_aliases` misclassified two
+   intentional, documented endpoints as legacy duplicates.** `LEGACY_DOCUMENTED_PATHS`
+   included `/api/v1/admin/account` and `/api/v1/zones`. Both are real, currently canonical,
+   deliberately schema-visible operations: `api-doc.yaml` documents `POST /admin/account`
+   (`createAdminAccount`) as the staff-only provisioning endpoint distinct from
+   `POST /admin/users` (`createAdminUser`, any role), and `GET /zones`
+   (`listZoneReferences`) as an intentionally public, unauthenticated ward-reference lookup
+   used by self-registration. Neither is a singular-alias duplicate like `/admin/user` or
+   `/admin/ward`, which the router does mark `include_in_schema=False`. Fixed by removing both
+   from `LEGACY_DOCUMENTED_PATHS`.
+
+3. **`test_audit_failure_rolls_back_user_creation` was failing because of a fixture gap, not a
+   transaction bug.** The shared `db_client` fixture overrides `get_db` with a bare
+   `lambda: db`. FastAPI only applies a dependency override's generator/context-manager
+   behaviour when the *override itself* is a generator (verified against
+   `fastapi.dependencies.utils.solve_dependencies`); a plain lambda is called directly with no
+   teardown at all. That silently disables `get_db`'s own `except Exception: db.rollback()`
+   path (`app/db/session.py`), which is proven correct in isolation by
+   `tests/unit/core/test_db_session.py::test_get_db_rolls_back_and_closes_after_escaped_exception`.
+   So when the injected audit failure fired, the already-flushed (uncommitted) user row
+   stayed visible on the same session the test queried, and the test reported a false
+   atomicity failure that no amount of product-code correctness could pass under this
+   fixture. Fixed by adding one explicit `db.rollback()` after the exception is caught,
+   reproducing exactly what `get_db` already does in production, so the test now actually
+   verifies what the router owns: `create_user` never calls `db.commit()` before the required
+   audit write succeeds. This is a shared, pre-existing `db_client`/root-`conftest.py`
+   fixture characteristic (not unique to this PR); it was corrected locally, in this file
+   only, rather than by changing the shared fixture.
+
+### Coverage consolidation: role x endpoint authorization matrix
+
+`test_every_exposed_admin_endpoint_rejects_non_admin_roles` parametrized 4 non-admin roles x
+10 endpoint keys (40 cases). Every administrator route uses exactly one dependency,
+`require_admin` (`app/features/admin/dependencies.py`) — there is no per-route variation in
+how the guard evaluates a role, so a full cross product re-runs identical guard logic without
+adding defect-detection power. Replaced with a "cross":
+
+- `test_every_exposed_admin_endpoint_rejects_a_non_admin_role` — one fixed non-admin role
+  (`CITIZEN`) swept across every endpoint (now 12, see below) — catches a route that forgot to
+  wire the guard at all.
+- `test_require_admin_guard_rejects_every_non_admin_role` — all 4 non-admin roles against one
+  representative endpoint (`dashboard`) — catches a guard that misjudges a specific role.
+
+This covers the same class of regression (broken function-level authorization on any given
+route, or a guard that admits a role it shouldn't) at 16 cases instead of 40.
+
+### New coverage: previously untested admin write endpoints
+
+Two real, currently implemented, documented admin endpoints had zero test coverage before
+this pass (only an unused fixture path existed for one of them):
+
+- `POST /api/v1/admin/account` (`test_admin_account_route_only_provisions_staff_roles`,
+  2 cases) — the endpoint's distinguishing behaviour is rejecting any role other than
+  `MUNICIPAL_OFFICER`/`SYSTEM_ADMIN` with `403`; verified both the rejection and a successful
+  staff-account creation.
+- `DELETE /api/v1/admin/users/{user_id}` (`test_admin_deletes_another_user_but_not_self`,
+  1 case) — verified an admin cannot delete their own account (`400`, row unchanged) and can
+  hard-delete another user (`204`, row gone, `USER_DELETED` audit row attributed to the actor).
+
+Both endpoints were also added to the two authorization sweeps above (`create-account`,
+`delete-user` endpoint keys) so they are covered by the shared-guard checks too.
+
+### Net suite-size effect (this PR's own files only)
+
+```text
+File                            Before  After
+test_admin_contract.py              54     32
+test_admin_system.py                 1      1
+test_admin_users.py                 20     23
+test_admin_wards_support.py          6      6
+                                   ---    ---
+Total                               81     62
+```
+
+Net -19 tests: -24 from consolidating the authorization matrix, +6 from extending both
+sweeps to the 2 newly recognized endpoints, +3 from the 2 new endpoint-coverage tests. No
+behaviour the suite previously exercised was dropped without an equal-or-stronger
+replacement; the matrix reduction removed only cases that re-tested the identical shared
+guard.
+
+### Retest execution record
+
+```text
+Repository base commit: 0f71a83 (origin/main already merged), refined tests uncommitted in
+  the working tree
+Branch: test/SCRUM-173-admin-qa
+Execution date: 2026-08-20
+Python: 3.12.3
+PostgreSQL: 16 (Docker container verdeza-postgres, port 5433)
+Database: verdeza_pytest_test (disposable, ends in _test)
+
+Ruff check (repo-wide):            All checks passed
+Ruff format --check (repo-wide):   169 files already formatted
+python -m pip check:               No broken requirements found
+python -m compileall app tests alembic: clean
+alembic upgrade head / alembic check: No new upgrade operations detected
+
+Focused suite, this PR's own files
+  (test_admin_contract.py, test_admin_system.py, test_admin_users.py,
+  test_admin_wards_support.py):
+62 collected, 55 passed, 7 failed, 0 errors, 0 skipped
+
+Full tests/api/features/admin + tests/unit/features/admin directory
+  (includes 7 pre-existing tests from another merged PR, #72 —
+  test_user_update_api.py, test_schemas.py — untouched, not part of PR #80,
+  all 7 passing):
+69 collected, 62 passed, 7 failed, 0 errors, 0 skipped
+
+Full backend suite:
+372 collected, 365 passed, 7 failed, 0 errors, 0 skipped, 251.53s
+Coverage: 84.41% (gate: >= 80%) -> PASSED
+
+The 7 failures are identical across the focused run, the admin-directory run and the full
+backend run — no unrelated regression anywhere else in the codebase.
+```
+
+### Coverage blind spot (unchanged, reported not fixed)
+
+`pyproject.toml`'s `[tool.coverage.run]` still carries
+`omit = ["alembic/*", "tests/*", "app/features/admin/*"]`. Confirmed this run: `coverage.xml`
+contains zero rows for any `app/features/admin/*` file. The 80% gate and the 84.41% figure
+above are computed with all admin production code excluded — a regression that silently
+dropped admin coverage to 0% would not fail CI. This blind spot predates this PR and was not
+introduced or widened by it; per instructions it is reported, not changed, here. Recommend a
+follow-up ticket to remove `app/features/admin/*` from `omit` once the 2 defects below are
+fixed, so the gate actually protects this module going forward.
+
+### Remaining confirmed backend defects (2, down from 4 previously recorded)
+
+Both were independently reproduced this session by reading the exact failing line and
+triggering it directly; neither is a test artifact.
+
+#### BACKEND DEFECT — `POST /api/v1/admin/users` crashes when a ward is supplied
+
+**Location:** `app/features/admin/router.py:479`, inside `create_user()`.
+
+**Root cause:** `AdminUserCreate.zone_id` (`app/features/admin/schemas.py:43`) is typed
+`uuid.UUID | None`, so Pydantic has already parsed it into a `UUID` instance by the time the
+handler runs. The handler then does `zone_uuid = uuid.UUID(user_data.zone_id)` — passing an
+existing `UUID` object into `uuid.UUID()`, which raises
+`AttributeError: 'UUID' object has no attribute 'replace'` (confirmed via direct traceback
+this session, `uuid.py:175`). `POST /api/v1/admin/account` (`create_account`) does not have
+this bug — it uses `account_data.zone_id` directly with no re-wrap — so staff-only
+provisioning through that endpoint is unaffected.
+
+**Impact:** Breaks the core Story 5.1 AC1 flow of provisioning any supported role with a
+valid ward (500 instead of 201), and breaks the "unknown ward" validation path (500 instead
+of the required 422) — both explicitly called out as highest-value behaviour for this QA
+pass ("valid ward/reference handling").
+
+**Affected tests (still correctly red, not weakened):**
+```text
+tests/api/features/admin/test_admin_system.py::test_admin_provisions_user_user_logs_in_admin_disables_and_reenables
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[CITIZEN]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[COLLECTION_WORKER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[MUNICIPAL_OFFICER]
+tests/api/features/admin/test_admin_users.py::test_admin_can_provision_each_supported_role_with_safe_canonical_output[RECYCLER]
+tests/api/features/admin/test_admin_users.py::test_admin_create_rejects_unsafe_or_invalid_input_without_persistence[unknown-ward]
+```
+
+**Required correction:** drop the redundant `uuid.UUID(...)` re-wrap in `create_user` and use
+`user_data.zone_id` directly, mirroring `create_account`.
+
+#### BACKEND DEFECT — 401 responses omit `WWW-Authenticate: Bearer`
+
+**Location:** `app/main.py`, the `StarletteHTTPException` exception handler
+(`register_exception_handlers`, `_http`).
+
+**Root cause:** The handler rebuilds a fresh `JSONResponse` via `error_response(...)` and
+never forwards `exc.headers`, so the `WWW-Authenticate: Bearer` header FastAPI's HTTPBearer
+dependency attaches to its 401 is dropped on every route in the app, admin included.
+Confirmed this session: the response header is `None` where `Bearer` is required. Same
+shared root cause already tracked under SCRUM-88
+(`docs/qa/scrum-88-auth-test-evidence.md`).
+
+**Affected test:**
+```text
+tests/api/features/admin/test_admin_contract.py::test_missing_credentials_include_the_bearer_challenge
+```
+
+**Required correction:** forward `exc.headers` (when present) onto the constructed
+`JSONResponse` in the `StarletteHTTPException` handler.
+
+### Current QA decision
+
+```text
+SCRUM-173 Administrator API QA: FAILED
+Focused suite (this PR's files): 55 passed, 7 failed
+Full backend regression: 365 passed, 7 failed, 0 unrelated regressions
+Coverage: 84.41% (gate 80%) — PASSED, but app/features/admin/* remains excluded (see blind
+  spot note above)
+QA pull request: Draft PR #80
+Corrective issue: #70 (now tracks 2 confirmed defects, down from 4 — 2 previously recorded
+  items were QA-suite defects, not product defects, and are corrected in this PR's own tests
+  above)
+Merge readiness: NOT READY. Both remaining defects are real, currently reproducing, and block
+  highest-value Story 5.1 behaviour (ward-scoped provisioning; the auth challenge header).
+  No expected result was weakened, skipped, xfailed, or suppressed to obtain this result.
+```
+
+## HISTORICAL — Retest result before QA-suite refinement (2026-08-12, superseded)
 
 `origin/main` was merged into `test/SCRUM-173-admin-qa` (clean auto-merge, no conflicts) and the
 full administrator suite was rerun against the disposable local PostgreSQL test database

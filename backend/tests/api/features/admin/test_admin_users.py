@@ -489,4 +489,103 @@ def test_audit_failure_rolls_back_user_creation(
         )
 
     assert calls["count"] == 1
+    # db_client overrides get_db with a bare session, not the real generator
+    # dependency, so the production rollback-on-exception in get_db
+    # (app/db/session.py, unit-proven in tests/unit/core/test_db_session.py)
+    # never runs here. Roll back explicitly to reproduce that same effect and
+    # verify what this test actually owns: create_user must not commit the
+    # user before the required audit write succeeds.
+    db.rollback()
     assert db.scalar(select(User).where(User.email == email)) is None
+
+
+@pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.security
+@pytest.mark.parametrize(
+    ("role", "expected_status"),
+    [
+        (Role.CITIZEN, status.HTTP_403_FORBIDDEN),
+        (Role.MUNICIPAL_OFFICER, status.HTTP_201_CREATED),
+    ],
+)
+def test_admin_account_route_only_provisions_staff_roles(
+    db_client,
+    db,
+    admin_user,
+    admin_paths,
+    bearer_for,
+    user_create_payload,
+    extract_user_body,
+    assert_safe_public_body,
+    assert_safe_error,
+    role,
+    expected_status,
+):
+    """POST /admin/account is the staff-only counterpart to POST /admin/users."""
+    email = f"account-{uuid.uuid4().hex}@example.com"
+
+    response = db_client.post(
+        admin_paths.account,
+        headers=bearer_for(admin_user),
+        json=user_create_payload(
+            admin_paths,
+            name="Staff Candidate",
+            email=email,
+            phone=f"+91{uuid.uuid4().int % 10**10:010d}",
+            password="StrongPass123!",
+            role=role,
+        ),
+    )
+
+    assert response.status_code == expected_status, response.text
+    persisted = db.scalar(select(User).where(User.email == email))
+
+    if expected_status == status.HTTP_201_CREATED:
+        assert persisted is not None
+        assert persisted.role == role
+        body = extract_user_body(response)
+        assert body["role"] == role.value
+        assert_safe_public_body(response, additional_forbidden_keys={"zone_id"})
+    else:
+        assert persisted is None
+        assert_safe_error(response, status.HTTP_403_FORBIDDEN, "FORBIDDEN")
+
+
+@pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.security
+def test_admin_deletes_another_user_but_not_self(
+    db_client,
+    db,
+    admin_user,
+    admin_paths,
+    make_user,
+    bearer_for,
+):
+    target = make_user(email="delete-target@example.com", role=Role.CITIZEN)
+    headers = bearer_for(admin_user)
+
+    self_delete = db_client.delete(
+        admin_paths.delete_user.format(user_id=admin_user.id),
+        headers=headers,
+    )
+    assert self_delete.status_code == status.HTTP_400_BAD_REQUEST
+    assert db.get(User, admin_user.id) is not None
+
+    deleted = db_client.delete(
+        admin_paths.delete_user.format(user_id=target.id),
+        headers=headers,
+    )
+    assert deleted.status_code == status.HTTP_204_NO_CONTENT
+    assert db.get(User, target.id) is None
+
+    audit = db.scalar(
+        select(AuditLog).where(
+            AuditLog.entity_type == "User",
+            AuditLog.entity_id == target.id,
+            AuditLog.action == "USER_DELETED",
+        )
+    )
+    assert audit is not None
+    assert audit.actor_id == admin_user.id
