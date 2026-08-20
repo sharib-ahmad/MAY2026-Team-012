@@ -68,8 +68,20 @@ def test_manager_dashboard_resolution_and_assignment_journey(
     audit_actions = set(
         db.scalars(select(AuditLog.action).where(AuditLog.actor_id == manager_user.id)).all()
     )
-    assert "COMPLAINT_RESOLVED" in audit_actions
     assert "BULK_PICKUP_ASSIGNED" in audit_actions
+
+    # R2/Story 2.3 AC4 require an audit row with actor and timestamp for the
+    # status change; no accepted contract names a resolution-specific action
+    # string, so only entity/actor/timestamp are asserted here.
+    ticket_audits = db.scalars(
+        select(AuditLog).where(
+            AuditLog.entity_type == "Ticket",
+            AuditLog.entity_id == ticket.id,
+        )
+    ).all()
+    assert len(ticket_audits) == 1
+    assert ticket_audits[0].actor_id == manager_user.id
+    assert ticket_audits[0].created_at is not None
 
     recipients = set(
         db.scalars(

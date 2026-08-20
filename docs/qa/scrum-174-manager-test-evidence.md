@@ -49,7 +49,7 @@ against the disposable PostgreSQL test database.
 | MGR-24 | R2, R3 | Worker delete | Unassigned worker | `204` | Soft delete, disable, token-version increment and audit commit together | `tests/api/features/manager/test_manager_actions.py::test_unassigned_worker_delete_is_soft_audited_and_revokes_sessions` | **Resolved by PR #95** (see "Final retest" section below). Returns `204`; soft delete, `DISABLED` status, `token_version` increment and the `CREW_MEMBER_DELETED` audit row all commit together. Reconfirmed passing in the 2026-08-20 rerun. | Soft delete, disable, token-version increment and audit commit together. | Pass | — |
 | MGR-25 | S1-G04 | Worker update | Inject required audit failure | Safe server failure | Worker update rolls back completely | `tests/api/features/manager/test_manager_actions.py::test_worker_update_rolls_back_when_required_audit_fails` | **Resolved by PR #95** (see "Final retest" section below). The injected audit failure now rolls back the worker's name and phone completely. Reconfirmed passing in the 2026-08-20 rerun. | Worker update rolls back completely. | Pass | — |
 | MGR-26 | Notification isolation | Mark manager notifications read | Three own and one foreign; repeat request | First marks 3, second marks 0 | Only own rows change | `tests/api/features/manager/test_manager_actions.py::test_mark_all_notifications_read_is_recipient_scoped_and_repeat_safe` | Passed. First response was `{"marked_read": 3}`, second was `{"marked_read": 0}`; only the manager's notifications changed. | Own notifications marked read; foreign notification unchanged. | Pass | — |
-| MGR-27 | System journey | Manager operations | Dashboard → resolve → assign → cross-ward denial | All same-ward actions succeed; foreign action denied | Ticket, pickup, audits and notifications agree | `tests/api/features/manager/test_manager_system.py::test_manager_dashboard_resolution_and_assignment_journey` | Dashboard, same-ward resolution, pickup assignment and cross-ward denial all passed. The manager's audit-action set was empty, so `COMPLAINT_RESOLVED` was absent; notification verification was not reached. | Ticket and pickup changes persisted, but required manager audit actions were absent. | Fail | MGR-QA-07 |
+| MGR-27 | System journey | Manager operations | Dashboard → resolve → assign → cross-ward denial | All same-ward actions succeed; foreign action denied | Ticket, pickup, audits and notifications agree | `tests/api/features/manager/test_manager_system.py::test_manager_dashboard_resolution_and_assignment_journey` | **Test premise corrected 2026-08-20 (see "MGR-QA-07 test correction").** The test asserted a literal audit action string, `COMPLAINT_RESOLVED`, that no accepted contract (R2, Story 2.3 AC4, `api-doc.yaml`, `docs/qa/rtm.md`) ever names; the app writes `action = "COMPLAINT_STATUS_CHANGED"` instead, which already satisfies R2/AC4's actual requirement (actor + timestamp on an audit row). Replaced with requirement-backed assertions: exactly one `AuditLog` row scoped to `entity_type == "Ticket"` / `entity_id == ticket.id`, with the correct `actor_id` and a non-null `created_at`. Dashboard, same-ward resolution, pickup assignment, cross-ward denial and notification verification all pass. | Ticket and pickup changes persisted; the audit row was present all along under a different, undocumented-as-required action name. | Pass (test corrected, not a code fix) | Retired — see "MGR-QA-07 test correction" |
 
 ## Initial execution record
 
@@ -473,4 +473,92 @@ Consolidated since the 2026-08-20 "Suite refinement" rerun: 1 duplicate assertio
   parametrized test (6 cases affected), 0 production-code changes, 0 tests removed
 Remaining genuine defects: 7 groups across 17 test cases (AUTH-QA-06 still open, now tracked via #81)
 QA pull request: #79, Draft — must remain Draft until the remaining 7 defect groups are corrected
+```
+
+## MGR-QA-07 test correction (current, supersedes "Bearer-header assertion consolidation" above)
+
+**No production code was changed in this pass.** No `main` merge occurred; this is a working-tree-only
+change on top of `0dc1914`, scoped to a single test.
+
+`test_manager_system.py::test_manager_dashboard_resolution_and_assignment_journey` asserted
+`"COMPLAINT_RESOLVED" in audit_actions` — a literal audit action-name string. Verified before changing
+anything:
+
+- R2 (Auditability) requires only "the actor's ID and a timestamp" on a state-changing action's audit
+  row — no action-name requirement.
+- Story 2.3 AC4 requires only "the officer ID and timestamp are recorded" on any status change — same.
+- `api-doc.yaml`'s `PATCH /api/v1/manager/tickets/{ticket_id}` description says only "Every status change
+  is audit-logged with actor and timestamp (AC4)" — no action-name string.
+- `docs/qa/rtm.md` rows for 2.3/AC4 restate the same actor+timestamp requirement, nothing more.
+- `COMPLAINT_RESOLVED` does not appear anywhere in `api-doc.yaml`, `docs/qa/rtm.md`, `docs/qa/defect-log.md`
+  or the app code. `AuditLog.action` (`app/models/audit.py`) is an unconstrained `String(80)`, not an
+  enum — there is no approved action-name taxonomy at all. The app already writes
+  `action = "COMPLAINT_STATUS_CHANGED"` with the correct `actor_id`/`entity_id`/timestamp on ticket
+  resolution, which fully satisfies R2/AC4 as written.
+
+Conclusion: **over-specified test, not a backend defect.** `MGR-QA-07` is retired.
+
+### Change made (1 test; not a code fix)
+
+- **`test_manager_system.py::test_manager_dashboard_resolution_and_assignment_journey`** — removed
+  `assert "COMPLAINT_RESOLVED" in audit_actions`. Replaced with requirement-backed assertions matching
+  the query style already used elsewhere in this same suite
+  (`test_manager_actions.py::test_manager_resolves_open_complaint_with_audit_and_citizen_notification`,
+  which scopes by `entity_type == "Ticket"` / `entity_id`): exactly one `AuditLog` row for
+  `entity_type == "Ticket"`, `entity_id == ticket.id`, with `actor_id == manager_user.id` and a non-null
+  `created_at`. No action-name string is asserted. The unrelated `"BULK_PICKUP_ASSIGNED" in audit_actions`
+  assertion in the same test is untouched — that action name is already implemented exactly as asserted
+  (`app/features/manager/router.py`), so it is not over-specified.
+- No other test file was changed.
+
+### Rerun results
+
+```text
+Branch: test/SCRUM-174-manager-qa
+Commit tested: 0dc1914 (working tree; no new main merge)
+Execution date: 2026-08-20
+
+Focused suite (tests/api/features/manager):
+31 passed, 16 failed, 47 collected, 0 errors
+
+Full backend suite:
+341 passed, 16 failed, 357 collected, 0 errors
+Coverage: 86.56% (gate: >= 80%) -> PASSED
+
+Ruff check (focused): All checks passed
+Ruff format --check (focused): all 6 files already formatted
+python -m compileall tests/api/features/manager: clean
+```
+
+Compared with the "Bearer-header assertion consolidation" rerun (30 passed, 17 failed): **1 fewer failing
+test case** (`test_manager_dashboard_resolution_and_assignment_journey`), 0 production-code changes.
+Every other test's outcome is unchanged.
+
+**6 defect groups remain genuine and unresolved in this suite's scope** (`MGR-QA-07` retired above;
+`AUTH-QA-06` remains out of this count, still open and tracked via #81):
+
+- `MGR-QA-03` (Critical) — a manager with **no** assigned wards can still mutate a foreign-ward ticket or
+  pickup (empty-list truthiness bug in the ward-membership guard).
+- `MGR-QA-05` — dashboard complaints remain unbounded.
+- `MGR-QA-06` — dashboard complaint rows still omit `is_aging`.
+- `MGR-QA-08` — validation failures on resolution notes and ineligible-collector assignment still return
+  public code `ERROR` instead of `VALIDATION_ERROR`.
+- `MGR-QA-09` — complaint resolution still accepts illegal non-`OPEN` source states.
+- `MGR-QA-10` — pickup assignment still accepts illegal source states and a second assignment still
+  overwrites the first collector instead of returning `409`.
+
+No expected result was weakened, skipped, xfailed or suppressed to obtain this result. The one change in
+this pass replaced an unfounded literal-string assertion with assertions directly backed by R2 and Story
+2.3 AC4; it did not touch any test proving wrong-role, wrong-ward, lifecycle, validation, or dashboard
+behavior, and did not touch the still-passing `BULK_PICKUP_ASSIGNED` assertion in the same test.
+
+```text
+SCRUM-174 Manager API QA: FAILED
+Focused suite: 31 passed, 16 failed (was 30 passed, 17 failed)
+Full backend regression: 341 passed, 16 failed
+Coverage: 86.56% (gate passed)
+Corrected since the prior rerun: 1 over-specified assertion replaced in 1 test, 0 production-code
+  changes, 0 tests removed
+Remaining genuine defects: 6 groups across 16 test cases (AUTH-QA-06 still open, tracked via #81)
+QA pull request: #79, Draft — must remain Draft until the remaining 6 defect groups are corrected
 ```
