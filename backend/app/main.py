@@ -44,6 +44,7 @@ def error_response(
     message: str,
     request_id: str,
     details=None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     """Return the standard public API error envelope."""
 
@@ -58,10 +59,14 @@ def error_response(
     if details is not None:
         body["error"]["details"] = details
 
+    response_headers = {"X-Request-ID": request_id}
+    if headers:
+        response_headers.update(headers)
+
     return JSONResponse(
         status_code=status_code,
         content=body,
-        headers={"X-Request-ID": request_id},
+        headers=response_headers,
     )
 
 
@@ -140,6 +145,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             403: "FORBIDDEN",
             404: "RESOURCE_NOT_FOUND",
             409: "CONFLICT",
+            422: "VALIDATION_ERROR",
             503: "DATABASE_UNAVAILABLE",
         }
 
@@ -155,6 +161,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             code,
             message,
             _request_id(request),
+            headers=getattr(exc, "headers", None),
         )
 
     @app.exception_handler(IntegrityError)
@@ -326,11 +333,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if current.APP_ENV != "test":
-            try:
-                seed_database(app.state.session_factory)
-            except Exception as exc:
-                logger.exception("database_seeding_failed: %s", exc)
         yield
 
         # Dispose the application-owned connection pool on shutdown.
