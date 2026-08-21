@@ -313,7 +313,6 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
 
 
 @collector_router.get("/route", response_model=CollectorRouteResponse)
-@collector_router.get("/routes/me", response_model=CollectorRouteResponse)
 def get_collector_route(
     current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorRouteResponse:
@@ -529,7 +528,6 @@ def get_collector_route(
 
 
 @collector_router.post("/route/optimize", response_model=CollectorRouteResponse)
-@collector_router.post("/routes/me/optimize", response_model=CollectorRouteResponse)
 def optimize_collector_route(
     current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorRouteResponse:
