@@ -564,7 +564,6 @@ def optimize_collector_route(
     return get_collector_route(current_user=current_user, db=db)
 
 
-
 @collector_router.post("/stops/{stop_id}/complete", response_model=CollectorStopResponse)
 def complete_stop(
     stop_id: UUID, current_user: User = Depends(require_collector), db: Session = Depends(get_db)

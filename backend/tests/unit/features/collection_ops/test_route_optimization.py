@@ -271,9 +271,13 @@ def test_collector_route_response_reports_distance_duration_and_degraded_notice(
 
 
 @patch("urllib.request.urlopen")
-def test_get_collector_route_below_minimum_points_never_calls_external_provider(mock_urlopen, monkeypatch):
+def test_get_collector_route_below_minimum_points_never_calls_external_provider(
+    mock_urlopen, monkeypatch
+):
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key"))
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
 
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
 
@@ -316,7 +320,9 @@ def test_get_collector_route_below_minimum_points_never_calls_external_provider(
 @patch("urllib.request.urlopen")
 def test_optimize_collector_route_rejects_fewer_than_two_geocoded_points(mock_urlopen, monkeypatch):
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key"))
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
 
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
 
@@ -355,4 +361,3 @@ def test_optimize_collector_route_rejects_fewer_than_two_geocoded_points(mock_ur
     assert exc_info.value.status_code == 400
     assert "At least 2 mapped collection points" in exc_info.value.detail
     mock_urlopen.assert_not_called()
-
