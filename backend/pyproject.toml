@@ -33,10 +33,11 @@ filterwarnings = [
     # teardown when a route raises; this is test-infrastructure noise, not a
     # product warning. Scoped as narrowly as the library allows.
     "ignore:Unclosed.*MemoryObjectReceiveStream:ResourceWarning",
-    # Python 3.14 deprecation warning from third-party starlette/asyncio
-    "ignore:.*iscoroutinefunction.*:DeprecationWarning",
-    "ignore:.*httpx.*:starlette.exceptions.StarletteDeprecationWarning",
-    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    # Python deprecation warnings from third-party starlette/asyncio
+    "ignore:.*iscoroutinefunction.*",
+    "ignore:.*httpx.*",
+    "ignore:.*HTTP_422_UNPROCESSABLE_ENTITY.*",
+    "ignore:.*StarletteDeprecationWarning.*",
 ]
 addopts = "-ra --strict-markers --strict-config --cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
 markers = [
