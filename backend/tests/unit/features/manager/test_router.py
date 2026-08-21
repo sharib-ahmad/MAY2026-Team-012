@@ -219,3 +219,37 @@ def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> N
     assert worker.status == UserStatus.DISABLED
     assert db.deleted == []
     assert audit_events[1]["action"] == "CREW_MEMBER_DELETED"
+
+
+def test_update_ticket_denied_when_manager_has_no_assigned_wards(monkeypatch, manager) -> None:
+    ticket = SimpleNamespace(id=uuid4(), zone_id=uuid4(), status=TicketStatus.OPEN)
+    db = FakeDatabase([ticket])
+    monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [])
+
+    with pytest.raises(HTTPException, match="outside your wards") as error:
+        manager_router.update_manager_ticket(
+            str(ticket.id),
+            TicketUpdate(status=TicketStatus.RESOLVED, resolution_notes="Notes"),
+            manager,
+            db,
+        )
+
+    assert error.value.status_code == 403
+    assert ticket.status == TicketStatus.OPEN
+
+
+def test_assign_bulk_pickup_denied_when_manager_has_no_assigned_wards(monkeypatch, manager) -> None:
+    request = SimpleNamespace(id=uuid4(), zone_id=uuid4(), status=BulkRequestStatus.PENDING)
+    db = FakeDatabase([request])
+    monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [])
+
+    with pytest.raises(HTTPException, match="outside your wards") as error:
+        manager_router.assign_bulk_pickup(
+            str(request.id),
+            BulkPickupAssignment(collector_id=str(uuid4())),
+            manager,
+            db,
+        )
+
+    assert error.value.status_code == 403
+    assert request.status == BulkRequestStatus.PENDING

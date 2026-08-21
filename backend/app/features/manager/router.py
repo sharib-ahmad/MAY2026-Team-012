@@ -60,7 +60,7 @@ def update_manager_ticket(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found.")
 
     managed_ids = get_managed_zone_ids(db, current_user)
-    if managed_ids and ticket.zone_id not in managed_ids:
+    if ticket.zone_id not in managed_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Complaint is outside your wards."
         )
@@ -127,7 +127,7 @@ def assign_bulk_pickup(
             status_code=status.HTTP_404_NOT_FOUND, detail="Bulk pickup request not found."
         )
     managed_ids = get_managed_zone_ids(db, current_user)
-    if managed_ids and request.zone_id not in managed_ids:
+    if request.zone_id not in managed_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Pickup is outside your wards."
         )
