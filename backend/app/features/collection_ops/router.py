@@ -313,6 +313,7 @@ def _materialize_assigned_bulk_stops(db: Session, collector: User) -> bool:
 
 
 @collector_router.get("/route", response_model=CollectorRouteResponse)
+@collector_router.get("/routes/me", response_model=CollectorRouteResponse)
 def get_collector_route(
     current_user: User = Depends(require_collector), db: Session = Depends(get_db)
 ) -> CollectorRouteResponse:
@@ -393,7 +394,7 @@ def get_collector_route(
         settings = get_settings()
         api_key = settings.ORS_API_KEY
 
-        if api_key:
+        if api_key and len(pending_with_coords) >= 2:
             client = ORSClient(api_key=api_key)
             try:
                 stop_coords = [(s.latitude, s.longitude) for s in pending_with_coords]
@@ -525,6 +526,43 @@ def get_collector_route(
         is_degraded=is_degraded,
         degraded_notice=degraded_notice,
     )
+
+
+@collector_router.post("/route/optimize", response_model=CollectorRouteResponse)
+@collector_router.post("/routes/me/optimize", response_model=CollectorRouteResponse)
+def optimize_collector_route(
+    current_user: User = Depends(require_collector), db: Session = Depends(get_db)
+) -> CollectorRouteResponse:
+    if _materialize_assigned_bulk_stops(db, current_user):
+        db.commit()
+    today_start, _ = _day_bounds()
+    stops = (
+        db.scalars(
+            select(DailyPickupStop)
+            .join(DailyPickupStop.schedule)
+            .where(
+                DailyPickupSchedule.collector_id == current_user.id,
+                DailyPickupSchedule.is_active.is_(True),
+                or_(
+                    DailyPickupSchedule.schedule_date >= today_start,
+                    DailyPickupStop.status != PickupStopStatus.COLLECTED,
+                ),
+            )
+        )
+        .unique()
+        .all()
+    )
+    pending_stops = [s for s in stops if s.status != PickupStopStatus.COLLECTED]
+    pending_with_coords = [
+        s for s in pending_stops if s.latitude is not None and s.longitude is not None
+    ]
+    if len(pending_with_coords) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least 2 mapped collection points are needed for route optimization.",
+        )
+    return get_collector_route(current_user=current_user, db=db)
+
 
 
 @collector_router.post("/stops/{stop_id}/complete", response_model=CollectorStopResponse)
