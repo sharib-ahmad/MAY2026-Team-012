@@ -104,6 +104,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 joinedload(Ticket.resolved_by),
             )
             .order_by(Ticket.created_at.desc())
+            .limit(20)
         )
         .unique()
         .all()
