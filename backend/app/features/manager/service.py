@@ -104,6 +104,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
                 joinedload(Ticket.resolved_by),
             )
             .order_by(Ticket.created_at.desc())
+            .limit(20)
         )
         .unique()
         .all()
@@ -272,6 +273,10 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
         row for row in bulk_mixed_waste_rows if row["route_code"] not in materialized_flag_refs
     ]
 
+    settings = get_settings()
+    aging_days = getattr(settings, "COMPLAINT_AGING_THRESHOLD_DAYS", 3) or 3
+    aging_cutoff = now - timedelta(days=aging_days)
+
     complaint_rows = [
         {
             "id": str(ticket.id),
@@ -287,6 +292,7 @@ def get_dashboard_data(db: Session, manager: User, now: datetime | None = None) 
             "resolved_at": ticket.resolved_at,
             "resolver_name": ticket.resolved_by.name if ticket.resolved_by else None,
             "created_at": ticket.created_at,
+            "is_aging": ticket.status in OPEN_TICKET_STATUSES and ticket.created_at <= aging_cutoff,
         }
         for ticket in tickets
     ]
