@@ -76,7 +76,7 @@ to retest — there is no code path to exercise).
 | Story | Gap |
 |---|---|
 | 1.1 | No ward-code, no-login schedule search exists. The only schedule endpoint (`GET /api/v1/user/daily-pickup-schedules`) requires citizen auth and returns only the caller's own stops. |
-| 2.2 | No "Aging" flag or server-side pagination on the officer complaint grid (`GET /api/v1/manager/dashboard`), despite `COMPLAINT_AGING_THRESHOLD_DAYS` existing in configuration. |
+| 2.2 | *Partially closed since this table was written.* The officer complaint grid (`GET /api/v1/manager/dashboard`) now emits a server-side `is_aging` flag derived from `COMPLAINT_AGING_THRESHOLD_DAYS` (PR #127) and bounds the collection at 20 rows (PR #126). Remaining gap: no client-driven pagination (no page/offset parameter) on the grid. |
 | 3.1 | No sorting-guide endpoint exists; `sorting_guide/router.py` and `schemas.py` are empty stub files. |
 | 4.2 | No endpoint sets a batch's `quality_status` or `contamination_note`. The DB check constraint requiring a note for `UNSAFE` is ready, but nothing can ever reach that state through the API. |
 | 4.3 | No `Available → Claimed → Scheduled → Collected` transition guard exists; the real lifecycle is `assign → accept/reject → process`, and there is no recycler-initiated claim or auto-release timeout. |

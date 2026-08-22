@@ -11,7 +11,71 @@
 **Execution date (suite refinement retest):** 2026-08-20
 **Commit tested (Bearer-header consolidation retest):** `0dc1914` (uncommitted working-tree change on top; no new `main` merge)
 **Execution date (Bearer-header consolidation retest):** 2026-08-20
-**QA state:** Bearer-header assertion consolidated and retested; genuine backend defects remain (see "Bearer-header assertion consolidation" section, which supersedes "Suite refinement" below)
+**Commit tested (final verification):** `f2f104c` (merge of `origin/main` HEAD `7ca95f9`, includes PRs #125, #126, #127, #129)
+**Execution date (final verification):** 2026-08-23
+**QA state:** FINAL — branch refreshed against current `main`; focused manager suite fully green (47 passed, 0 failed) and Ruff clean. All previously open manager defect groups are resolved on current `main`. Every section below the "FINAL VERIFICATION" block is retained historical evidence and is superseded by it.
+
+## FINAL VERIFICATION (current — supersedes every status statement below)
+
+**This is the only current status section. Every "current" label further down this document is
+historical evidence from an earlier pass and no longer describes the branch.**
+
+- **Branch refreshed against current `main`:** `test/SCRUM-174-manager-qa` merged with `origin/main`
+  at HEAD `7ca95f9` (merge commit `f2f104c`, clean auto-merge).
+- **No test code and no production code was changed in this pass.** This pass is documentation
+  reconciliation only.
+
+```text
+Branch: test/SCRUM-174-manager-qa
+Commit tested: f2f104c (main merged at HEAD 7ca95f9)
+Execution date: 2026-08-23
+
+Focused suite (tests/api/features/manager):
+python -m pytest tests/api/features/manager -q --no-cov
+47 passed, 0 failed
+
+Quality checks:
+ruff check tests/api/features/manager          -> passed
+ruff format --check tests/api/features/manager -> passed
+```
+
+### Previously open manager defect groups — resolved on current `main`
+
+Each row was verified by reading the current implementation on `f2f104c` and the merged corrective
+commit that introduced the fix.
+
+| Defect | Previously reported behaviour | Resolved by | Verified on current `main` |
+|---|---|---|---|
+| `MGR-QA-03` (Critical) | Manager with **no** assigned wards could mutate a foreign-ward ticket or pickup (empty-list truthiness in the ward guard) | PR #125 (`f6d7f58`) | `app/features/manager/router.py` now guards unconditionally: `if ticket.zone_id not in managed_ids` / `if request.zone_id not in managed_ids` — an empty `managed_ids` now rejects |
+| `MGR-QA-05` | Dashboard complaint collection unbounded | PR #126 (`b95defb`) | `app/features/manager/service.py` complaint query now `.limit(20)` |
+| `MGR-QA-06` | Dashboard complaint rows omitted the aging indicator | PR #127 (`4e38e75`) | `app/features/manager/service.py` computes `aging_days` from `COMPLAINT_AGING_THRESHOLD_DAYS` and emits `is_aging` per row |
+| `MGR-QA-08` | Validation failures returned public code `ERROR` instead of `VALIDATION_ERROR` | PR #129 (`4643327`) | `app/main.py` `code_map` now maps `422 -> "VALIDATION_ERROR"` |
+| `MGR-QA-09` | Complaint resolution accepted illegal non-`OPEN` source states | PR #129 (`4643327`) | `update_manager_ticket` raises `409` unless the source status is `OPEN` |
+| `MGR-QA-10` | Pickup assignment accepted illegal source states and allowed reassignment overwrite | PR #129 (`4643327`) | `assign_bulk_pickup` raises `409` unless `request.status == BulkRequestStatus.PENDING`, which rejects both illegal states and re-assignment of an already-`ASSIGNED` request |
+| `AUTH-QA-06` | `401` responses dropped the `WWW-Authenticate: Bearer` challenge (shared root cause with SCRUM-88/SCRUM-173) | PR #129 (`4643327`) | `app/main.py`'s `StarletteHTTPException` handler now forwards `headers=getattr(exc, "headers", None)`, so the header set in `app/features/auth/dependencies.py` reaches the response. Tracked and proven in depth via SCRUM-88/PR #81; not re-asserted from this suite |
+
+`MGR-QA-01`, `MGR-QA-02`, `MGR-QA-04`, `MGR-QA-07` were previously retired or resolved — see the
+historical sections below for the reasoning; that reasoning is unchanged.
+`MGR-QA-11`–`MGR-QA-15` were resolved by PR #95 before the 2026-08-12 retest.
+
+### Remaining manager QA failures
+
+**None.** There is no remaining failing test and no known open manager defect in this focused suite's
+scope.
+
+### Final status
+
+**Manager QA suite is merge-ready.** PR #79 no longer needs to remain Draft on QA grounds: the
+blocking condition recorded in the historical sections ("must remain Draft until the remaining N
+defect groups are corrected") is satisfied — all of those defect groups are corrected on current
+`main`.
+
+---
+
+*Everything below this line is preserved historical evidence: the original execution record, each
+intermediate retest, and the defect history that led to the corrective PRs above. The pass/fail
+counts and "remaining defects" lists in those sections were accurate when recorded and are retained
+for traceability. They do not describe the current branch.*
 
 ## Execution rule
 
@@ -145,7 +209,7 @@ fails.
 Do not create one issue per failed parameter case. Do not weaken the expected results, add blanket
 `xfail`, suppress warnings or skip requirement tests to obtain a green result.
 
-## Final retest (current, supersedes the "Pending" status below)
+## Final retest (historical — 2026-08-12; superseded by "FINAL VERIFICATION" above)
 
 The initial failure evidence above is preserved as historical.
 
@@ -231,7 +295,7 @@ Remaining genuine defects: 10 groups across 27 test cases
 QA pull request: #79, Draft — must remain Draft until the remaining 10 defect groups are corrected
 ```
 
-## Suite refinement (current, supersedes the "Final retest" status above)
+## Suite refinement (historical — 2026-08-20; superseded by "FINAL VERIFICATION" above)
 
 `origin/main` was merged again (clean auto-merge, no conflicts; HEAD `fe4a94e`), bringing in
 `docs/sprint1-2-openapi-final` (PR #111) and the unrelated SCRUM-194 recycler QA suite (PR #104,
@@ -376,7 +440,7 @@ Remaining genuine defects: 8 groups across 23 test cases
 QA pull request: #79, Draft — must remain Draft until the remaining 8 defect groups are corrected
 ```
 
-## Bearer-header assertion consolidation (current, supersedes "Suite refinement" above)
+## Bearer-header assertion consolidation (historical — 2026-08-20; superseded by "FINAL VERIFICATION" above)
 
 **No production code was changed in this pass.** No `main` merge occurred; this is a working-tree-only
 change on top of `0dc1914`.
@@ -475,7 +539,7 @@ Remaining genuine defects: 7 groups across 17 test cases (AUTH-QA-06 still open,
 QA pull request: #79, Draft — must remain Draft until the remaining 7 defect groups are corrected
 ```
 
-## MGR-QA-07 test correction (current, supersedes "Bearer-header assertion consolidation" above)
+## MGR-QA-07 test correction (historical — 2026-08-20; superseded by "FINAL VERIFICATION" above)
 
 **No production code was changed in this pass.** No `main` merge occurred; this is a working-tree-only
 change on top of `0dc1914`, scoped to a single test.
