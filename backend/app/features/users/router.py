@@ -172,8 +172,7 @@ def get_dashboard(
         .all()  # materialise so we can iterate twice
     )
     total_kg_diverted = sum(
-        float(pickup.actual_weight or pickup.estimated_weight or 0)
-        for pickup in completed_pickups
+        float(pickup.actual_weight or pickup.estimated_weight or 0) for pickup in completed_pickups
     )
 
     from zoneinfo import ZoneInfo
