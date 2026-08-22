@@ -158,8 +158,8 @@ export default function ManagerDashboard() {
               V
             </span>
             <div className="leading-tight">
-              <div className="font-semibold text-white">Verdeza</div>
-              <div className="text-[11px] text-white/60">Municipal Operations</div>
+              <div className="font-display font-semibold text-white">Verdeza</div>
+              <div className="text-[10px] text-white/60">Municipal Operations</div>
             </div>
           </div>
         </div>

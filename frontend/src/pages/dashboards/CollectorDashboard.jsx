@@ -111,9 +111,7 @@ export default function CollectorDashboard() {
               V
             </span>
             <div className="leading-tight">
-              <div className="text-base sm:text-lg font-semibold tracking-wide text-white">
-                ◈Verdeza◈
-              </div>
+              <div className="font-display font-semibold text-white">Verdeza</div>
               <div className="text-[10px] sm:text-xs text-white/60">Collector Portal</div>
             </div>
           </div>
