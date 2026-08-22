@@ -15,7 +15,9 @@ export default function PublicLayout({ children, showAuthLinks = true }) {
               V
             </span>
             <div className="leading-tight">
-              <div className="text-lg font-semibold tracking-wide text-white">◈Verdeza◈</div>
+              <div className="text-lg font-display font-semibold tracking-wide text-white">
+                Verdeza
+              </div>
               <div className="text-[11px] text-white/60">Government of Uttar Pradesh</div>
             </div>
           </Link>

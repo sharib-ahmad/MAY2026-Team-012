@@ -246,6 +246,7 @@ export default function Home({ onNavigate }) {
           label="Kg recycled"
           value={impact.total_kg_diverted}
           decimals={1}
+          suffix=" kg"
           icon={Leaf}
           color="text-green-600"
         />
