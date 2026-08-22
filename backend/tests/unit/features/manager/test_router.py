@@ -221,6 +221,49 @@ def test_update_and_delete_worker_record_audit_events(monkeypatch, manager) -> N
     assert audit_events[1]["action"] == "CREW_MEMBER_DELETED"
 
 
+def test_update_ticket_rejects_non_open_status(monkeypatch, manager) -> None:
+    ticket = SimpleNamespace(
+        id=uuid4(),
+        zone_id=manager.zone_id,
+        status=TicketStatus.IN_PROGRESS,
+        resolution_notes=None,
+    )
+    db = FakeDatabase([ticket])
+    monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
+
+    with pytest.raises(HTTPException) as error:
+        manager_router.update_manager_ticket(
+            str(ticket.id),
+            TicketUpdate(status=TicketStatus.RESOLVED, resolution_notes="Done"),
+            manager,
+            db,
+        )
+
+    assert error.value.status_code == 409
+    assert ticket.status == TicketStatus.IN_PROGRESS
+
+
+def test_assign_bulk_pickup_rejects_non_pending_status(monkeypatch, manager) -> None:
+    request = SimpleNamespace(
+        id=uuid4(),
+        zone_id=manager.zone_id,
+        status=BulkRequestStatus.ASSIGNED,
+    )
+    db = FakeDatabase([request])
+    monkeypatch.setattr(manager_router, "get_managed_zone_ids", lambda *_: [manager.zone_id])
+
+    with pytest.raises(HTTPException) as error:
+        manager_router.assign_bulk_pickup(
+            str(request.id),
+            BulkPickupAssignment(collector_id=str(uuid4())),
+            manager,
+            db,
+        )
+
+    assert error.value.status_code == 409
+    assert request.status == BulkRequestStatus.ASSIGNED
+
+
 def test_update_ticket_denied_when_manager_has_no_assigned_wards(monkeypatch, manager) -> None:
     ticket = SimpleNamespace(id=uuid4(), zone_id=uuid4(), status=TicketStatus.OPEN)
     db = FakeDatabase([ticket])

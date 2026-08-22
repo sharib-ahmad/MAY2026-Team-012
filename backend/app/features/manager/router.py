@@ -69,6 +69,11 @@ def update_manager_ticket(
             status_code=HTTP_422,
             detail="A resolution note is required to resolve a complaint.",
         )
+    if payload.status == TicketStatus.RESOLVED and ticket.status != TicketStatus.OPEN:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only open complaints can be resolved.",
+        )
 
     previous_status = ticket.status
     ticket.status = payload.status
@@ -130,6 +135,11 @@ def assign_bulk_pickup(
     if request.zone_id not in managed_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Pickup is outside your wards."
+        )
+    if request.status != BulkRequestStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only pending bulk pickup requests can be assigned.",
         )
     collector = db.scalar(
         select(User).where(

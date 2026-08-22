@@ -94,6 +94,18 @@ def handler_app():
     def missing():
         raise HTTPException(status_code=404)
 
+    @application.get("/http-422")
+    def http_422():
+        raise HTTPException(status_code=422, detail="Invalid business input")
+
+    @application.get("/auth-required")
+    def auth_required():
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     with TestClient(
         application,
         raise_server_exceptions=False,
@@ -335,3 +347,21 @@ def test_absent_request_id_is_generated(handler_app):
     response = handler_app.get("/missing")
 
     assert _is_uuid(response.headers["X-Request-ID"])
+
+
+@pytest.mark.api
+def test_http_exception_422_returns_validation_error(handler_app):
+    response = handler_app.get("/http-422")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert response.json()["error"]["message"] == "Invalid business input"
+
+
+@pytest.mark.api
+def test_http_exception_forwards_custom_headers(handler_app):
+    response = handler_app.get("/auth-required")
+
+    assert response.status_code == 401
+    assert response.headers.get("WWW-Authenticate") == "Bearer"
+    assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
