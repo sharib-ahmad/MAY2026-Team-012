@@ -3,3 +3,8 @@ dist
 build
 coverage
 .vite
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
