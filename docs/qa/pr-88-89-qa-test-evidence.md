@@ -94,6 +94,11 @@ them), and is not what the contract documents for this route (only
 - Gemini and ORS remain fully mocked throughout; no live external calls were
   made at any point in this pass.
 
+**[HISTORICAL — 2026-08-20 refinement-pass run. Superseded by the FINAL
+VERIFICATION section at the end of this document, which records the current
+result against current `main`. Retained as evidence that the defect below was
+genuinely observed and reported.]**
+
 ```text
 Branch: test/pr-88-89-qa
 Execution date: 2026-08-20
@@ -120,6 +125,10 @@ backend/tests/unit/features/collection_ops/test_route_optimization.py
 backend/tests/unit/features/users/test_chatbot.py
 backend/tests/unit/features/users/test_delete_account.py
 ```
+
+**[HISTORICAL — 2026-08-20. The defect described in this paragraph and the
+next was real when observed and was subsequently fixed on `main`; see FINAL
+VERIFICATION. Retained verbatim as the original defect report.]**
 
 **The one remaining failure is a genuine, confirmed backend defect —**
 `test_get_collector_route_below_minimum_points_never_calls_external_provider`.
@@ -175,7 +184,7 @@ fix.
 | PR101-07 | Story 7.3 AC1 | `ORSClient.optimize_route` | Mocked ORS HTTP response | Parses optimized job order and geometry | Matched expected | Pass | `tests/unit/features/collection_ops/test_route_optimization.py::test_ors_client_optimize_route` |
 | PR101-08 | Story 7.3 AC1/AC3 | `get_collector_route` | No `ORS_API_KEY` configured, 2 points | Falls back to Haversine nearest-neighbour, straight-line polyline, `is_degraded=True` with notice, distance/duration > 0 | Matched expected | Pass | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_fallback_nearest_neighbor` |
 | PR101-09 | Story 7.3 AC1 | `get_collector_route` | `ORS_API_KEY` configured, ORS call succeeds, 2 points | Stops reordered by ORS `optimized_indices`; road-following polyline; `is_degraded=False`, no notice, distance/duration > 0 | Matched expected | Pass | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_ors_success_orders_by_optimized_indices` |
-| PR101-10 | Story 7.3 AC2 / issue #99 | `get_collector_route` | Fewer than 2 geo-coded points (0, then 1), `ORS_API_KEY` configured | No exception (Story 7.2 preserved for 0/1 points); external routing provider (`urlopen`) never called | Points shown correctly, but `urlopen` **was called once** for the 1-point case | **Fail — BACKEND DEFECT** | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_below_minimum_points_never_calls_external_provider` |
+| PR101-10 | Story 7.3 AC2 / issue #99 | `get_collector_route` | Fewer than 2 geo-coded points (0, then 1), `ORS_API_KEY` configured | No exception (Story 7.2 preserved for 0/1 points); external routing provider (`urlopen`) never called | 2026-08-20: points shown correctly, but `urlopen` **was called once** for the 1-point case. Current `main`: `urlopen` never called for either the 0-point or 1-point case | **Fail (2026-08-20) -> Pass (current `main`, fixed by PR #124)** | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_below_minimum_points_never_calls_external_provider` |
 | PR101-11 | Story 7.3 AC3 | `get_collector_route` | ORS configured but `urlopen` raises `URLError`, 2 points | Falls back without crashing; same nearest-neighbour/straight-line output; `is_degraded=True` with notice, distance/duration > 0 | Matched expected | Pass | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_falls_back_when_ors_raises` |
 | PR101-12 | Story 7.3 AC1/AC3 | `get_collector_route` | 1 stop, no ORS key | `total_distance_km`, `estimated_duration_min`, `is_degraded is True`, `degraded_notice` contains "Road routing service unavailable" | Matched expected exactly | Pass | `tests/unit/features/collection_ops/test_route_optimization.py::test_get_collector_route_reports_actual_degraded_notice_values` |
 | PR101-13 | SCRUM-207 | Chatbot tool registry | Inspect registered tool functions | Expected pickups/tickets/impact/reuse tools registered | Matched expected | Pass | `tests/unit/features/users/test_chatbot.py::test_chatbot_tools_registered` |
@@ -191,7 +200,7 @@ the repository's own commit history (`25290be feat(SCRUM-207): implemented EcoBo
 widget and citizen account deletion (#88)`) since the authoritative user-stories
 document does not define its acceptance criteria.
 
-## FINAL EXECUTION SUMMARY
+## EXECUTION SUMMARY — 2026-08-20 (historical)
 
 ```text
 PR: #101
@@ -229,8 +238,92 @@ Remaining genuine failure: 1 — BACKEND DEFECT
 ```
 
 No expected result was weakened, skipped, xfailed, or suppressed to obtain this
-result. PR #101 remains QA-complete for its scoped diff, with one genuine,
-confirmed backend regression (#99, recommend reopening) still open. Merge
-readiness: **the test suite itself is ready to merge** — every change is
-test-only, no production code was touched, and the one failing test is
-correctly documenting a real backend gap rather than a test defect.
+result. **[The two sentences that followed here — that the #99 regression was
+still open and that reopening #99 was recommended — were accurate on
+2026-08-20 and are superseded by the FINAL VERIFICATION section below.]**
+
+## FINAL VERIFICATION — 2026-08-23 (current status)
+
+This section supersedes every CURRENT-status statement above. The historical
+results and the original defect report are deliberately retained; only their
+*current* validity is corrected here.
+
+**Branch state.** `test/pr-88-89-qa` was refreshed against current `main`
+(`origin/main` @ `7ca95f9`); the branch is 0 commits behind `origin/main`.
+
+**Focused result.**
+
+```text
+python -m pytest --no-cov -q \
+  tests/unit/features/collection_ops/test_route_optimization.py \
+  tests/api/features/users/test_user_api.py \
+  tests/api/features/collection_ops/test_collector_route_api.py \
+  tests/unit/features/users/test_chatbot.py \
+  tests/unit/features/users/test_delete_account.py
+
+24 passed, 0 failed
+```
+
+**Quality checks (the same five files).**
+
+```text
+ruff check          -> All checks passed!
+ruff format --check -> 5 files already formatted
+```
+
+**Test-hygiene correction.** `test_route_optimization.py` contained two
+definitions under the same name,
+`test_get_collector_route_below_minimum_points_never_calls_external_provider`
+(Ruff `F811`). They were semantic duplicates of the same invariant, not two
+behaviours: identical setup (`_materialize_assigned_bulk_stops` stubbed,
+`ORS_API_KEY` configured, `urllib.request.urlopen` patched) and identical final
+assertion (`mock_urlopen.assert_not_called()`). The second definition covered
+only the 1-point case — a strict subset of the first, which covers both the
+0-point and the 1-point case and carries the Story 7.3 AC2 / issue #99
+rationale. Because a later definition shadows an earlier one in Python, the
+*weaker* copy was the one actually executing and the documented PR101-10
+regression was never running. The redundant second definition was removed; it
+was **not** renamed to silence Ruff, and the retained test is the stronger one.
+
+**Why the count is still 24.** The shadowed duplicate was never independently
+collected by pytest — only one function object ever existed under that name.
+Removing it therefore changes which body runs (now the stronger 0-and-1-point
+regression), not how many tests are collected. The focused suite was 24 before
+and is 24 now.
+
+**Resolved defect — minimum mapped points (issue #99).** The regression
+recorded above is fixed on current `main`. `get_collector_route` now guards the
+external call with `if api_key and len(pending_with_coords) >= 2:`
+(`backend/app/features/collection_ops/router.py:396`), so fewer than 2 geocoded
+points can no longer reach OpenRouteService. Verified fix commit: `c95cf25`
+"Fix/route api calls (#124)", reachable from `origin/main`. GitHub issue #99
+("fix(collection): enforce minimum 2 mapped points for route optimization") is
+**CLOSED**. The earlier recommendation to reopen #99 is therefore withdrawn.
+The same PR also added an explicit `POST /api/v1/collector/route/optimize`
+action, which returns `400` below the 2-point threshold
+(`router.py:557`) — the separate "Optimize" operation that was previously
+recorded as absent.
+
+**Issue #100** (distance/duration/degraded-notice reporting) remains resolved;
+its coverage is unchanged by this pass.
+
+**Remaining failures in this focused suite: none.** No expected result was
+weakened, skipped, xfailed, or suppressed. No production code was modified in
+this pass and no tests were added.
+
+**Still open, unchanged by this pass** (flagged, not silently corrected):
+
+- Story 7.3 AC5 upper-bound (max-points) guard is still not implemented and
+  still has no test — an uncovered AC, as recorded above.
+- `api-doc.yaml`'s `GET /api/v1/collector/route` description still states
+  "there is no separate 'Optimize Route' action" and "there is no
+  minimum-point guard (AC2 …)". Both statements are stale as of PR #124 but
+  belong to the API specification, not to this QA evidence document; flagged
+  here for the spec owner rather than edited from a QA pass.
+- The Story 7.3 AC1/AC3 "OSRM" vs. OpenRouteService naming discrepancy in
+  `user-stories.txt` is unchanged and still open.
+
+**Final status: the PR #101 QA suite is merge-ready.** Every change in this
+branch is test-only, the focused suite is fully green against current `main`,
+lint and format are clean, and the one previously documented backend defect is
+verified fixed rather than suppressed.

@@ -50,7 +50,7 @@ detail):
 | Area | This table proposed | `main` actually implements |
 |---|---|---|
 | 1.1 Schedule look-up | `GET /api/v1/schedules` (ward-code search, no login) | No such endpoint exists. `GET /api/v1/user/daily-pickup-schedules` returns the *authenticated citizen's own* stops only — no ward-code search. |
-| 1.4 / 7.2 / 7.3 Route, map, optimise | `GET /api/v1/routes/me`, `PATCH /api/v1/route-stops/{id}/progress`, `POST /api/v1/routes/me/optimize` | One combined `GET /api/v1/collector/route` (optimises via OpenRouteService on every call — no separate "Optimize" action, no minimum-point guard); stop actions are `POST /api/v1/collector/stops/{id}/complete`\|`undo`\|`notify`\|`flag`\|`clean`. |
+| 1.4 / 7.2 / 7.3 Route, map, optimise | `GET /api/v1/routes/me`, `PATCH /api/v1/route-stops/{id}/progress`, `POST /api/v1/routes/me/optimize` | One combined `GET /api/v1/collector/route` (optimises via OpenRouteService on every call, but skips optimisation below 2 geocoded points), plus `POST /api/v1/collector/route/optimize` as a separate Optimize action with a minimum-point guard returning `400` (both added by PR #124); stop actions are `POST /api/v1/collector/stops/{id}/complete`\|`undo`\|`notify`\|`flag`\|`clean`. |
 | 1.5 Delay log | `POST /api/v1/route-stops/{id}/delays` | `POST /api/v1/collector/stops/{id}/notify` |
 | 3.1 Sorting guide | `GET /api/v1/sorting-guide`, `PUT /api/v1/admin/sorting-guide` | Not implemented — `sorting_guide/router.py` is an empty stub. No sorting-guide endpoint exists at all. |
 | 3.2 Waste issues | `POST /api/v1/route-stops/{id}/waste-issues`, `GET /api/v1/waste-issues` | `POST /api/v1/collector/stops/{id}/flag`; there is no standalone list endpoint — flags surface in `GET /api/v1/manager/dashboard`'s `mixed_waste_flags`. |
