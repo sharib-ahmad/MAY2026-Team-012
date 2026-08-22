@@ -70,7 +70,7 @@ def _endpoint_request(client, paths, endpoint, headers=None, json_body=None):
 @pytest.mark.api
 def test_runtime_exposes_manager_batch_routes(app_test):
     """RCY-01a | Manager batch routes exist at runtime."""
-    registered = {route.path for route in app_test.routes}
+    registered = set(app_test.openapi()["paths"].keys())
     expected = {
         "/api/v1/manager/batches",
         "/api/v1/manager/recyclers",
@@ -83,7 +83,7 @@ def test_runtime_exposes_manager_batch_routes(app_test):
 @pytest.mark.api
 def test_runtime_exposes_recycler_routes(app_test):
     """RCY-01b | Recycler routes exist at runtime."""
-    registered = {route.path for route in app_test.routes}
+    registered = set(app_test.openapi()["paths"].keys())
     expected = {
         "/api/v1/recycler/batches",
         "/api/v1/recycler/batches/{batch_id}/accept",

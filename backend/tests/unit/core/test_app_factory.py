@@ -56,3 +56,20 @@ def test_lifespan_disposes_engine_on_shutdown():
         with TestClient(app):
             pass
         spy.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.security
+def test_application_startup_does_not_seed_accounts_implicitly():
+    """S1-5101: normal application startup must not create known demo accounts."""
+    settings = Settings(
+        APP_ENV="local",
+        SECRET_KEY="local-test-secret-with-at-least-thirty-two-characters",
+        DATABASE_URL=PG,
+    )
+    application = create_app(settings)
+
+    with patch("app.main.seed_database") as seed_database, TestClient(application):
+        pass
+
+    seed_database.assert_not_called()

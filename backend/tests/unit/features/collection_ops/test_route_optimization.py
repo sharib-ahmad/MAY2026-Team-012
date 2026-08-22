@@ -5,9 +5,12 @@ from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 from uuid import uuid4
 
+import pytest
+from fastapi import HTTPException
+
 from app.features.collection_ops import router as collector_module
 from app.features.collection_ops.ors_client import ORSClient, decode_polyline
-from app.features.collection_ops.router import get_collector_route
+from app.features.collection_ops.router import get_collector_route, optimize_collector_route
 from app.models.enums import PickupStatus, PickupStopStatus
 
 
@@ -463,3 +466,96 @@ def test_get_collector_route_reports_actual_degraded_notice_values(monkeypatch):
     assert response.is_degraded is True
     assert response.degraded_notice is not None
     assert "Road routing service unavailable" in response.degraded_notice
+
+
+@patch("urllib.request.urlopen")
+def test_get_collector_route_below_minimum_points_never_calls_external_provider(
+    mock_urlopen, monkeypatch
+):
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
+
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=SimpleNamespace(
+            id=uuid4(),
+            zone_id=uuid4(),
+            zone=SimpleNamespace(code="W-04", name="Ward Four"),
+            completed_stops=0,
+            completed_at=None,
+        ),
+        schedule_id=uuid4(),
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.1,
+        longitude=80.1,
+        notes="Stop 1",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+
+    db = FakeDatabase(scalars=[[stop1]])
+    response = get_collector_route(collector, db)
+
+    assert response.pickup_count == 1
+    assert len(response.ordered_pickups) == 1
+    mock_urlopen.assert_not_called()
+
+
+@patch("urllib.request.urlopen")
+def test_optimize_collector_route_rejects_fewer_than_two_geocoded_points(mock_urlopen, monkeypatch):
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
+
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=SimpleNamespace(
+            id=uuid4(),
+            zone_id=uuid4(),
+            zone=SimpleNamespace(code="W-04", name="Ward Four"),
+            completed_stops=0,
+            completed_at=None,
+        ),
+        schedule_id=uuid4(),
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.1,
+        longitude=80.1,
+        notes="Stop 1",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+
+    db = FakeDatabase(scalars=[[stop1]])
+    with pytest.raises(HTTPException) as exc_info:
+        optimize_collector_route(collector, db)
+
+    assert exc_info.value.status_code == 400
+    assert "At least 2 mapped collection points" in exc_info.value.detail
+    mock_urlopen.assert_not_called()
