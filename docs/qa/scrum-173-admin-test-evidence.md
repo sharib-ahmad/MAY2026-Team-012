@@ -4,13 +4,79 @@
 **Branch under test:** `test/SCRUM-173-admin-qa`
 **Initial commit tested:** `d65669d`
 **Initial execution date:** 2026-08-01
-**Latest retest base commit:** `0f71a83` (origin/main merged) with local QA-refinement corrections
-**Latest retest date:** 2026-08-20
-**Current QA decision:** Failed; Draft PR #80 remains blocked by 1 confirmed backend defect group (6 test cases). The shared `WWW-Authenticate: Bearer`/global-exception-handler defect previously tracked here is consolidated into PR #81, which owns it more deeply.
+**Latest retest base commit:** `8a012b7` (current `origin/main` `7ca95f9` merged into `test/SCRUM-173-admin-qa`)
+**Latest retest date:** 2026-08-23
+**Current QA decision:** Passed. The ward UUID provisioning defect that previously blocked PR #80 is fixed on current `main` (PR #128, commit `eed5478`); the focused administrator suite is fully green and the test suite is merge-ready. The shared `WWW-Authenticate: Bearer`/global-exception-handler defect previously tracked here is consolidated into PR #81, which owns it more deeply.
 **Corrective issue:** #70
 **Execution rule:** Expected results were fixed before execution. Actual outputs and results are recorded from pytest execution against the disposable PostgreSQL test database. Historical evidence is preserved, while the latest retest section is the source of truth for the current failure set.
 
-## QA-suite refinement pass — Bearer assertion consolidated with PR #81 (2026-08-20, current, supersedes all sections below)
+## FINAL VERIFICATION (2026-08-23, current, supersedes all sections below)
+
+Final pre-submission verification of PR #80 against current `main`. No test, expected result,
+or production code was changed in this pass.
+
+### Branch state
+
+```text
+Branch:                 test/SCRUM-173-admin-qa
+HEAD:                   8a012b7  (merge of origin/main into the QA branch)
+origin/main at merge:   7ca95f9  (SCRUM-208)
+Refresh check:          origin/main is an ancestor of HEAD -> branch is current with main
+```
+
+### Focused execution result
+
+```text
+python -m pytest tests/api/features/admin -q --no-cov
+62 collected, 62 passed, 0 failed
+```
+
+All 62 administrator API tests pass. No test was skipped, xfailed, weakened, or suppressed to
+obtain this result.
+
+### Previously blocking defect — RESOLVED on current main
+
+The backend defect recorded in the sections below — `POST /api/v1/admin/users` raising
+`AttributeError` when a ward was supplied, because the already-parsed `AdminUserCreate.zone_id`
+`UUID` was re-wrapped in `uuid.UUID(...)` — is fixed on current `main` by **PR #128**
+(commit `eed5478`, "fix: handle parsed ward UUID in admin provisioning"). The provisioning path
+in `backend/app/features/admin/router.py` now uses the parsed `UUID` directly.
+
+The 6 test cases that this defect held red are green on current `main` with their original
+expected results intact:
+
+- `test_admin_can_provision_each_supported_role_with_safe_canonical_output[CITIZEN]`
+- `test_admin_can_provision_each_supported_role_with_safe_canonical_output[COLLECTION_WORKER]`
+- `test_admin_can_provision_each_supported_role_with_safe_canonical_output[MUNICIPAL_OFFICER]`
+- `test_admin_can_provision_each_supported_role_with_safe_canonical_output[RECYCLER]`
+- `test_admin_provisions_user_user_logs_in_admin_disables_and_reenables`
+- `test_admin_create_rejects_unsafe_or_invalid_input_without_persistence[unknown-ward]`
+
+Story 5.1 AC1's ward-scoped provisioning happy path and the unknown-ward validation path
+(`422`, not `500`) are both verified passing.
+
+### Remaining admin QA failures from this suite
+
+None. There is no open, PR #80-owned administrator defect.
+
+Items deliberately **not** owned by #80 and unchanged by this pass:
+
+- The missing `WWW-Authenticate: Bearer` header on 401s is shared, non-admin-specific
+  infrastructure consolidated into PR #81 (see the section below).
+- The coverage blind spot (`app/features/admin/*` in `[tool.coverage.run] omit`) remains
+  reported, not fixed; it is a configuration observation, not an admin behaviour defect.
+
+### Final status
+
+```text
+SCRUM-173 Administrator API QA: PASSED
+Focused administrator suite: 62 passed, 0 failed
+Previously blocking ward UUID provisioning defect: RESOLVED on main (PR #128 / eed5478)
+Remaining #80-owned admin defects: none
+Merge readiness: MERGE-READY — the administrator QA test suite in PR #80 is final and green.
+```
+
+## QA-suite refinement pass — Bearer assertion consolidated with PR #81 (2026-08-20, superseded by the FINAL VERIFICATION section above)
 
 Follow-up to the same-day refinement pass below, requested to remove duplicate coverage of a
 defect PR #81 already owns more deeply, and to re-check (not blindly consolidate) the 6
@@ -89,7 +155,7 @@ Coverage: 84.41% (gate: >= 80%) -> PASSED (unchanged — app/features/admin/* is
   excluded from coverage measurement; see blind-spot note below)
 ```
 
-### Remaining distinct backend defect groups (1, down from 2)
+### Remaining distinct backend defect groups as of 2026-08-20 (1, down from 2) — the UUID group below is now RESOLVED on main; see FINAL VERIFICATION above
 
 **BACKEND DEFECT — `POST /api/v1/admin/users` crashes when a ward is supplied.** Unchanged
 from the prior retest: `app/features/admin/router.py:479` re-wraps an already-parsed `UUID`
@@ -107,7 +173,7 @@ The coverage blind spot (`app/features/admin/*` excluded from `[tool.coverage.ru
 unchanged from the prior retest — see that section below for detail; not reproduced again
 here.
 
-### Current QA decision
+### QA decision as of 2026-08-20 (superseded — see FINAL VERIFICATION above)
 
 ```text
 SCRUM-173 Administrator API QA: FAILED
@@ -330,7 +396,7 @@ tests/api/features/admin/test_admin_contract.py::test_missing_credentials_includ
 **Required correction:** forward `exc.headers` (when present) onto the constructed
 `JSONResponse` in the `StarletteHTTPException` handler.
 
-### Current QA decision
+### QA decision as of 2026-08-20 (superseded — see FINAL VERIFICATION above)
 
 ```text
 SCRUM-173 Administrator API QA: FAILED
