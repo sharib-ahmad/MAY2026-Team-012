@@ -165,9 +165,7 @@ export default function RecyclerDashboard() {
               V
             </span>
             <div className="leading-tight">
-              <div className="text-base sm:text-lg font-serif font-bold tracking-wide text-white">
-                Verdeza
-              </div>
+              <div className="font-display font-semibold text-white">Verdeza</div>
               <div className="text-[10px] sm:text-xs font-semibold tracking-wider text-white/60">
                 Recycler Portal
               </div>

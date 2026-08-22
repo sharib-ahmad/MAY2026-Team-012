@@ -475,13 +475,16 @@ def create_user(
     # If zone_id is provided, verify it exists
     zone_uuid = None
     if user_data.zone_id:
-        try:
-            zone_uuid = uuid.UUID(user_data.zone_id)
-        except ValueError as err:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid zone ID format.",
-            ) from err
+        if isinstance(user_data.zone_id, uuid.UUID):
+            zone_uuid = user_data.zone_id
+        else:
+            try:
+                zone_uuid = uuid.UUID(str(user_data.zone_id))
+            except (ValueError, AttributeError) as err:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Invalid zone ID format.",
+                ) from err
         zone = db.scalar(select(Zone).where(Zone.id == zone_uuid))
         if not zone:
             raise HTTPException(
