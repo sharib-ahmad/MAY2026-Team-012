@@ -14,6 +14,7 @@ from app.features.sorting_guide.models import WasteCategory
 from app.features.users.models import User
 from app.features.users.schemas import ChatMessage
 from app.models.enums import CreditStatus
+from app.core.config import get_settings
 
 logger = logging.getLogger("verdeza")
 
@@ -210,7 +211,8 @@ TOOL_MAP = {
 async def execute_chatbot_turn(
     message: str, history: list[ChatMessage], current_user: User, db: Session
 ) -> dict:
-    api_key = os.environ.get("GEMINI_API_KEY")
+
+    api_key = get_settings().GEMINI_API_KEY
     if not api_key:
         return {
             "reply": (

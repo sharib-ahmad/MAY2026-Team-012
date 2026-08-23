@@ -86,6 +86,7 @@ class Settings(DatabaseSettings):
 
     SECRET_KEY: str = Field(default="")
     ORS_API_KEY: str = Field(default="")
+    GEMINI_API_KEY: str = Field(default="")
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0")
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/0")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=480, ge=5, le=1440)
