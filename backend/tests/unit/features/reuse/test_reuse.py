@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
 
+from app.core.security import create_access_token, get_password_hash
 from app.features.notifications.models import Notification
 from app.features.reuse.service import (
     claim_donation,
@@ -14,7 +15,15 @@ from app.features.reuse.service import (
     review_claim,
     review_donation,
 )
-from app.models.enums import ReuseCategory, ReuseClaimStatus, ReuseCondition, ReuseStatus, Role
+from app.features.users.models import User
+from app.models.enums import (
+    ReuseCategory,
+    ReuseClaimStatus,
+    ReuseCondition,
+    ReuseStatus,
+    Role,
+    UserStatus,
+)
 
 
 class ScalarResult:
@@ -273,21 +282,20 @@ def test_reuse_api_workflow(db_client, db, ward_a):
     token_claimant = claimant_res.json()["access_token"]
     claimant_id = claimant_res.json()["user"]["id"]
 
-    # 3. Register Manager
-    manager_res = db_client.post(
-        "/api/v1/auth/register",
-        json={
-            "name": "Super Manager",
-            "email": "manager_reuse@verdeza.test",
-            "password": "password123",
-            "phone": "+919999988883",
-            "address": "Office",
-            "zone_id": str(ward_a.id),
-            "role": "MUNICIPAL_OFFICER",
-        },
+    # 3. Provision Manager via DB
+    manager_user = User(
+        name="Super Manager",
+        email="manager_reuse@verdeza.test",
+        password_hash=get_password_hash("password123"),
+        phone="+919999988883",
+        role=Role.MUNICIPAL_OFFICER,
+        status=UserStatus.ACTIVE,
+        zone_id=ward_a.id,
     )
-    assert manager_res.status_code == 200
-    token_manager = manager_res.json()["access_token"]
+    db.add(manager_user)
+    db.commit()
+    db.refresh(manager_user)
+    token_manager = create_access_token(manager_user.id, token_version=manager_user.token_version)
 
     # 4. Donor submits a donation listing
     headers_donor = {"Authorization": f"Bearer {token_donor}"}

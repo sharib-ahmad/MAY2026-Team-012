@@ -163,3 +163,41 @@ def test_zones_api_returns_all_five_zones(db_client, db):
     assert isinstance(data, list)
     assert len(data) >= 1
     assert data[0]["name"] == "T-01 - Test Zone"
+
+
+@pytest.mark.integration
+@pytest.mark.api
+@pytest.mark.parametrize("staff_role", ["ADMIN", "MANAGER", "SYSTEM_ADMIN", "MUNICIPAL_OFFICER"])
+def test_self_registration_blocks_staff_roles(db_client, db, ward_a, staff_role):
+    register_payload = {
+        "name": f"Unauthorized {staff_role}",
+        "email": f"unauth.{staff_role.lower()}@example.com",
+        "password": "strongpassword123",
+        "phone": "+919876549999",
+        "address": "123 Security Street",
+        "zone_id": str(ward_a.id),
+        "role": staff_role,
+    }
+    response = db_client.post("/api/v1/auth/register", json=register_payload)
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    res_json = response.json()
+    err_msg = res_json["error"]["message"] if "error" in res_json else res_json.get("detail", "")
+    assert "Self-registration is not allowed for staff roles" in err_msg
+
+
+@pytest.mark.integration
+@pytest.mark.api
+@pytest.mark.parametrize("public_role", ["CITIZEN", "COLLECTOR", "RECYCLER"])
+def test_self_registration_allows_public_roles(db_client, db, ward_a, public_role):
+    register_payload = {
+        "name": f"Public {public_role}",
+        "email": f"public.{public_role.lower()}@example.com",
+        "password": "strongpassword123",
+        "phone": f"+91987654{hash(public_role) % 10000:04d}",
+        "address": "123 Public Street",
+        "zone_id": str(ward_a.id),
+        "role": public_role,
+    }
+    response = db_client.post("/api/v1/auth/register", json=register_payload)
+    assert response.status_code == status.HTTP_200_OK
+    assert "access_token" in response.json()

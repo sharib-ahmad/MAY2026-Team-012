@@ -67,6 +67,16 @@ def register(request: UserRegisterRequest, req: Request, db: Session = Depends(g
                 detail=f"Unsupported role: {request.role}",
             ) from err
 
+    # Restrict self-registration for staff roles (ADMIN / SYSTEM_ADMIN, MANAGER / MUNICIPAL_OFFICER)
+    if db_role in (Role.SYSTEM_ADMIN, Role.MUNICIPAL_OFFICER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Self-registration is not allowed for staff roles (ADMIN, MANAGER). "
+                "Staff accounts must be provisioned by a System Admin."
+            ),
+        )
+
     # If zone_id is provided, verify it exists
     if request.zone_id:
         zone = db.scalar(select(Zone).where(Zone.id == request.zone_id))
