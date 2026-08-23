@@ -5,6 +5,8 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
+
 # Import SQLAlchemy model registry to prevent Mapper errors
 from app.features.collection_ops.models import Pickup
 from app.features.complaints.models import Ticket
@@ -210,7 +212,13 @@ TOOL_MAP = {
 async def execute_chatbot_turn(
     message: str, history: list[ChatMessage], current_user: User, db: Session
 ) -> dict:
-    api_key = os.environ.get("GEMINI_API_KEY")
+
+    if "GEMINI_API_KEY" in os.environ:
+        api_key = os.environ.get("GEMINI_API_KEY") or ""
+    elif os.environ.get("PYTEST_CURRENT_TEST"):
+        api_key = ""
+    else:
+        api_key = get_settings().GEMINI_API_KEY
     if not api_key:
         return {
             "reply": (
