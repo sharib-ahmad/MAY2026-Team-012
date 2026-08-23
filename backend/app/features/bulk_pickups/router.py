@@ -50,7 +50,7 @@ def create_pickup(
 ) -> PickupResponse:
     if not current_user.zone_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Assign a ward before scheduling a pickup.",
         )
     category = db.scalar(
@@ -60,7 +60,7 @@ def create_pickup(
     )
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid waste category."
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid waste category."
         )
     from zoneinfo import ZoneInfo
 
@@ -81,7 +81,7 @@ def create_pickup(
 
     if scheduled_local_date <= today_local_date:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Pickup requests must be scheduled for at least the next day.",
         )
     request = BulkPickupRequest(
