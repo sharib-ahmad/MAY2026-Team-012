@@ -4,6 +4,8 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
+
 # Import SQLAlchemy model registry to prevent Mapper errors
 from app.features.collection_ops.models import Pickup
 from app.features.complaints.models import Ticket
@@ -13,7 +15,6 @@ from app.features.sorting_guide.models import WasteCategory
 from app.features.users.models import User
 from app.features.users.schemas import ChatMessage
 from app.models.enums import CreditStatus
-from app.core.config import get_settings
 
 logger = logging.getLogger("verdeza")
 
