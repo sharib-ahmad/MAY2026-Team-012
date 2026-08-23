@@ -60,7 +60,7 @@ info:
       for a collector's pending stops.
     callingModule: backend/app/features/collection_ops/ors_client.py (ORSClient),
       invoked from GET /api/v1/collector/route
-    verdezaEndpoint: GET /api/v1/collector/route
+    verdezaEndpoint: GET /api/v1/collector/route and POST /api/v1/collector/route/optimize
     relatedStories:
     - '7.3'
     configuration: Server-side ORS_API_KEY; never sent to or callable from the frontend.
@@ -226,15 +226,17 @@ paths:
         Creates an account and immediately returns a Bearer token, with no
         authentication required to call it.
 
-        Known contract defect (see docs/qa/defect-log.md): the `role` field
-        accepts any canonical role name, including `MUNICIPAL_OFFICER` and
-        `SYSTEM_ADMIN` (via the `MANAGER`/`ADMIN` aliases or the raw enum
-        name), with no server-side restriction. This lets an unauthenticated
-        caller self-provision a municipal-officer or system-admin account,
-        which directly contradicts Story 5.1's "System Admin provisions
-        accounts through a secure admin panel" and platform rule R1. This
-        operation is documented as it actually behaves; the fix belongs in
-        the defect log, not in this contract.
+        The `role` field is restricted server-side to public roles only:
+        `CITIZEN`, `COLLECTION_WORKER` (alias `COLLECTOR`) and `RECYCLER`.
+        Requesting `MUNICIPAL_OFFICER`/`MANAGER` or `SYSTEM_ADMIN`/`ADMIN`
+        returns `403`; those staff accounts are provisioned only by a System
+        Admin, per Story 5.1 and platform rule R1.
+
+        History: the role field was previously unrestricted (DEF-004 in
+        docs/qa/defect-log.md), which allowed staff self-provisioning. That
+        was fixed by PR #134 (commit ca666a2, closing issue #133) and the
+        defect is closed. This operation is documented as it actually
+        behaves on main.
       x-traceability:
         requirement: public-self-registration
         contractStatus: implemented
@@ -262,6 +264,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '403':
+          description: >-
+            Self-registration is not allowed for staff roles
+            (MUNICIPAL_OFFICER/MANAGER, SYSTEM_ADMIN/ADMIN).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -1569,20 +1578,20 @@ paths:
       description: >-
         Returns every stop assigned to the caller for today plus any older
         uncollected stop, materialising newly assigned bulk pickups into
-        route stops first. When 1 or more pending stops have coordinates,
+        route stops first. When 2 or more pending stops have coordinates,
         the pending stops are re-sequenced and persisted using OpenRouteService
         (falling back to a nearest-neighbour Haversine ordering — see
         `x-external-integrations`), and the response carries the resulting
-        polyline, total distance and estimated duration. Empty when the
-        caller has no assigned stops (AC5).
+        polyline, total distance and estimated duration. Below 2 mapped
+        points this GET returns the route unoptimised rather than failing.
+        Empty when the caller has no assigned stops (AC5).
 
-        This single GET implements Stories 1.4 (worker checklist), 7.2 (map
-        pins) and 7.3 (route optimisation) together — there is no separate
-        "Optimize Route" action. Known gaps against Story 7.3: there is no
-        minimum-point guard (AC2 — fewer than 2 geocoded points silently
-        skips optimisation rather than returning a clear message), and
-        optimisation runs as a side effect of every route fetch rather than
-        behind an idempotent, non-reentrant button click (AC4).
+        This GET covers Stories 1.4 (worker checklist) and 7.2 (map pins) and
+        performs the Story 7.3 optimisation as part of the fetch. The explicit
+        Story 7.3 Optimize action is a separate operation,
+        `POST /api/v1/collector/route/optimize`, which applies the
+        minimum-mapped-point guard (AC2) and returns `400` below 2 mapped
+        points.
       x-traceability:
         stories:
         - '1.4'
@@ -1612,6 +1621,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CollectorRouteResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/collector/route/optimize:
+    post:
+      tags:
+      - Collector Operations
+      operationId: optimizeCollectorRoute
+      summary: Optimise the caller's route on demand
+      description: >-
+        Explicit Story 7.3 "Optimize Route" action. Recomputes and persists the
+        visiting order for the caller's pending stops using OpenRouteService,
+        with the same nearest-neighbour Haversine fallback as
+        `GET /api/v1/collector/route` (see `x-external-integrations`), and
+        returns the same route payload.
+
+        Minimum-point guard (AC2): when fewer than 2 pending stops have
+        coordinates the operation returns `400` with an explicit message
+        instead of silently skipping optimisation.
+      x-traceability:
+        stories:
+        - '7.3'
+        acceptanceCriteria:
+        - 7.3-AC1
+        - 7.3-AC2
+        - 7.3-AC3
+        contractStatus: implemented
+      x-required-roles:
+      - COLLECTION_WORKER
+      x-authorization:
+        scope: own-records
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Optimised collector route.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectorRouteResponse'
+        '400':
+          description: Fewer than 2 mapped collection points are available to optimise.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':

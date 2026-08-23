@@ -50,6 +50,7 @@ detail):
 | Area | This table proposed | `main` actually implements |
 |---|---|---|
 | 1.1 Schedule look-up | `GET /api/v1/schedules` (ward-code search, no login) | No such endpoint exists. `GET /api/v1/user/daily-pickup-schedules` returns the *authenticated citizen's own* stops only — no ward-code search. |
+| 1.3 AC2 Bulk-pickup lead time | A minimum lead time measured from now (the "configured lead time" boundary in `sprint1-acceptance-matrix.md` S1-1302) | A **next-calendar-day** rule in the pilot timezone (Asia/Kolkata): a date of today or earlier is rejected with `422`, and any later date is accepted regardless of the booking time. Adopted deliberately in PR #95 so a late-evening booking can still request the following day; documented as the accepted AC2 interpretation in `api-doc.yaml`. |
 | 1.4 / 7.2 / 7.3 Route, map, optimise | `GET /api/v1/routes/me`, `PATCH /api/v1/route-stops/{id}/progress`, `POST /api/v1/routes/me/optimize` | One combined `GET /api/v1/collector/route` (optimises via OpenRouteService on every call, but skips optimisation below 2 geocoded points), plus `POST /api/v1/collector/route/optimize` as a separate Optimize action with a minimum-point guard returning `400` (both added by PR #124); stop actions are `POST /api/v1/collector/stops/{id}/complete`\|`undo`\|`notify`\|`flag`\|`clean`. |
 | 1.5 Delay log | `POST /api/v1/route-stops/{id}/delays` | `POST /api/v1/collector/stops/{id}/notify` |
 | 3.1 Sorting guide | `GET /api/v1/sorting-guide`, `PUT /api/v1/admin/sorting-guide` | Not implemented — `sorting_guide/router.py` is an empty stub. No sorting-guide endpoint exists at all. |
@@ -63,8 +64,15 @@ detail):
 Story 5.1 and platform/auth rows are broadly accurate against `main` (paths
 differ only in that `POST /api/v1/admin/users` also has a role-restricted
 sibling `POST /api/v1/admin/account`, and a public, unauthenticated
-`POST /api/v1/auth/register` exists outside this table — see
-`docs/qa/defect-log.md` DEF-004 for its authorization defect).
+`POST /api/v1/auth/register` exists outside this table). That registration
+endpoint is part of the accepted contract: it is restricted server-side to
+the public roles `CITIZEN`, `COLLECTION_WORKER` and `RECYCLER`, and rejects
+`MUNICIPAL_OFFICER`/`SYSTEM_ADMIN` with `403`, so Story 5.1's
+System-Admin-only staff provisioning holds. Its former unrestricted `role`
+field was DEF-004 in `docs/qa/defect-log.md`, now closed (PR #134, commit
+`ca666a2`, issue #133).
+
+Two defects remain **open** against `main` at submission — DEF-005 (unauthenticated `GET /api/v1/track/{reference}`) and DEF-006 (fail-open ward filter in the reuse manager read queues), both Medium. See the Current Status Summary in `docs/qa/defect-log.md`.
 
 ---
 

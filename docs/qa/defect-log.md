@@ -53,16 +53,88 @@ All three corrections are tracked under:
 PR #53 remains part of the project history and must not be reopened or
 rewritten.
 
+## Current Status Summary (final submission)
+
+Status as of 2026-08-23, verified against current `main` (`0e566bb`). This
+section is authoritative for **current** defect state; the table below retains
+each defect's original discovery and history.
+
+**Closed — fixed and verified on `main`:**
+
+| ID | Remedy |
+|---|---|
+| DEF-001 | SQLSTATE-based integrity classification (`app/core/db_errors.py`) |
+| DEF-002 | `/ready` retains the SQLAlchemy cause behind a safe `503` (`app/main.py`) |
+| DEF-003 | Alembic loads database-only settings, no `SECRET_KEY` (`alembic/env.py`) |
+| DEF-004 | Staff-role self-registration rejected with `403`; endpoint retained (PR #134, commit `ca666a2`, issue #133) |
+
+**Open — known unresolved limitations carried into this submission:**
+
+| ID | Severity | Summary |
+|---|---|---|
+| DEF-005 | Medium | `GET /api/v1/track/{reference}` is unauthenticated and applies no ownership check, so a caller holding a reference code can read limited name/operational tracking data. |
+| DEF-006 | Medium | The three reuse manager **read** queues fail open when an officer has no assigned ward, giving cross-ward read visibility. The corresponding **write** paths are correctly fail-closed (issue #97). |
+
+Neither open defect corrupts data or bypasses authentication. Both are recorded
+deliberately rather than closed: this submission does **not** claim that all
+defects are resolved.
+
+### Not a defect — bulk-pickup lead time (stale test premise)
+
+The accepted contract for `POST /api/v1/user/pickups` is **next-calendar-day
+scheduling in the pilot timezone (Asia/Kolkata)**, not a rolling 24-hour
+minimum. Backend, frontend and `api-doc.yaml` all implement and document that
+rule, adopted deliberately in PR #95 so that a citizen booking late in the day
+can still book the following day.
+
+One regression test, `test_create_pickup_less_than_24h_notice_returns_422`,
+still encodes the superseded rolling-24h interpretation. It normally passes
+coincidentally and can fail in the approximate 23:00–00:00 IST window, when
+`now + 1 hour` is already the next calendar day and is therefore correctly
+accepted. **This is a stale test premise, not a backend defect**, so no DEF entry
+is raised against production behaviour. `BULK_PICKUP_MIN_LEAD_HOURS` in
+`app/core/config.py` is legacy configuration left over from the superseded rule
+and is not read by any code path.
+
 ## Log
 
 | ID | Title | Source | Severity | Priority | Expected Behaviour | Actual Behaviour | Corrective Jira Key | Corrective PR | Regression Tests | Status |
 |---|---|---|---|---|---|---|---|---|---|---|
-| DEF-001 | Integrity errors were all reported as duplicate resources | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | PostgreSQL integrity failures must be classified safely by SQLSTATE. Unique violations return `409 DUPLICATE_RESOURCE`, foreign-key violations return `409 CONFLICT`, recognised public check constraints return `422 VALIDATION_ERROR`, and unknown or internal violations return `500 INTERNAL_ERROR`. | Every SQLAlchemy `IntegrityError` was returned as `409 DUPLICATE_RESOURCE`, regardless of its SQLSTATE or constraint type. | `SCRUM-171` | TBD | `tests/unit/test_db_errors.py`<br>`tests/test_error_handling.py`<br>`tests/integration/test_zone_persistence.py` | In Progress |
-| DEF-002 | Readiness logging discarded the database failure cause | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | `/ready` must return a safe `503 DATABASE_UNAVAILABLE` for SQLAlchemy failures while retaining the request ID, exception type, and traceback in protected server logs. Non-SQLAlchemy programming errors must continue to the global `500 INTERNAL_ERROR` handler. | `/ready` caught every exception and logged only a generic readiness failure with the request ID. The exception type and traceback were lost, and programming errors could be misreported as database outages. | `SCRUM-171` | TBD | `tests/test_health.py` | In Progress |
-| DEF-003 | Alembic unnecessarily required the application secret | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | Alembic must load database-only configuration and operate with `DATABASE_URL` without requiring or validating the FastAPI application `SECRET_KEY`. FastAPI startup must remain fail-closed outside test. | Alembic imported the complete application settings, causing migration commands to fail when `SECRET_KEY` was missing or empty even though migrations did not use it. | `SCRUM-171` | TBD | `tests/unit/test_config_fails_closed.py`<br>`tests/integration/test_alembic_settings.py` | In Progress |
-| DEF-004 | Public self-registration lets a caller provision itself as MUNICIPAL_OFFICER or SYSTEM_ADMIN | Found while reconciling `api-doc.yaml` against `main` for docs/sprint1-2-openapi-final (`backend/app/features/auth/router.py::register`, `backend/app/features/auth/router.py::ROLE_MAP_FRONTEND_TO_DB`) | Critical | Set by Scrum Master | Per Story 5.1, only a SYSTEM_ADMIN provisions MUNICIPAL_OFFICER/SYSTEM_ADMIN accounts, through the admin panel. `POST /api/v1/auth/register` is unauthenticated and public. | The `role` field on `POST /api/v1/auth/register` accepts `MANAGER`/`ADMIN` (or the raw `MUNICIPAL_OFFICER`/`SYSTEM_ADMIN` enum names) with no server-side restriction, letting any unauthenticated caller self-provision a staff account and receive a valid Bearer token for it immediately. | TBD | TBD | None yet | New |
+| DEF-001 | Integrity errors were all reported as duplicate resources | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | PostgreSQL integrity failures must be classified safely by SQLSTATE. Unique violations return `409 DUPLICATE_RESOURCE`, foreign-key violations return `409 CONFLICT`, recognised public check constraints return `422 VALIDATION_ERROR`, and unknown or internal violations return `500 INTERNAL_ERROR`. | Every SQLAlchemy `IntegrityError` was returned as `409 DUPLICATE_RESOURCE`, regardless of its SQLSTATE or constraint type. | `SCRUM-171` | TBD | `tests/unit/core/test_db_errors.py`<br>`tests/unit/core/test_error_handling.py`<br>`tests/integration/test_zone_persistence.py` | Closed |
+| DEF-002 | Readiness logging discarded the database failure cause | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | `/ready` must return a safe `503 DATABASE_UNAVAILABLE` for SQLAlchemy failures while retaining the request ID, exception type, and traceback in protected server logs. Non-SQLAlchemy programming errors must continue to the global `500 INTERNAL_ERROR` handler. | `/ready` caught every exception and logged only a generic readiness failure with the request ID. The exception type and traceback were lost, and programming errors could be misreported as database outages. | `SCRUM-171` | TBD | `tests/unit/core/test_health.py` | Closed |
+| DEF-003 | Alembic unnecessarily required the application secret | Sharib's review of merged PR #53 | Medium | Set by Scrum Master | Alembic must load database-only configuration and operate with `DATABASE_URL` without requiring or validating the FastAPI application `SECRET_KEY`. FastAPI startup must remain fail-closed outside test. | Alembic imported the complete application settings, causing migration commands to fail when `SECRET_KEY` was missing or empty even though migrations did not use it. | `SCRUM-171` | TBD | `tests/unit/core/test_config_fails_closed.py`<br>`tests/integration/test_alembic_settings.py` | Closed |
+| DEF-004 | Public self-registration let a caller provision itself as MUNICIPAL_OFFICER or SYSTEM_ADMIN | Found while reconciling `api-doc.yaml` against `main` for docs/sprint1-2-openapi-final (`backend/app/features/auth/router.py::register`, `backend/app/features/auth/router.py::ROLE_MAP_FRONTEND_TO_DB`) | Critical | Set by Scrum Master | Per Story 5.1, only a SYSTEM_ADMIN provisions MUNICIPAL_OFFICER/SYSTEM_ADMIN accounts, through the admin panel. `POST /api/v1/auth/register` is unauthenticated and public, so its `role` field must be restricted to public roles. | The `role` field on `POST /api/v1/auth/register` accepted `MANAGER`/`ADMIN` (or the raw `MUNICIPAL_OFFICER`/`SYSTEM_ADMIN` enum names) with no server-side restriction, letting any unauthenticated caller self-provision a staff account and receive a valid Bearer token for it immediately. | TBD | Issue #133, fixed by PR #134 (merged commit `ca666a2`) | `backend/tests/api/features/auth/test_auth_api.py::test_self_registration_blocks_staff_roles`<br>`backend/tests/api/features/auth/test_auth_api.py::test_self_registration_allows_public_roles`<br>`backend/tests/api/features/auth/test_auth_contract.py::test_public_registration_role_surface_excludes_staff_roles` | Closed |
 | DEF-005 | Public reference-code tracking exposes citizen PII with no authentication or ownership check | Found while reconciling `api-doc.yaml` against `main` (`backend/app/api/v1/router.py::track_by_reference`) | Medium | Set by Scrum Master | Tracking a pickup/complaint/bulk-request by reference code should be scoped to the owning citizen, consistent with the authenticated equivalents (`GET /api/v1/user/pickups/{id}/tracking`). | `GET /api/v1/track/{reference}` requires no authentication and applies no ownership check; anyone who knows or guesses a reference code (a short, low-entropy string such as `TK-A1B2C3D4`) can read `citizen_name`, `zone_name`, `manager_name` and status. | TBD | TBD | None yet | New |
 | DEF-006 | Reuse moderation queues return every ward's items when an officer has no assigned ward | Found while reconciling `api-doc.yaml` against `main` (`backend/app/features/reuse/service.py::list_manager_pending_donations`, `list_manager_pending_claims`, `list_manager_all_donations`) | Medium | Set by Scrum Master | Per R1, an officer's moderation queue must be scoped to their assigned ward(s) only, the same guard already applied to `assign_batch` after the #108 fix. | When `get_managed_zone_ids` returns an empty list (an officer with no ward assignment), the ward `.where(...)` filter is skipped entirely rather than yielding zero results, so the officer sees pending donations/claims from every ward. | TBD | TBD | None yet | New |
+
+### DEF-001 to DEF-003 resolution note
+
+All three are **Closed** on current `main`. SQLSTATE-based integrity
+classification ships in `app/core/db_errors.py`, `/ready` logs the SQLAlchemy
+cause behind a safe `503 DATABASE_UNAVAILABLE` in `app/main.py`, and
+`alembic/env.py` loads database-only settings without `SECRET_KEY`. Their
+verifying tests moved into `tests/unit/core/`; the paths in the table above are
+the current ones.
+
+### DEF-004 resolution note
+
+**Remedy actually accepted (not endpoint removal).** `POST /api/v1/auth/register`
+**still exists** and public self-registration remains supported. PR #134
+(merged commit `ca666a2`, closing issue #133) added a server-side role guard in
+`app/features/auth/router.py::register` that rejects `MUNICIPAL_OFFICER`
+(`MANAGER`) and `SYSTEM_ADMIN` (`ADMIN`) with `403 FORBIDDEN`. Self-registration
+is restricted to `CITIZEN`, `COLLECTION_WORKER` (`COLLECTOR`) and `RECYCLER`;
+staff accounts remain administrator-provisioned per Story 5.1.
+
+An earlier QA position treated the endpoint itself as forbidden, because it
+predicted removal as the remedy. That prediction was superseded by the accepted
+narrower fix and is no longer the contract.
+
+**Verified fix reference:** issue #133 / PR #134 / commit `ca666a2`.
+**Verification:** focused run on current `main` (`76982c1`), 2026-08-23 —
+43 passed, 0 failed (`tests/api/features/auth`, `tests/unit/features/auth`,
+`tests/unit/core/test_security.py`). Recorded in
+`docs/qa/scrum-88-auth-test-evidence.md` under FINAL VERIFICATION.
 
 ## Known Contract Gaps (not defects — never implemented)
 

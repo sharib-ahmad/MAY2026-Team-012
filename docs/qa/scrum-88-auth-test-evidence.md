@@ -5,7 +5,112 @@
 **Execution rule:** Expected results are fixed before execution. Actual Result and
 Result are recorded only from local or CI execution.
 
-## FINAL Retest Result (2026-08-20, current, supersedes all sections below)
+## FINAL VERIFICATION (2026-08-23, current — supersedes every section below)
+
+This is the closing verification for PR #81, executed against **current `main`
+as merged into this branch** (`76982c1`), after the accepted DEF-004 fix
+(`ca666a2`, PR #134, closing issue #133). Every section below this one is
+retained as **historical evidence** and no longer describes current behaviour.
+
+### Focused execution result
+
+```text
+Branch: test/SCRUM-88-auth-qa
+Branch HEAD: 76982c1 (current main merged in)
+Execution date: 2026-08-23
+Database: verdeza_pytest_test (Docker container verdeza-postgres, port 5433)
+Python: 3.12.3
+
+python -m pytest \
+  tests/api/features/auth \
+  tests/unit/features/auth \
+  tests/unit/core/test_security.py \
+  -q --no-cov
+
+43 passed in 15.12s
+```
+
+No focused test fails, is skipped, or is xfailed.
+
+### Quality checks
+
+```text
+ruff check tests/api/features/auth tests/unit/features/auth tests/unit/core/test_security.py
+-> All checks passed
+
+ruff format --check tests/api/features/auth tests/unit/features/auth tests/unit/core/test_security.py
+-> passed (already formatted)
+```
+
+### Current accepted registration contract
+
+`POST /api/v1/auth/register` **exists and remains part of the contract**. It is
+public and unauthenticated, but the `role` field is now restricted server-side
+(`app/features/auth/router.py::register`):
+
+| Role | Self-registration |
+|---|---|
+| `CITIZEN` | Allowed |
+| `COLLECTION_WORKER` (`COLLECTOR`) | Allowed |
+| `RECYCLER` | Allowed |
+| `MUNICIPAL_OFFICER` (`MANAGER`) | **Blocked — `403 FORBIDDEN`** |
+| `SYSTEM_ADMIN` (`ADMIN`) | **Blocked — `403 FORBIDDEN`** |
+
+Staff accounts remain administrator-provisioned, per Story 5.1. The endpoint was
+**not** removed.
+
+### Issue #133 / PR #134 resolution
+
+PR #81 originally asserted that `POST /api/v1/auth/register` was itself
+forbidden, because it predicted **endpoint removal** as the remedy for DEF-004.
+That premise became **stale** when the maintainer accepted the narrower and
+correct security fix in PR #134 (`ca666a2`): retain public registration, block
+staff-role self-provisioning. Issue #133 was closed on that basis.
+
+The test suite has been reconciled to the accepted contract:
+
+- legitimate current-`main` registration coverage was retained;
+- duplicate older auth tests were not restored;
+- legacy / wrong-prefix auth routes (`POST /api/v1/register`,
+  `POST /api/v1/login`, `GET /api/v1/me`) remain asserted absent;
+- staff-role self-registration is explicitly protected;
+- public-role registration is explicitly proven to succeed.
+
+### Previously reported auth defects — current status
+
+| Historical defect group | Current status on `main` | Verifying test (passing) |
+|---|---|---|
+| Staff-role self-provisioning (DEF-004 / issue #133) | **Resolved** by `ca666a2` (PR #134): staff roles rejected with `403` | `test_auth_api.py::test_self_registration_blocks_staff_roles` (4 params), `test_auth_api.py::test_self_registration_allows_public_roles` (3 params), `test_auth_contract.py::test_public_registration_role_surface_excludes_staff_roles` |
+| Public registration route treated as forbidden (AUTH-QA-02 / AUTH-01) | **Premise superseded** — the endpoint is contractual; only legacy/wrong-prefix routes are forbidden | `test_auth_contract.py::test_runtime_exposes_only_the_approved_authentication_routes` |
+| Implicit account seeding at startup (AUTH-QA-03 / AUTH-02) | **Resolved** — startup no longer seeds accounts implicitly | `test_auth_contract.py::test_application_startup_does_not_seed_accounts_implicitly` |
+| `WWW-Authenticate: Bearer` dropped on 401 (AUTH-08) | **Resolved** — the challenge header now reaches the client | `test_auth_session.py::test_missing_or_malformed_authorization_returns_bearer_challenge` (3 params) |
+| AUTH-QA-01, 04, 05, 06, 07, 08 (bcrypt byte limit, canonical role value, disabled-account disclosure, inconsistent 401s, malformed JWT subject, missing `token_version`) | **Resolved** in earlier corrective work | `test_auth_login.py`, `test_auth_session.py`, `tests/unit/core/test_security.py` — all passing |
+
+### Remaining focused failures
+
+**None.** The current focused run proves no remaining failure in the SCRUM-88
+authentication scope.
+
+### PR #81 merge readiness
+
+```text
+QA decision: PASSED for the SCRUM-88 authentication scope
+Focused result: 43 passed, 0 failed, 0 skipped, 0 xfailed
+Quality gates: ruff check passed; ruff format --check passed
+Merge status: READY — no authentication defect remains open against current main
+```
+
+Scope note: this verdict covers the SCRUM-88 authentication scope only. Defects
+recorded in `docs/qa/defect-log.md` outside that scope (DEF-001, DEF-002,
+DEF-003, DEF-005, DEF-006) are unaffected by this verification and retain their
+own status there.
+
+---
+## HISTORICAL — Retest Result (2026-08-20, SUPERSEDED by the FINAL VERIFICATION above)
+
+> **Superseded.** The 3 root-cause defects and 5 failures recorded below were
+> real at the time of this run. All are resolved on current `main`; see the
+> FINAL VERIFICATION section above. Retained as historical evidence only.
 
 The suite was refined for minimality without reducing fault detection: two
 schema-level unit tests in `tests/unit/features/auth/test_auth_schemas.py`
@@ -151,7 +256,13 @@ Merge status: Blocked on the 3 defects above, not on coverage
 Corrective issue: #69 must remain open until routes/seeding/header are fixed
 ```
 
-## Current Test Results
+## HISTORICAL — Test Case Results (2026-08-20 run, SUPERSEDED)
+
+> **Superseded.** The `Fail` rows below (AUTH-01, AUTH-02, AUTH-08) reflect the
+> 2026-08-20 run. All three pass on current `main` — see the FINAL VERIFICATION
+> section above. AUTH-01's original expected result ("public registration is
+> absent") is itself stale: public registration is contractual after PR #134.
+> Retained as historical evidence only.
 
 **Update (2026-08-20):** AUTH-16's automated test was removed as a
 consolidation (see the FINAL Retest Result section above) — the same

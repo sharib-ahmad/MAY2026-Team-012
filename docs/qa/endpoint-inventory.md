@@ -192,14 +192,25 @@ The worker route-progress operation (Sprint 1 #13) must accept `status`,
 ## Explicitly removed / non-core 
 
 ```
-POST  /api/v1/auth/register                 → admin provisioning only (Story 5.1)
 POST  /api/v1/notifications/subscriptions   → MVP uses in-app notifications
-GET   /api/v1/track/{code}                  → citizen self-read is sufficient
 GET   /api/v1/routes                        → use /routes/me (worker-scoped)
 GET   /api/v1/credits/ledger                → use /admin/credits/ledger
 PATCH /api/v1/material-batches/{id}         → use /quality and /pickup-status
 POST  /api/v1/routes/optimize               → use /routes/me/optimize
 ```
+
+`GET /api/v1/track/{reference}` was also planned out of scope here, but it is
+mounted on `main` (`app/api/v1/router.py`) and resolves ticket, bulk-pickup and
+pickup reference codes. It is unauthenticated and applies no ownership check,
+which is the open DEF-005 in `docs/qa/defect-log.md`. It is listed here as
+implemented-with-a-known-limitation, not as removed.
+
+`POST /api/v1/auth/register` was originally planned out of scope here in
+favour of admin provisioning only, but it exists on `main` and is part of the
+accepted contract. It is public and unauthenticated, restricted server-side to
+the public roles `CITIZEN`, `COLLECTION_WORKER` and `RECYCLER`; staff roles
+(`MUNICIPAL_OFFICER`, `SYSTEM_ADMIN`) are rejected with `403` and remain admin
+provisioned per Story 5.1 (DEF-004, closed by PR #134 / commit `ca666a2`).
 
 A dedicated schedule-delay endpoint is not core; the first implementation uses
 the schedule response and/or `GET /notifications/me`.
