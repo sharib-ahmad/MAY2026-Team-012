@@ -1,14 +1,30 @@
 """Bulk Waste Pickup Scheduling API Tests — Story 1.3 (SCRUM-97)."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import status
 
+from app.core.config import get_settings
 from app.features.bulk_pickups.models import BulkPickupRequest
 from app.features.notifications.models import Notification
 from app.models.enums import BulkRequestStatus
+
+
+def _pilot_local_noon(days_ahead: int) -> datetime:
+    """Midday on a pilot-local calendar date, offset from today by ``days_ahead``.
+
+    Resolves the pilot timezone the same way the endpoint does, so the test
+    tracks configuration instead of assuming it. Midday keeps the resulting
+    calendar date unambiguous whatever hour the suite runs at, so the
+    next-calendar-day rule is exercised deterministically.
+    """
+    pilot_tz = ZoneInfo(get_settings().PILOT_TIMEZONE)
+    local_today = datetime.now(UTC).astimezone(pilot_tz).date()
+    target = local_today + timedelta(days=days_ahead)
+    return datetime.combine(target, time(12, 0), tzinfo=pilot_tz)
 
 
 @pytest.mark.api
@@ -82,20 +98,45 @@ class TestCitizenBulkPickups:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_create_pickup_less_than_24h_notice_returns_422(
+    def test_create_pickup_on_current_local_date_returns_422(
         self, db_client, citizen_user, waste_categories, bearer_for
     ):
-        """TC-PU04 | Scheduled date < 24 hours from now → 422."""
+        """TC-PU04a | Scheduled date on the current pilot-local calendar date → 422.
+
+        The accepted rule is next-calendar-day scheduling in the pilot timezone,
+        not a rolling 24-hour minimum, so "today" is rejected regardless of the
+        hour at which the request is made.
+        """
         payload = {
             "category": "PLASTIC",
             "estimated_weight": 3.0,
-            "scheduled_date": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+            "scheduled_date": _pilot_local_noon(days_ahead=0).isoformat(),
             "time_slot": "Morning (8-11)",
         }
         response = db_client.post(
             "/api/v1/user/pickups", json=payload, headers=bearer_for(citizen_user)
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_create_pickup_on_next_local_date_is_accepted(
+        self, db_client, citizen_user, test_zone, waste_categories, bearer_for
+    ):
+        """TC-PU04b | Scheduled date on the next pilot-local calendar date → 201.
+
+        Accepted even when it is fewer than 24 clock-hours away, which is the
+        behaviour PR #95 deliberately introduced.
+        """
+        payload = {
+            "category": "PLASTIC",
+            "estimated_weight": 3.0,
+            "scheduled_date": _pilot_local_noon(days_ahead=1).isoformat(),
+            "time_slot": "Morning (8-11)",
+        }
+        response = db_client.post(
+            "/api/v1/user/pickups", json=payload, headers=bearer_for(citizen_user)
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["status"] == "PENDING"
 
     def test_citizen_without_ward_cannot_schedule_pickup(
         self, db_client, citizen_no_ward, waste_categories, bearer_for
