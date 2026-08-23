@@ -88,3 +88,13 @@ Focused suite: 72 passed, 0 failed (72 collected)
 Full backend regression: Passed (100% pass rate, 84.85% coverage)
 QA pull request: Ready for merge into main
 ```
+
+> **Scope note (current status, added 2026-08-23).** The verdict above is
+> accurate for this suite's scope at commit `f8aa790` on 2026-08-11: the three
+> REU-QA defects listed were fixed and verified. It does **not** mean the reuse
+> module has no open defect today. A later reconciliation pass found DEF-006 —
+> the reuse manager *read* queues (`list_manager_pending_donations`,
+> `list_manager_pending_claims`, `list_manager_all_donations`) still fail open
+> when an officer has no assigned ward. REU-QA-03's fix in PR #106 corrected the
+> *review/write* paths only, which is why this suite did not detect it. DEF-006
+> is open — see `docs/qa/defect-log.md`.

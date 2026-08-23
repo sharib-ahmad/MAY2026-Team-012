@@ -23,6 +23,7 @@ Verdeza is an academic civic-services platform developed by **API_Avengers** for
 - [Testing and Quality Gates](#testing-and-quality-gates)
 - [Public API and Security Rules](#public-api-and-security-rules)
 - [Sprint Scope](#sprint-scope)
+- [Known Limitations](#known-limitations)
 - [Contribution Workflow](#contribution-workflow)
 - [Team](#team)
 
@@ -127,6 +128,8 @@ Each feature normally owns its models, schemas, service and router. Shared infra
 - Alembic
 - PostgreSQL
 - Pydantic
+- Celery and Redis (scheduled background jobs, `app/core/celery_app.py`)
+- OpenRouteService (server-side route optimisation)
 - pytest and pytest-cov
 - Ruff
 - Redocly CLI
@@ -135,14 +138,17 @@ Each feature normally owns its models, schemas, service and router. Shared infra
 ### Frontend
 
 - React
+- Vite
 - JavaScript
 - npm
+- Playwright (end-to-end browser journeys)
 - frontend formatting and linting through repository scripts
 
 ### Local infrastructure
 
 - Docker Compose
-- PostgreSQL
+- PostgreSQL (host port `5433`)
+- Redis (host port `6379`)
 - environment-based configuration
 
 ## Repository Structure
@@ -350,12 +356,30 @@ python -m pytest --no-cov -q tests/api/features/manager
 python -m pytest --no-cov -q tests/api/features/citizen
 ```
 
+### End-to-end tests
+
+Playwright starts the backend and the Vite dev server itself against a
+dedicated test database, so run it with Docker Compose already up:
+
+```bash
+cd frontend
+npm ci
+npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+`frontend/playwright.config.js` is the source of truth; override
+`E2E_DATABASE_URL` or `E2E_PYTHON` if your local setup differs.
+
 ### Test levels
 
 - **Unit tests:** isolated logic and service behaviour.
 - **Integration tests:** migrations, database constraints, persistence, rollback and concurrency using disposable PostgreSQL.
 - **API tests:** the complete FastAPI application, including status codes, schemas, security, persistence, privacy and safe errors.
 - **System tests:** complete cross-feature journeys after all required dependencies exist.
+- **End-to-end tests:** a small number of critical Playwright browser journeys (`frontend/e2e/`) against the real frontend and backend.
+
+The strategy is risk-based rather than count-based: unit tests, then API/application tests, then PostgreSQL-backed integration where database behaviour matters, then a small number of system and Playwright journeys for the critical paths.
 
 ### Automated gates
 
@@ -370,8 +394,9 @@ The project quality workflow includes:
 - Alembic migration checks;
 - Ruff lint and format checks;
 - OpenAPI linting;
-- frontend formatting and linting;
-- GitHub Actions.
+- frontend formatting, linting and production build;
+- a Playwright end-to-end job (`e2e-check`);
+- GitHub Actions (`.github/workflows/ci.yml`).
 
 A failing requirement test must remain visible. Tests must not be skipped, weakened or rewritten merely to obtain a passing build.
 
@@ -397,13 +422,23 @@ POST /api/v1/auth/login
 GET  /api/v1/auth/me
 ```
 
-Public self-registration was not part of the original accepted design — users
-were meant to be provisioned only by authorised system administrators — but
-`POST /api/v1/auth/register` is implemented, public, and unauthenticated on
-`main`, and its `role` field is not restricted server-side. This is tracked
-as an authorization defect (DEF-004 in `docs/qa/defect-log.md`), not treated
-as an intentional part of the contract; `api-doc.yaml` documents it as it
-actually behaves.
+Public self-registration is also part of the accepted contract:
+
+```text
+POST /api/v1/auth/register
+```
+
+It is public and unauthenticated, but its `role` field is restricted
+server-side to public roles only — `CITIZEN`, `COLLECTION_WORKER`
+(`COLLECTOR`) and `RECYCLER`. Requesting `MUNICIPAL_OFFICER` (`MANAGER`) or
+`SYSTEM_ADMIN` (`ADMIN`) is rejected with `403`; those staff accounts remain
+provisioned by a System Admin, per Story 5.1.
+
+Historically the `role` field was **not** restricted, which allowed an
+unauthenticated caller to self-provision a staff account. That was
+DEF-004 in `docs/qa/defect-log.md`; it was fixed by PR #134 (commit
+`ca666a2`, closing issue #133) and is closed. The endpoint itself was not
+removed.
 
 ### Public vocabulary
 
@@ -478,6 +513,28 @@ Planned priorities include:
 - eco-credit and badge processing;
 - maintain meaningful backend coverage at or above the required threshold;
 - retest all corrected acceptance criteria.
+
+## Known Limitations
+
+Recorded deliberately rather than closed. This submission does not claim that
+every defect is resolved. Full detail, severity and history are in
+[docs/qa/defect-log.md](docs/qa/defect-log.md).
+
+- **Two open Medium defects.** DEF-005 — `GET /api/v1/track/{reference}` is
+  unauthenticated and applies no ownership check, so a caller holding a
+  reference code can read limited name and status information. DEF-006 — the
+  reuse manager *read* queues fail open for an officer with no assigned ward,
+  giving cross-ward read visibility; the corresponding write actions are
+  correctly denied. Neither corrupts data nor bypasses authentication.
+- **One stale regression test.** The accepted bulk-pickup rule is
+  next-calendar-day scheduling in the pilot timezone; backend, frontend and
+  `api-doc.yaml` agree. `test_create_pickup_less_than_24h_notice_returns_422`
+  still encodes the superseded rolling-24h interpretation and can fail in the
+  approximate 23:00–00:00 IST window. This is a test-premise issue, not a
+  backend defect.
+- **Unimplemented user-story scope.** Several acceptance criteria have no
+  corresponding endpoint on `main` — see "Known Contract Gaps" in the defect
+  log and the reconciliation table in [docs/qa/rtm.md](docs/qa/rtm.md).
 
 ## Contribution Workflow
 
