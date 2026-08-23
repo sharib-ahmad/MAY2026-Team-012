@@ -84,3 +84,11 @@ temp/
 # Generated test output
 # -------------------------
 test_matrix_output.json
+# -------------------------
+# Playwright end-to-end
+# -------------------------
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+frontend/e2e/.auth/

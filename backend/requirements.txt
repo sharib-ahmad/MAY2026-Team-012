@@ -11,5 +11,6 @@ pydantic-settings==2.7.0
 python-jose[cryptography]==3.5.0
 bcrypt==4.1.2
 pydantic[email]
+httpx==0.28.1
 celery==5.4.0
 redis==5.0.8
