@@ -54,3 +54,10 @@ def test_user_register_request_validation_errors():
             phone="+919876543210",
             role="CITIZEN",
         )
+
+
+# LoginRequest trimming and invalid-input rejection are proven end-to-end, more
+# strongly, by tests/api/features/auth/test_auth_login.py
+# (test_login_email_is_trimmed_and_case_insensitive,
+# test_invalid_login_payload_returns_safe_validation_error); the schema-only
+# duplicates were removed here rather than kept as redundant coverage.
