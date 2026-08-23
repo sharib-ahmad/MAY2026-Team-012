@@ -1,7 +1,9 @@
-from unittest.mock import MagicMock
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.features.users.service import (
     TOOL_MAP,
+    execute_chatbot_turn,
     get_my_impact_and_credits,
     get_my_pickups,
     get_my_reuse_items,
@@ -103,3 +105,44 @@ def test_get_my_reuse_items_mocked():
     assert len(res["my_claims"]) == 1
     assert res["my_listings"][0]["title"] == "Old Chair"
     assert res["my_claims"][0]["listing_title"] == "Old Sofa"
+
+
+def test_chatbot_maintenance_mode_when_api_key_missing(monkeypatch):
+    """PR-derived: with no GEMINI_API_KEY configured, EcoBot must reply with a
+    maintenance message instead of crashing or attempting a network call."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    db = MagicMock()
+    current_user = MagicMock(id="fake-user-id")
+
+    result = asyncio.run(
+        execute_chatbot_turn(
+            message="Show my pickups", history=[], current_user=current_user, db=db
+        )
+    )
+
+    assert "maintenance" in result["reply"].lower()
+    assert result["history"][-1].text == "Maintenance Mode: API key missing."
+    db.scalars.assert_not_called()
+    db.scalar.assert_not_called()
+
+
+@patch("httpx.AsyncClient.post", new_callable=AsyncMock)
+def test_chatbot_replies_gracefully_when_gemini_returns_error(mock_post, monkeypatch):
+    """PR-derived: a non-200 response from Gemini must degrade to a clear
+    error reply rather than propagate/crash the request."""
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-test-key")
+    mock_post.return_value = MagicMock(status_code=503, text="Service Unavailable")
+    db = MagicMock()
+    current_user = MagicMock(id="fake-user-id")
+
+    result = asyncio.run(
+        execute_chatbot_turn(
+            message="Show my pickups", history=[], current_user=current_user, db=db
+        )
+    )
+
+    assert result["reply"] == (
+        "I encountered an error trying to process your request. Please try again."
+    )
+    assert result["history"][-1].text == "Error communicating with LLM."
+    mock_post.assert_awaited_once()

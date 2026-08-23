@@ -2,6 +2,7 @@
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from urllib.error import URLError
 from uuid import uuid4
 
 import pytest
@@ -172,10 +173,203 @@ def test_get_collector_route_fallback_nearest_neighbor(monkeypatch):
     # Geometry should start at collector, then stop2, then stop1, then return to collector
     assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
 
+    # Story 7.3 AC3/issue #100: no ORS key configured is a degraded fallback
+    # and must still report distance/duration alongside the notice.
+    assert response.is_degraded is True
+    assert response.degraded_notice is not None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
 
-def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch):
+
+@patch("urllib.request.urlopen")
+def test_get_collector_route_ors_success_orders_by_optimized_indices(mock_urlopen, monkeypatch):
+    # Story 7.3 AC1: when ORS is configured and succeeds, get_collector_route
+    # must reorder stops by the returned optimized_indices and return a
+    # non-empty road-following polyline (not just the isolated ORSClient).
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
+
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps(
+        {
+            "routes": [
+                {
+                    "steps": [
+                        {"type": "start"},
+                        {"type": "job", "id": "1"},
+                        {"type": "job", "id": "0"},
+                        {"type": "end"},
+                    ],
+                    "geometry": "_p~iF~ps|U_ulLnnqC",
+                }
+            ]
+        }
+    ).encode("utf-8")
+    mock_response.__enter__.return_value = mock_response
+    mock_urlopen.return_value = mock_response
+
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.8, longitude=80.9)
+    schedule = SimpleNamespace(
+        id=uuid4(),
+        zone_id=uuid4(),
+        zone=SimpleNamespace(code="W-04", name="Ward Four"),
+        completed_stops=0,
+        completed_at=None,
+    )
+    stop0 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-000",
+            category="DRY",
+            estimated_weight=5,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Citizen Zero"),
+        schedule=schedule,
+        schedule_id=schedule.id,
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.9,
+        longitude=81.0,
+        notes="Stop Zero",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-001",
+            category="WET",
+            estimated_weight=5,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Citizen One"),
+        schedule=schedule,
+        schedule_id=schedule.id,
+        pickup_order=2,
+        status=PickupStopStatus.PENDING,
+        latitude=26.85,
+        longitude=80.95,
+        notes="Stop One",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+
+    db = FakeDatabase(scalars=[[stop0, stop1]])
+    response = get_collector_route(collector, db)
+
+    # ORS returned job order "1" then "0" -> stop1 before stop0.
+    assert [p.ref_code for p in response.ordered_pickups] == ["COL-001", "COL-000"]
+    assert response.route_geometry
+    assert len(response.route_geometry) > 0
+
+    # Story 7.3 AC1/issue #100: the happy (non-degraded) path must also report
+    # distance/duration and must not be mislabeled as a degraded fallback.
+    assert response.is_degraded is False
+    assert response.degraded_notice is None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
+
+
+@patch("urllib.request.urlopen")
+def test_get_collector_route_falls_back_when_ors_raises(mock_urlopen, monkeypatch):
+    # Story 7.3 AC3: an ORS key is configured but the call itself fails
+    # (unreachable/non-200) -> must not crash, falls back to the same
+    # nearest-neighbor/straight-line behaviour as the no-key case.
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
+    mock_urlopen.side_effect = URLError("ORS unreachable")
+
+    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
+    schedule = SimpleNamespace(
+        id=uuid4(),
+        zone_id=uuid4(),
+        zone=SimpleNamespace(code="W-04", name="Ward Four"),
+        completed_stops=0,
+        completed_at=None,
+    )
+    stop1 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-001",
+            category="DRY",
+            estimated_weight=8,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Riya Citizen"),
+        schedule=schedule,
+        schedule_id=schedule.id,
+        pickup_order=1,
+        status=PickupStopStatus.PENDING,
+        latitude=26.2,
+        longitude=80.2,
+        notes="Far Stop",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+    stop2 = SimpleNamespace(
+        id=uuid4(),
+        pickup=SimpleNamespace(
+            ref_code="COL-BULK-002",
+            category="WET",
+            estimated_weight=5,
+            time_slot="09:00",
+            status=PickupStatus.ASSIGNED,
+        ),
+        citizen_id=uuid4(),
+        citizen=SimpleNamespace(name="Amit Citizen"),
+        schedule=schedule,
+        schedule_id=schedule.id,
+        pickup_order=2,
+        status=PickupStopStatus.PENDING,
+        latitude=26.1,
+        longitude=80.1,
+        notes="Near Stop",
+        completed_at=None,
+        mixed_waste_tags=[],
+    )
+
+    db = FakeDatabase(scalars=[[stop1, stop2]])
+    response = get_collector_route(collector, db)
+
+    # ORS raised -> falls back to nearest-neighbor without crashing.
+    assert response.ordered_pickups[0].id == stop2.id
+    assert response.ordered_pickups[1].id == stop1.id
+    assert response.route_geometry == [[26.0, 80.0], [26.1, 80.1], [26.2, 80.2], [26.0, 80.0]]
+
+    # Story 7.3 AC3/issue #100: an ORS failure is a degraded fallback and must
+    # still report distance/duration alongside the notice.
+    assert response.is_degraded is True
+    assert response.degraded_notice is not None
+    assert response.total_distance_km > 0
+    assert response.estimated_duration_min > 0
+
+
+@patch("urllib.request.urlopen")
+def test_get_collector_route_below_minimum_points_never_calls_external_provider(
+    mock_urlopen, monkeypatch
+):
+    # Story 7.3 AC2 / issue #99: optimization is a distinct behaviour from
+    # Story 7.2's map/checklist view, which the same GET endpoint also serves.
+    # Fewer than 2 geo-coded points must never reach the external routing
+    # provider, but a worker with 0 or 1 mapped points must still get back a
+    # normal (non-error) response showing whatever points they do have -
+    # this endpoint has no contract-documented 400 for this case (see
+    # api-doc.yaml /api/v1/collector/route), so no HTTPException is expected.
+    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
+    monkeypatch.setattr(
+        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
+    )
     collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
 
     # 1. Zero stops
@@ -218,8 +412,12 @@ def test_get_collector_route_handles_fewer_than_two_geocoded_points(monkeypatch)
     assert len(res_single.ordered_pickups) == 1
     assert res_single.ordered_pickups[0].id == stop1.id
 
+    # Neither case may reach the external routing provider, even with an
+    # ORS_API_KEY configured - there are not enough points to route between.
+    mock_urlopen.assert_not_called()
 
-def test_collector_route_response_reports_distance_duration_and_degraded_notice(monkeypatch):
+
+def test_get_collector_route_reports_actual_degraded_notice_values(monkeypatch):
     monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
     monkeypatch.setattr(collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY=""))
 
@@ -268,53 +466,6 @@ def test_collector_route_response_reports_distance_duration_and_degraded_notice(
     assert response.is_degraded is True
     assert response.degraded_notice is not None
     assert "Road routing service unavailable" in response.degraded_notice
-
-
-@patch("urllib.request.urlopen")
-def test_get_collector_route_below_minimum_points_never_calls_external_provider(
-    mock_urlopen, monkeypatch
-):
-    monkeypatch.setattr(collector_module, "_materialize_assigned_bulk_stops", lambda *_: False)
-    monkeypatch.setattr(
-        collector_module, "get_settings", lambda: SimpleNamespace(ORS_API_KEY="test-api-key")
-    )
-
-    collector = SimpleNamespace(id=uuid4(), name="Casey Collector", latitude=26.0, longitude=80.0)
-
-    stop1 = SimpleNamespace(
-        id=uuid4(),
-        pickup=SimpleNamespace(
-            ref_code="COL-BULK-001",
-            category="DRY",
-            estimated_weight=8,
-            time_slot="09:00",
-            status=PickupStatus.ASSIGNED,
-        ),
-        citizen_id=uuid4(),
-        citizen=SimpleNamespace(name="Riya Citizen"),
-        schedule=SimpleNamespace(
-            id=uuid4(),
-            zone_id=uuid4(),
-            zone=SimpleNamespace(code="W-04", name="Ward Four"),
-            completed_stops=0,
-            completed_at=None,
-        ),
-        schedule_id=uuid4(),
-        pickup_order=1,
-        status=PickupStopStatus.PENDING,
-        latitude=26.1,
-        longitude=80.1,
-        notes="Stop 1",
-        completed_at=None,
-        mixed_waste_tags=[],
-    )
-
-    db = FakeDatabase(scalars=[[stop1]])
-    response = get_collector_route(collector, db)
-
-    assert response.pickup_count == 1
-    assert len(response.ordered_pickups) == 1
-    mock_urlopen.assert_not_called()
 
 
 @patch("urllib.request.urlopen")

@@ -81,7 +81,7 @@ to retest — there is no code path to exercise).
 | 4.2 | No endpoint sets a batch's `quality_status` or `contamination_note`. The DB check constraint requiring a note for `UNSAFE` is ready, but nothing can ever reach that state through the API. |
 | 4.3 | No `Available → Claimed → Scheduled → Collected` transition guard exists; the real lifecycle is `assign → accept/reject → process`, and there is no recycler-initiated claim or auto-release timeout. |
 | 7.1 | No endpoint updates a citizen's saved pickup coordinates after registration. |
-| 7.3 | No minimum-point guard, upper-bound guard, or non-reentrant "Optimize" action; optimisation runs as a side effect of every `GET /api/v1/collector/route` call. |
+| 7.3 | ~~No minimum-point guard~~ and ~~no non-reentrant "Optimize" action~~ — both closed by PR #124 (commit `c95cf25`, on `main`): `GET /api/v1/collector/route` now skips optimisation below 2 geocoded points instead of calling the provider, and `POST /api/v1/collector/route/optimize` exists as a separate action returning `400` below the threshold (verified 2026-08-23, `docs/qa/pr-88-89-qa-test-evidence.md` FINAL VERIFICATION). Still open: no upper-bound (AC5) guard, and the `GET` still re-optimises as a side effect of every fetch. |
 | 8.1 | Credit award triggers on recycler batch processing, not pickup completion; `actual_weight` is never set by any endpoint, so estimated weight is always used; the factor is read at processing time, not frozen at an earlier completion; there is no reversal path on un-completion. |
 | 8.2 | Badges are computed live from hardcoded thresholds on every request; the `badges`/`user_badges` tables (with a ready `(user_id, badge_id)` uniqueness constraint) are never written to. |
 

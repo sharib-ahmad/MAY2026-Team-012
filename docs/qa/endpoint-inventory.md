@@ -16,8 +16,9 @@ internal table `tickets`, key `zone_id`.
 > table of the concrete divergences per story, and `docs/qa/defect-log.md`
 > for the authorization and scoping defects found while reconciling the two.
 > The external routing dependency is OpenRouteService, called from
-> `GET /api/v1/collector/route` — not the `POST /api/v1/routes/me/optimize`
-> action named below, which does not exist as a separate operation.
+> `GET /api/v1/collector/route`. The `POST /api/v1/routes/me/optimize` action
+> named below does not exist under that path; since PR #124 the separate
+> Optimize operation ships as `POST /api/v1/collector/route/optimize`.
 
 ## Conventions
 
