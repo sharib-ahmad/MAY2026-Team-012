@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -75,14 +75,16 @@ def create_pickup(
 
     scheduled_dt = payload.scheduled_date
     if scheduled_dt.tzinfo is None:
+        scheduled_dt_utc = scheduled_dt.replace(tzinfo=UTC)
         scheduled_local_date = scheduled_dt.date()
     else:
+        scheduled_dt_utc = scheduled_dt.astimezone(UTC)
         scheduled_local_date = scheduled_dt.astimezone(pilot_tz).date()
 
-    if scheduled_local_date <= today_local_date:
+    if scheduled_dt_utc < now_utc + timedelta(hours=24) or scheduled_local_date <= today_local_date:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Pickup requests must be scheduled for at least the next day.",
+            detail="Pickup requests must be scheduled at least 24 hours in advance.",
         )
     request = BulkPickupRequest(
         ref_code=f"BPR-{uuid.uuid4().hex[:8].upper()}",
